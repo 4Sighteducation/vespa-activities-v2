@@ -984,6 +984,11 @@
     // END MODULE CLASSES
     // ========================================
     
+    // Expose module classes to window
+    window.AchievementSystem = AchievementSystem;
+    window.ResponseHandler = ResponseHandler;
+    window.ActivityRenderer = ActivityRenderer;
+    
     // Main application class
     class VESPAActivitiesApp {
         constructor(config) {
