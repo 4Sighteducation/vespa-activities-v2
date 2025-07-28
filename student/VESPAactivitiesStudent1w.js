@@ -1472,7 +1472,7 @@
                 
                 log('VESPA Activities initialization complete');
             } catch (error) {
-                errorLog('Failed to initialize VESPA Activities:', error);
+                console.error('[VESPA Activities v2.0] Failed to initialize VESPA Activities:', error);
                 this.hideLoadingOverlay();
                 this.showError('Failed to initialize. Please refresh the page.');
             }
@@ -3295,9 +3295,11 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1b.json', {
+                // Add cache buster to force fresh load
+                const cacheBuster = new Date().getTime();
+                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1c.json?v=${cacheBuster}`, {
                     signal: controller.signal,
-                    cache: 'default' // Use browser cache
+                    cache: 'no-cache' // Force fresh load
                 });
                 
                 clearTimeout(timeoutId);
