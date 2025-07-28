@@ -800,6 +800,106 @@
     transform: translateX(0);
 }
 
+/* ===== All Activities View ===== */
+.all-activities-container {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: var(--shadow-md);
+}
+
+.category-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.category-button {
+    padding: 2rem 1.5rem;
+    border: 3px solid;
+    border-radius: 20px;
+    color: var(--white);
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+}
+
+.category-button:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-xl);
+}
+
+.category-button-emoji {
+    font-size: 3rem;
+    display: block;
+}
+
+.category-button-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: block;
+}
+
+.category-button-count {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    display: block;
+}
+
+#category-activities-container {
+    margin-top: 2rem;
+}
+
+.category-activities {
+    animation: slideIn 0.3s ease;
+}
+
+.category-activities-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    color: var(--gray-800);
+}
+
+.close-category-btn {
+    background: var(--gray-100);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: var(--transition-normal);
+}
+
+.close-category-btn:hover {
+    background: var(--gray-200);
+    transform: rotate(90deg);
+}
+
+.warning-message {
+    background: var(--warning-light, #fff3cd);
+    border: 1px solid var(--warning, #ffc107);
+    color: var(--warning-dark, #856404);
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.warning-icon {
+    font-size: 1.25rem;
+}
+
 /* ===== Floating Widgets ===== */
 .floating-widgets {
     position: fixed;

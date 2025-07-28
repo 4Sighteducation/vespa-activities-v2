@@ -1041,7 +1041,6 @@
             return `
                 <div class="dashboard-container">
                     ${this.getVESPAScoresHTML()}
-                    ${this.getPrescribedActivitiesHTML()}
                     ${this.getRecommendedActivitiesHTML()}
                     ${this.getRecentProgressHTML()}
                     ${this.getMotivationalHTML()}
@@ -1124,35 +1123,42 @@
         }
         
         getRecommendedActivitiesHTML() {
-            // Get other available activities not completed and not prescribed
-            const otherAvailable = this.state.activities.available.filter(activity => 
+            // Show all prescribed activities from field_1683 that aren't completed
+            const recommendedNotCompleted = this.state.activities.prescribed.filter(activity => 
                 !this.state.finishedActivityIds.includes(activity.id) &&
-                !this.state.finishedActivityIds.includes(activity.activityId) &&
-                !this.state.prescribedActivityIds.includes(activity.id) &&
-                !this.state.prescribedActivityIds.includes(activity.activityId)
+                !this.state.finishedActivityIds.includes(activity.activityId)
             );
             
-            // Sort by lowest score category first
-            const sortedActivities = otherAvailable.sort((a, b) => {
-                const aScore = this.state.vespaScores[a.category] || 0;
-                const bScore = this.state.vespaScores[b.category] || 0;
-                return aScore - bScore; // Lower scores first
+            // Sort by category to group them
+            const sortedActivities = recommendedNotCompleted.sort((a, b) => {
+                if (a.category === b.category) return 0;
+                return a.category < b.category ? -1 : 1;
             });
             
-            // Take top 6
-            const recommendedActivities = sortedActivities.slice(0, 6);
+            if (this.state.activities.prescribed.length === 0) {
+                return ''; // Don't show section if no prescribed activities
+            }
+            
+            // Show missing activities message if not all prescribed activities were found
+            const missingCount = this.state.prescribedActivityIds.length - this.state.activities.prescribed.length;
             
             return `
                 <section class="activities-section">
                     <h2 class="section-title">
                         <span class="title-icon">✨</span>
-                        Recommended Activities
-                        <span class="title-badge">Based on your VESPA scores</span>
+                        Your Recommended Activities
+                        <span class="title-badge">${recommendedNotCompleted.length} to complete</span>
                     </h2>
+                    ${missingCount > 0 ? `
+                        <div class="warning-message">
+                            <span class="warning-icon">⚠️</span>
+                            ${missingCount} recommended activities couldn't be loaded. Please contact support if this persists.
+                        </div>
+                    ` : ''}
                     <div class="activities-carousel">
-                        ${recommendedActivities.length > 0 ? 
-                            recommendedActivities.map((activity, index) => this.getActivityCardHTML(activity, index, false)).join('') :
-                            '<div class="empty-state"><p>No activities available. Check back later!</p></div>'
+                        ${recommendedNotCompleted.length > 0 ? 
+                            sortedActivities.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('') :
+                            '<div class="empty-state"><p>All recommended activities completed! 🎉</p></div>'
                         }
                     </div>
                 </section>
@@ -1177,7 +1183,6 @@
                         <span class="category-chip" style="background: ${categoryColor}20; color: ${categoryColor}">
                             ${categoryEmoji} ${activity.category.charAt(0).toUpperCase() + activity.category.slice(1)}
                         </span>
-                        ${isPrescribed ? '<span class="prescribed-chip">Prescribed</span>' : ''}
                         <span class="level-chip">${activity.level}</span>
                         <span class="points-chip">+${basePoints} pts</span>
                     </div>
@@ -1300,10 +1305,12 @@
         }
         
         getProblemsForCategory(category) {
-            const problems = this.problemMappings?.[category] || [];
+            // Use proper case for category key (Vision, Effort, etc.)
+            const categoryKey = category.charAt(0).toUpperCase() + category.slice(1);
+            const problems = this.state.problemMappings?.[categoryKey] || [];
             
             if (problems.length === 0) {
-                return '<p class="no-problems">Loading problems...</p>';
+                return '<p class="no-problems">No problems available for this category.</p>';
             }
             
             return problems.map(problem => `
@@ -1315,36 +1322,32 @@
         }
         
         getAllActivitiesHTML() {
-            // Group available activities by category
-            const availableByCategory = {};
-            this.state.activities.available.forEach(activity => {
-                if (!availableByCategory[activity.category]) {
-                    availableByCategory[activity.category] = [];
-                }
-                availableByCategory[activity.category].push(activity);
-            });
+            const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             
             return `
                 <div class="all-activities-container">
                     <h2>📚 All Activities</h2>
-                    <p>Browse all available activities by category</p>
+                    <p>Choose a category to explore all Level 2 & 3 activities</p>
                     
-                    ${Object.entries(availableByCategory).map(([category, activities]) => `
-                        <div class="category-section">
-                            <h3 class="category-title">
-                                ${this.getCategoryEmoji(category)} ${category.charAt(0).toUpperCase() + category.slice(1)}
-                                <span class="activity-count">${activities.length} activities</span>
-                            </h3>
-                            <div class="activities-grid">
-                                ${activities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('')}
-                            </div>
-                        </div>
-                    `).join('')}
+                    <div class="category-buttons">
+                        ${categories.map(category => {
+                            const emoji = this.getCategoryEmoji(category);
+                            const color = this.colors[category];
+                            const activityCount = this.state.activities.byCategory[category]?.length || 0;
+                            
+                            return `
+                                <button class="category-button" 
+                                        data-category="${category}"
+                                        style="background: ${color.primary}; border-color: ${color.dark}">
+                                    <span class="category-button-emoji">${emoji}</span>
+                                    <span class="category-button-name">${category.toUpperCase()}</span>
+                                    <span class="category-button-count">${activityCount} activities</span>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
                     
-                    ${Object.keys(availableByCategory).length === 0 ? 
-                        '<div class="empty-state"><p>No activities available based on your current scores. Keep working to unlock more!</p></div>' : 
-                        ''
-                    }
+                    <div id="category-activities-container"></div>
                 </div>
             `;
         }
@@ -1398,6 +1401,12 @@
                     const category = e.target.closest('.improve-btn').dataset.category;
                     this.showActivitiesForCategory(category);
                 }
+                
+                // Category button in All Activities
+                if (e.target.closest('.category-button')) {
+                    const category = e.target.closest('.category-button').dataset.category;
+                    this.showCategoryActivities(category);
+                }
             });
         }
         
@@ -1443,8 +1452,38 @@
         
         showActivitiesForCategory(category) {
             this.state.view = 'all-activities';
-            // Will filter by category
             this.render();
+            // Auto-click the category button
+            setTimeout(() => {
+                const button = document.querySelector(`[data-category="${category}"]`);
+                if (button) button.click();
+            }, 100);
+        }
+        
+        showCategoryActivities(category) {
+            const container = document.getElementById('category-activities-container');
+            if (!container) return;
+            
+            // Get all activities for this category (not just available ones)
+            const categoryActivities = this.state.activities.byCategory[category] || [];
+            
+            container.innerHTML = `
+                <div class="category-activities">
+                    <h3 class="category-activities-title">
+                        ${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities
+                        <button class="close-category-btn" onclick="document.getElementById('category-activities-container').innerHTML = ''">✕</button>
+                    </h3>
+                    <div class="activities-grid">
+                        ${categoryActivities.length > 0 ? 
+                            categoryActivities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('') :
+                            '<p>No activities found in this category.</p>'
+                        }
+                    </div>
+                </div>
+            `;
+            
+            // Scroll to the activities
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         
         // Animations
