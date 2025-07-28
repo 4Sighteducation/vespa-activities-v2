@@ -194,7 +194,8 @@
     class ResponseHandler {
         constructor(config) {
             this.config = config;
-            this.saveQueue = [];
+            this.saveTimeout = null;
+            this.lastSaveData = null;
             this.isSaving = false;
         }
         
@@ -210,7 +211,46 @@
             return JSON.stringify(formattedResponses);
         }
         
+        // Convert date to UK format dd/mm/yyyy
+        formatDateUK(date) {
+            const d = new Date(date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
+        
         async saveActivityResponse(data) {
+            // Debounce saves to prevent race conditions
+            if (this.saveTimeout) {
+                clearTimeout(this.saveTimeout);
+            }
+            
+            // Store the latest data
+            this.lastSaveData = data;
+            
+            // Wait 500ms before actually saving
+            return new Promise((resolve) => {
+                this.saveTimeout = setTimeout(async () => {
+                    if (this.isSaving) {
+                        console.log('Save already in progress, queuing...');
+                        return resolve(await this.saveActivityResponse(this.lastSaveData));
+                    }
+                    
+                    this.isSaving = true;
+                    try {
+                        const result = await this.performSave(this.lastSaveData);
+                        resolve(result);
+                    } finally {
+                        this.isSaving = false;
+                    }
+                }, 500);
+            });
+        }
+        
+        async performSave(data) {
             const {
                 activityId,
                 studentId,
@@ -221,12 +261,11 @@
                 wordCount
             } = data;
             
-            console.log('saveActivityResponse called with:', {
+            console.log('performSave called with:', {
                 activityId,
                 studentId,
                 status,
-                responseCount: Object.keys(responses || {}).length,
-                config: this.config
+                responseCount: Object.keys(responses || {}).length
             });
             
             try {
@@ -259,10 +298,23 @@
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
-                        field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
+                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null // Date/Time completed in UK format
                     };
                     console.log('Update data:', updateData);
-                    return await this.updateResponse(existingResponse.id, updateData);
+                    const result = await this.updateResponse(existingResponse.id, updateData);
+                    
+                    // Only create progress record if activity is completed
+                    if (status === 'completed' && timeSpent && wordCount !== undefined) {
+                        await this.createProgressRecord({
+                            activityId,
+                            studentId,
+                            timeSpent,
+                            wordCount,
+                            responseCount: Object.keys(responses || {}).length
+                        });
+                    }
+                    
+                    return result;
                 } else {
                     console.log('No existing response found, creating new record');
                     const createData = {
@@ -271,12 +323,23 @@
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
-                        field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
+                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null // Date/Time completed in UK format
                     };
                     console.log('Create data:', createData);
-                    console.log('Student ID:', studentId, 'length:', studentId.length);
-                    console.log('Activity ID:', activityId, 'length:', activityId.length);
-                    return await this.createResponse(createData);
+                    const result = await this.createResponse(createData);
+                    
+                    // Only create progress record if activity is completed
+                    if (status === 'completed' && timeSpent && wordCount !== undefined) {
+                        await this.createProgressRecord({
+                            activityId,
+                            studentId,
+                            timeSpent,
+                            wordCount,
+                            responseCount: Object.keys(responses || {}).length
+                        });
+                    }
+                    
+                    return result;
                 }
                 
             } catch (error) {
@@ -481,6 +544,56 @@
                 throw error;
             }
         }
+        
+        // Create progress record in object_126 (only on completion)
+        async createProgressRecord(data) {
+            const { activityId, studentId, timeSpent, wordCount, responseCount } = data;
+            
+            try {
+                const progressData = {
+                    field_3537: activityId, // Activity connection
+                    field_3536: studentId, // Student connection
+                    field_3538: 1, // Cycle number
+                    field_3539: this.formatDateUK(new Date()), // Start date
+                    field_3540: this.formatDateUK(new Date()), // End date
+                    field_3541: this.formatDateUK(new Date()), // Completion date
+                    field_3542: timeSpent || 0, // Time spent (minutes)
+                    field_3543: 'completed', // Status
+                    field_3544: false, // Is archived
+                    field_3545: 15, // Points earned (default)
+                    field_3546: 'student_choice', // Selection method
+                    field_3549: wordCount || 0 // Word count
+                };
+                
+                await this.knackAPI('POST', 'objects/object_126/records', progressData);
+                
+                // Also create achievement record
+                await this.createAchievementRecord(studentId, 'activity_completion');
+            } catch (error) {
+                console.error('Error creating progress record:', error);
+                // Don't throw - progress tracking failure shouldn't break activity completion
+            }
+        }
+        
+        // Create achievement record
+        async createAchievementRecord(studentId, achievementType) {
+            try {
+                const achievementData = {
+                    field_3552: studentId, // Student connection
+                    field_3554: 'First Steps! 🎯', // Achievement name
+                    field_3555: 'Complete your first activity', // Description
+                    field_3553: achievementType, // Type
+                    field_3556: this.formatDateUK(new Date()), // Date earned
+                    field_3557: 5, // Points
+                    field_3558: '🌟', // Icon
+                    field_3560: 'Unlocked: First Steps! 🎯' // Notification text
+                };
+                
+                await this.knackAPI('POST', 'objects/object_127/records', achievementData);
+            } catch (error) {
+                console.error('Error creating achievement record:', error);
+            }
+        }
     }
     
     // VESPA Activity Renderer Module
@@ -549,7 +662,6 @@
                             ${this.getContentHTML()}
                         </div>
                     </div>
-                    ${this.getFooterHTML()}
                 </div>
             `;
             
@@ -564,7 +676,12 @@
             });
             
             this.attachEventListeners();
-            this.startAutoSave();
+            
+            // Delay auto-save start to prevent immediate save of existing data
+            setTimeout(() => {
+                this.startAutoSave();
+            }, 5000); // Wait 5 seconds before starting auto-save
+            
             this.initializeDynamicContent();
         }
         
@@ -2726,15 +2843,28 @@
             }
             
             // Load activity questions from Object_45
-            this.loadActivityQuestions(activityId).then(questions => {
-                // Get existing progress if any
-                const existingProgress = this.state.activities.progress.find(p => p.activityId === activityId);
+            this.loadActivityQuestions(activityId).then(async questions => {
+                // Load existing responses from object_46
+                let existingResponses = null;
+                try {
+                    const responseHandler = new ResponseHandler({
+                        knackAppId: this.config.knackAppId || this.config.applicationId,
+                        knackApiKey: this.config.knackApiKey || this.config.apiKey,
+                        apiKey: this.config.apiKey,
+                        applicationId: this.config.applicationId
+                    });
+                    
+                    existingResponses = await responseHandler.findExistingResponse(activityId, this.getCurrentStudentId());
+                    console.log('Loaded existing responses:', existingResponses);
+                } catch (error) {
+                    console.error('Error loading existing responses:', error);
+                }
                 
-                // Create the activity renderer
+                // Create the activity renderer with existing responses
                 const renderer = new window.ActivityRenderer(
                     activity,
                     questions,
-                    existingProgress,
+                    existingResponses, // Pass the actual response record from object_46
                     {
                         studentId: this.getCurrentStudentId(),
                         knackAppId: this.config.knackAppId || this.config.applicationId,
