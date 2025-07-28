@@ -2993,7 +2993,7 @@
             try {
                 log('Loading activities.json for media content...');
                 // Use JSDelivr CDN to load from your GitHub repo with CORS support
-                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities.json');
+                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1a.json');
                 
                 if (response.ok) {
                     const data = await response.json();
