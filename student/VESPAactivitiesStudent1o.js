@@ -14,6 +14,49 @@
         }
     }
     
+    // Immediately hide data views on page load - BEFORE anything else
+    (function hideDataViewsImmediately() {
+        // Hide views using CSS immediately
+        const style = document.createElement('style');
+        style.id = 'vespa-activities-immediate-hide';
+        style.textContent = `
+            #view_3164, #view_3165, #view_3166, #view_3167,
+            #view_3164 .kn-view, #view_3165 .kn-view, 
+            #view_3166 .kn-view, #view_3167 .kn-view {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+            }
+            
+            /* Show loading state for rich text view */
+            #view_3168::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.95);
+                z-index: 1000;
+            }
+            
+            #view_3168::after {
+                content: 'Loading VESPA Activities...';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 18px;
+                color: #333;
+                z-index: 1001;
+            }
+        `;
+        document.head.appendChild(style);
+    })();
+    
     // Export the initializer function that will be called by KnackAppLoader
     window.initializeVESPAActivitiesStudent = function() {
         const config = window.VESPA_ACTIVITIES_STUDENT_CONFIG;
@@ -563,6 +606,11 @@
             const hasVideo = this.activity.video && this.activity.video.includes('iframe');
             const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
             
+            // Check if we have video/slides in the loaded activities.json data
+            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
+            const videoUrl = activityData?.video || this.activity.video;
+            const slidesContent = activityData?.slideshow || this.activity.slideshow;
+            
             return `
                 <div class="stage-content learn-content">
                     <div class="stage-header">
@@ -577,12 +625,12 @@
                         </div>
                         
                         <div class="media-content">
-                            ${hasVideo ? `<div class="media-panel active" id="video-panel">${this.activity.video}</div>` : ''}
-                            ${hasSlides ? `<div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">${this.activity.slideshow}</div>` : ''}
+                            ${hasVideo ? `<div class="media-panel active" id="video-panel">${videoUrl}</div>` : ''}
+                            ${hasSlides ? `<div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">${slidesContent}</div>` : ''}
                         </div>
                     ` : `
                         <div class="text-content">
-                            ${this.activity.slideshow || '<p>Content coming soon...</p>'}
+                            ${slidesContent || '<p>Content coming soon...</p>'}
                         </div>
                     `}
                     
@@ -602,6 +650,7 @@
             console.log('[ActivityRenderer] All questions:', this.questions);
             const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
             console.log('[ActivityRenderer] Filtered DO questions:', questions);
+            console.log('[ActivityRenderer] Current responses:', this.responses);
             
             // Sort questions by order field
             const sortedQuestions = questions.sort((a, b) => (a.field_1303 || 0) - (b.field_1303 || 0));
@@ -618,6 +667,10 @@
             const startIdx = currentPage * questionsPerPage;
             const endIdx = Math.min(startIdx + questionsPerPage, sortedQuestions.length);
             const currentQuestions = sortedQuestions.slice(startIdx, endIdx);
+            
+            // Check if we can proceed - log for debugging
+            const canProceed = this.canProceedFromDo();
+            console.log('[ActivityRenderer] Can proceed from Do?', canProceed);
             
             return `
                 <div class="stage-content do-content">
@@ -656,9 +709,8 @@
                                     Next <span class="btn-arrow">→</span>
                                 </button>
                             ` : `
-                                <button class="primary-btn next-stage-btn" 
-                                        onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')"
-                                        ${!this.canProceedFromDo() ? 'disabled' : ''}>
+                                <button class="primary-btn next-stage-btn reflect-btn" 
+                                        onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')">
                                     Continue to Reflection <span class="btn-arrow">→</span>
                                 </button>
                             `}
@@ -862,10 +914,18 @@
                 q.field_2341 === 'Yes' && q.field_1314 !== 'Yes'
             );
             
-            return requiredQuestions.every(q => {
+            console.log('[ActivityRenderer] Required questions:', requiredQuestions);
+            console.log('[ActivityRenderer] Current responses:', this.responses);
+            
+            const result = requiredQuestions.every(q => {
                 const response = this.responses[q.id];
-                return response && response.trim().length > 0;
+                const hasResponse = response && response.trim().length > 0;
+                console.log(`[ActivityRenderer] Question ${q.id} (${q.field_1279}): has response? ${hasResponse}`);
+                return hasResponse;
             });
+            
+            console.log('[ActivityRenderer] Can proceed result:', result);
+            return result;
         }
         
         canComplete() {
@@ -909,12 +969,40 @@
             const questionId = e.target.dataset.questionId;
             this.responses[questionId] = e.target.value;
             
+            console.log('[ActivityRenderer] Input changed:', questionId, e.target.value);
+            
             if (e.target.tagName === 'TEXTAREA') {
-                const wordCount = e.target.value.trim().split(/\s+/).length;
+                const wordCount = e.target.value.trim().split(/\s+/).filter(w => w).length;
                 const counter = e.target.closest('.input-wrapper').querySelector('.word-count');
                 if (counter) {
                     counter.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
                 }
+            }
+            
+            // Update button states without full re-render
+            this.updateButtonStates();
+        }
+        updateButtonStates() {
+            // Update "Continue to Reflection" button state
+            const reflectBtn = document.querySelector('.reflect-btn');
+            if (reflectBtn) {
+                const canProceed = this.canProceedFromDo();
+                reflectBtn.disabled = !canProceed;
+                console.log('[ActivityRenderer] Updated reflect button:', canProceed ? 'enabled' : 'disabled');
+            }
+            
+            // Update "Next" button state for paginated questions
+            const nextBtn = document.querySelector('.next-questions-btn');
+            if (nextBtn) {
+                const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
+                const questionsPerPage = 2;
+                const currentPage = Math.floor(this.currentQuestionIndex / questionsPerPage);
+                const startIdx = currentPage * questionsPerPage;
+                const endIdx = Math.min(startIdx + questionsPerPage, questions.length);
+                const currentQuestions = questions.slice(startIdx, endIdx);
+                
+                const canProceed = this.canProceedToNextQuestions(currentQuestions);
+                nextBtn.disabled = !canProceed;
             }
         }
         
@@ -1040,7 +1128,10 @@
         }
         
         initializeDynamicContent() {
-            // Any dynamic content initialization
+            // Set initial button states
+            this.updateButtonStates();
+            
+            // Initialize any other dynamic content
         }
         
         nextQuestions() {
@@ -1119,6 +1210,12 @@
             try {
                 log('Starting initialization');
                 
+                // Remove the immediate loading style
+                const immediateStyle = document.getElementById('vespa-activities-immediate-hide');
+                if (immediateStyle) {
+                    immediateStyle.remove();
+                }
+                
                 // Set up listeners for view renders
                 this.setupViewListeners();
                 
@@ -1128,6 +1225,9 @@
                 // Hide the data views
                 log('Hiding data views...');
                 this.hideDataViews();
+                
+                // Load activities.json for video/slide data
+                await this.loadActivitiesJson();
                 
                 // Load initial data
                 log('Loading initial data...');
@@ -2057,7 +2157,7 @@
             const navItems = [
                 { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
                 { id: 'problems', icon: '🎯', label: 'Find Activities' },
-                { id: 'all-activities', icon: '📚', label: 'All Activities' },
+                { id: 'all-activities', icon: '📚', label: 'Browse More' },
                 { id: 'achievements', icon: '🏆', label: 'Achievements' }
             ];
             
@@ -2398,14 +2498,20 @@
             
             return `
                 <div class="all-activities-container">
-                    <h2>📚 All Activities</h2>
-                    <p>Choose a category to explore all Level 2 & 3 activities</p>
+                    <h2>📚 Additional Activities</h2>
+                    <p>Explore extra activities beyond your prescribed list</p>
                     
                     <div class="category-buttons">
                         ${categories.map(category => {
                             const emoji = this.getCategoryEmoji(category);
                             const color = this.colors[category];
-                            const activityCount = this.state.activities.byCategory[category]?.length || 0;
+                            // Count only non-prescribed activities
+                            const allInCategory = this.state.activities.byCategory[category] || [];
+                            const nonPrescribedCount = allInCategory.filter(activity => {
+                                const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
+                                                   this.state.prescribedActivityIds.includes(activity.activityId);
+                                return !isPrescribed;
+                            }).length;
                             
                             return `
                                 <button class="category-button" 
@@ -2413,7 +2519,7 @@
                                         style="background: ${color.primary}; border-color: ${color.dark}">
                                     <span class="category-button-emoji">${emoji}</span>
                                     <span class="category-button-name">${category.toUpperCase()}</span>
-                                    <span class="category-button-count">${activityCount} activities</span>
+                                    <span class="category-button-count">${nonPrescribedCount} extra activities</span>
                                 </button>
                             `;
                         }).join('')}
@@ -2676,7 +2782,7 @@
             // Get all activities for this category (not just available ones)
             const categoryActivities = this.state.activities.byCategory[category] || [];
             
-            // Filter out prescribed activities to avoid duplicates
+            // Filter to show ONLY non-prescribed activities to avoid duplicates
             const nonPrescribedActivities = categoryActivities.filter(activity => {
                 const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
                                    this.state.prescribedActivityIds.includes(activity.activityId);
@@ -2693,6 +2799,9 @@
                     <div class="modal-header" style="background: ${color.primary}">
                         <h2 class="modal-title">
                             ${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities
+                            <span style="font-size: 0.7em; font-weight: normal; margin-left: 10px;">
+                                (Additional activities not in your prescribed list)
+                            </span>
                         </h2>
                         <button class="modal-close-btn" onclick="this.closest('.activities-modal-overlay').remove()">✕</button>
                     </div>
@@ -2701,7 +2810,7 @@
                         <div class="modal-activities-grid">
                             ${nonPrescribedActivities.length > 0 ? 
                                 nonPrescribedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
-                                '<p>No additional activities found in this category.</p>'
+                                '<p>No additional activities found in this category. All activities in this category are already in your prescribed list.</p>'
                             }
                         </div>
                     </div>
@@ -2846,6 +2955,31 @@
                     document.body.style.overflow = '';
                 }
             });
+        }
+        
+        async loadActivitiesJson() {
+            try {
+                log('Loading activities.json for media content...');
+                const response = await fetch('/AIVESPACoach/activities.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    // Store globally for activity renderer to access
+                    window.vespaActivitiesData = {};
+                    data.activities.forEach(activity => {
+                        if (activity.Activities_id) {
+                            window.vespaActivitiesData[activity.Activities_id] = {
+                                video: activity["Activity Video"],
+                                slideshow: activity["Activity Slideshow"],
+                                instructions: activity["Activity Instructions"]
+                            };
+                        }
+                    });
+                    log('Loaded activities.json data');
+                }
+            } catch (error) {
+                console.error('Failed to load activities.json:', error);
+                // Non-critical - continue without it
+            }
         }
     }
     
