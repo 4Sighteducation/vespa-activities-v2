@@ -44,6 +44,946 @@
         }
     };
     
+    // ========================================
+    // MODULE CLASSES - Integrated into main file
+    // ========================================
+    
+    // VESPA Achievement System Module
+    class AchievementSystem {
+        constructor(config) {
+            this.config = config;
+            this.achievements = this.defineAchievements();
+            this.unlockedAchievements = [];
+        }
+        
+        defineAchievements() {
+            return {
+                firstActivity: {
+                    id: 'first_activity',
+                    name: 'First Steps! 🎯',
+                    description: 'Complete your first activity',
+                    icon: '🌟',
+                    points: 5,
+                    criteria: { activitiesCompleted: 1 }
+                },
+                fiveActivities: {
+                    id: 'five_activities',
+                    name: 'Getting Going! 🚀',
+                    description: 'Complete 5 activities',
+                    icon: '🔥',
+                    points: 25,
+                    criteria: { activitiesCompleted: 5 }
+                },
+                // Add more achievements as needed
+            };
+        }
+        
+        checkAchievements(studentStats) {
+            const newAchievements = [];
+            Object.values(this.achievements).forEach(achievement => {
+                if (!this.isAchievementUnlocked(achievement.id)) {
+                    if (this.checkCriteria(achievement.criteria, studentStats)) {
+                        newAchievements.push(achievement);
+                        this.unlockedAchievements.push(achievement.id);
+                    }
+                }
+            });
+            return newAchievements;
+        }
+        
+        checkCriteria(criteria, stats) {
+            if (criteria.activitiesCompleted && stats.activitiesCompleted < criteria.activitiesCompleted) {
+                return false;
+            }
+            return true;
+        }
+        
+        isAchievementUnlocked(achievementId) {
+            return this.unlockedAchievements.includes(achievementId);
+        }
+        
+        showAchievementUnlocked(achievement) {
+            const notification = document.createElement('div');
+            notification.className = 'achievement-notification';
+            notification.innerHTML = `
+                <div class="achievement-content">
+                    <div class="achievement-icon">${achievement.icon}</div>
+                    <div class="achievement-details">
+                        <h3>Achievement Unlocked!</h3>
+                        <p class="achievement-name">${achievement.name}</p>
+                        <p class="achievement-description">${achievement.description}</p>
+                        <p class="achievement-points">+${achievement.points} bonus points!</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 500);
+            }, 5000);
+        }
+        
+        // Save achievements to Knack (Object_127)
+        async saveAchievementToKnack(achievement, studentId) {
+            try {
+                const achievementData = {
+                    field_3552: studentId, // Student connection
+                    field_3554: achievement.name, // achievement_name
+                    field_3555: achievement.description, // achievement_description
+                    field_3553: 'activity_completion', // achievement_type
+                    field_3556: new Date().toISOString(), // date_earned
+                    field_3557: achievement.points, // points_value
+                    field_3558: achievement.icon, // icon_emoji
+                    field_3560: `Unlocked: ${achievement.name}` // criteria_met
+                };
+                
+                // Use the response handler to make the API call
+                const responseHandler = new window.ResponseHandler(this.config);
+                return await responseHandler.knackAPI('POST', 'objects/object_127/records', achievementData);
+            } catch (error) {
+                console.error('Error saving achievement:', error);
+            }
+        }
+    }
+    
+    // VESPA Response Handler Module
+    class ResponseHandler {
+        constructor(config) {
+            this.config = config;
+            this.saveQueue = [];
+            this.isSaving = false;
+        }
+        
+        formatResponsesForKnack(activityId, responses, cycleNumber = 1) {
+            const formattedResponses = {};
+            Object.keys(responses).forEach(questionId => {
+                formattedResponses[questionId] = {
+                    [`cycle_${cycleNumber}`]: {
+                        value: responses[questionId]
+                    }
+                };
+            });
+            return JSON.stringify(formattedResponses);
+        }
+        
+        async saveActivityResponse(data) {
+            const {
+                activityId,
+                studentId,
+                responses,
+                status = 'in_progress',
+                cycleNumber = 1
+            } = data;
+            
+            try {
+                const formattedResponses = this.formatResponsesForKnack(activityId, responses, cycleNumber);
+                
+                // Check if a response already exists
+                const existingResponse = await this.findExistingResponse(activityId, studentId);
+                
+                if (existingResponse) {
+                    // Update existing record
+                    return await this.updateResponse(existingResponse.id, {
+                        field_1300: formattedResponses, // Activity Answers Name (JSON)
+                        field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
+                        field_2068: formattedResponses, // Activity Answers (backup)
+                        field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
+                    });
+                } else {
+                    // Create new record
+                    return await this.createResponse({
+                        field_1301: studentId, // Student connection
+                        field_1302: activityId, // Activities connection
+                        field_1300: formattedResponses, // Activity Answers Name (JSON)
+                        field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
+                        field_2068: formattedResponses, // Activity Answers (backup)
+                        field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error saving activity response:', error);
+                throw error;
+            }
+        }
+        
+        validateResponses(questions, responses) {
+            const errors = [];
+            const warnings = [];
+            
+            questions.forEach(question => {
+                const response = responses[question.id] || '';
+                const isRequired = question.field_2341 === 'Yes';
+                
+                if (isRequired && !response.trim()) {
+                    errors.push({
+                        questionId: question.id,
+                        message: `"${question.field_1279}" is required`
+                    });
+                }
+            });
+            
+            return { errors, warnings, isValid: errors.length === 0 };
+        }
+        
+        // Find existing response for this activity and student
+        async findExistingResponse(activityId, studentId) {
+            try {
+                const filters = {
+                    match: 'and',
+                    rules: [
+                        {
+                            field: 'field_1302', // Activities connection
+                            operator: 'is',
+                            value: activityId
+                        },
+                        {
+                            field: 'field_1301', // Student connection
+                            operator: 'is',
+                            value: studentId
+                        }
+                    ]
+                };
+                
+                const response = await this.knackAPI('GET', 'objects/object_46/records', {
+                    filters: filters,
+                    rows_per_page: 1
+                });
+                
+                return response.records?.[0] || null;
+            } catch (error) {
+                console.error('Error finding existing response:', error);
+                return null;
+            }
+        }
+        
+        // Create new response record
+        async createResponse(data) {
+            return await this.knackAPI('POST', 'objects/object_46/records', data);
+        }
+        
+        // Update existing response record
+        async updateResponse(recordId, data) {
+            return await this.knackAPI('PUT', `objects/object_46/records/${recordId}`, data);
+        }
+        
+        // Generate a plain text summary of responses for the readable field
+        generatePlainTextSummary(responses) {
+            const summary = [];
+            
+            Object.entries(responses).forEach(([questionId, answer]) => {
+                if (answer && answer.trim()) {
+                    summary.push(`Q${questionId}: ${answer}`);
+                }
+            });
+            
+            return summary.join('\n\n');
+        }
+        
+        // Make Knack API calls
+        async knackAPI(method, endpoint, data = null) {
+            const headers = {
+                'X-Knack-Application-Id': this.config.knackAppId || this.config.applicationId,
+                'X-Knack-REST-API-Key': this.config.knackApiKey || this.config.apiKey,
+                'Content-Type': 'application/json'
+            };
+            
+            // If user token is available, use it for authentication
+            const userToken = Knack.getUserToken ? Knack.getUserToken() : null;
+            if (userToken) {
+                headers['Authorization'] = userToken;
+            }
+            
+            const options = {
+                method: method,
+                headers: headers
+            };
+            
+            if (data && method !== 'GET') {
+                options.body = JSON.stringify(data);
+            }
+            
+            let url = `https://api.knack.com/v1/${endpoint}`;
+            
+            if (method === 'GET' && data) {
+                const params = new URLSearchParams();
+                if (data.filters) {
+                    params.append('filters', JSON.stringify(data.filters));
+                }
+                if (data.rows_per_page) {
+                    params.append('rows_per_page', data.rows_per_page);
+                }
+                if (data.sort_field) {
+                    params.append('sort_field', data.sort_field);
+                }
+                if (data.sort_order) {
+                    params.append('sort_order', data.sort_order);
+                }
+                url += `?${params.toString()}`;
+            }
+            
+            const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Knack API error: ${response.status}`, errorText);
+                throw new Error(`Knack API error: ${response.status} ${response.statusText}`);
+            }
+            
+            return await response.json();
+        }
+        
+        // Create activity progress record (Object_126)
+        async createActivityProgress(data) {
+            const {
+                activityId,
+                studentId,
+                cycleNumber = 1,
+                status = 'in_progress',
+                timeMinutes = 0,
+                pointsEarned = 0,
+                selectedVia = 'student_choice',
+                wordCount = 0
+            } = data;
+            
+            try {
+                const progressData = {
+                    field_3537: activityId, // Activities connection
+                    field_3536: studentId, // Student connection
+                    field_3538: cycleNumber, // Cycle Number
+                    field_3539: new Date().toISOString(), // date_assigned
+                    field_3540: new Date().toISOString(), // date_started
+                    field_3541: status === 'completed' ? new Date().toISOString() : null, // date_completed
+                    field_3542: timeMinutes, // total_time_minutes
+                    field_3543: status, // completion_status
+                    field_3544: false, // staff_verified
+                    field_3545: pointsEarned, // points_earned
+                    field_3546: selectedVia, // selected_via
+                    field_3549: wordCount // word_count
+                };
+                
+                return await this.knackAPI('POST', 'objects/object_126/records', progressData);
+            } catch (error) {
+                console.error('Error creating activity progress:', error);
+                throw error;
+            }
+        }
+    }
+    
+    // VESPA Activity Renderer Module
+    class ActivityRenderer {
+        constructor(activity, activityQuestions, studentProgress, config) {
+            this.activity = activity;
+            this.questions = activityQuestions;
+            this.progress = studentProgress;
+            this.config = config;
+            
+            this.currentStage = 'intro';
+            this.stages = ['intro', 'learn', 'do', 'reflect', 'complete'];
+            this.responses = this.parseExistingResponses();
+            this.startTime = Date.now();
+            this.lastSaveTime = Date.now();
+            this.isExiting = false;
+            this.autoSaveInterval = null;
+            
+            this.handleStageNavigation = this.handleStageNavigation.bind(this);
+            this.handleInputChange = this.handleInputChange.bind(this);
+            this.handleSave = this.handleSave.bind(this);
+            this.handleExit = this.handleExit.bind(this);
+        }
+        
+        parseExistingResponses() {
+            if (!this.progress || !this.progress.field_1300) return {};
+            
+            try {
+                const jsonData = JSON.parse(this.progress.field_1300);
+                const responses = {};
+                
+                Object.keys(jsonData).forEach(questionId => {
+                    const cycles = jsonData[questionId];
+                    const latestCycle = Object.keys(cycles).sort().pop();
+                    if (latestCycle && cycles[latestCycle]) {
+                        responses[questionId] = cycles[latestCycle].value || '';
+                    }
+                });
+                
+                return responses;
+            } catch (e) {
+                console.error('Error parsing existing responses:', e);
+                return {};
+            }
+        }
+        
+        render() {
+            // Remove any existing modal first
+            const existingModal = document.querySelector('.activity-modal-fullpage');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'activity-modal-fullpage';
+            modal.innerHTML = `
+                ${this.getHeaderHTML()}
+                <div class="activity-stages-nav">
+                    ${this.getStageNavigationHTML()}
+                </div>
+                <div class="activity-content-wrapper">
+                    <div class="activity-content">
+                        ${this.getContentHTML()}
+                    </div>
+                </div>
+                ${this.getFooterHTML()}
+            `;
+            
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+            
+            this.attachEventListeners();
+            this.startAutoSave();
+            this.initializeDynamicContent();
+            
+            return modal;
+        }
+        
+        getHeaderHTML() {
+            const categoryColor = this.getCategoryColor();
+            return `
+                <header class="activity-header" style="background: linear-gradient(135deg, ${categoryColor.primary}, ${categoryColor.light})">
+                    <div class="activity-header-content">
+                        <div class="activity-title-section">
+                            <h1 class="activity-title">${this.activity.name}</h1>
+                            <span class="activity-category-badge">
+                                ${this.getCategoryEmoji()} ${this.activity.category}
+                            </span>
+                            <span class="activity-level-badge">${this.activity.level}</span>
+                        </div>
+                        <button class="activity-exit-btn" onclick="window.vespaActivityRenderer.handleExit()">
+                            <span class="exit-icon">✕</span>
+                            <span class="exit-text">Save & Exit</span>
+                        </button>
+                    </div>
+                    <div class="activity-progress-bar">
+                        <div class="progress-fill" style="width: ${this.getProgressPercentage()}%"></div>
+                    </div>
+                </header>
+            `;
+        }
+        
+        getStageNavigationHTML() {
+            const stageConfig = {
+                intro: { icon: '📖', label: 'Introduction' },
+                learn: { icon: '🎯', label: 'Learn' },
+                do: { icon: '✏️', label: 'Do' },
+                reflect: { icon: '💭', label: 'Reflect' },
+                complete: { icon: '🏆', label: 'Complete' }
+            };
+            
+            return this.stages.map((stage, index) => {
+                const config = stageConfig[stage];
+                const isActive = stage === this.currentStage;
+                const isCompleted = this.isStageCompleted(stage);
+                const isAccessible = this.canAccessStage(stage);
+                
+                return `
+                    <button class="stage-nav-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${!isAccessible ? 'locked' : ''}"
+                            data-stage="${stage}"
+                            ${!isAccessible ? 'disabled' : ''}>
+                        <span class="stage-icon">${config.icon}</span>
+                        <span class="stage-label">${config.label}</span>
+                        ${isCompleted ? '<span class="stage-check">✓</span>' : ''}
+                    </button>
+                `;
+            }).join('');
+        }
+        
+        getContentHTML() {
+            switch (this.currentStage) {
+                case 'intro':
+                    return this.getIntroContent();
+                case 'learn':
+                    return this.getLearnContent();
+                case 'do':
+                    return this.getDoContent();
+                case 'reflect':
+                    return this.getReflectContent();
+                case 'complete':
+                    return this.getCompleteContent();
+                default:
+                    return this.getIntroContent();
+            }
+        }
+        
+        getIntroContent() {
+            return `
+                <div class="stage-content intro-content">
+                    <div class="stage-header">
+                        <h2>Welcome to ${this.activity.name}!</h2>
+                        <p class="stage-description">Let's explore this activity together.</p>
+                    </div>
+                    
+                    <div class="activity-overview">
+                        <div class="overview-card">
+                            <span class="overview-icon">⏱️</span>
+                            <h3>Time Needed</h3>
+                            <p>Approximately ${this.activity.timeMinutes || 30} minutes</p>
+                        </div>
+                        <div class="overview-card">
+                            <span class="overview-icon">🎯</span>
+                            <h3>What You'll Learn</h3>
+                            <p>${this.getActivityObjective()}</p>
+                        </div>
+                        <div class="overview-card">
+                            <span class="overview-icon">⭐</span>
+                            <h3>Points Available</h3>
+                            <p>${this.activity.level === 'Level 3' ? 15 : 10} points</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stage-navigation">
+                        <button class="primary-btn next-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
+                            Let's Begin! <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        getLearnContent() {
+            const hasVideo = this.activity.video && this.activity.video.includes('iframe');
+            const hasSlides = this.activity.slideshow && this.activity.slideshow.includes('iframe');
+            
+            return `
+                <div class="stage-content learn-content">
+                    <div class="stage-header">
+                        <h2>Learn & Explore</h2>
+                        <p class="stage-description">Watch the video and review the materials.</p>
+                    </div>
+                    
+                    ${hasVideo || hasSlides ? `
+                        <div class="media-tabs">
+                            ${hasVideo ? '<button class="media-tab active" data-media="video">📺 Video</button>' : ''}
+                            ${hasSlides ? '<button class="media-tab" data-media="slides">📊 Slides</button>' : ''}
+                        </div>
+                        
+                        <div class="media-content">
+                            ${hasVideo ? `<div class="media-panel active" id="video-panel">${this.activity.video}</div>` : ''}
+                            ${hasSlides ? `<div class="media-panel" id="slides-panel">${this.activity.slideshow}</div>` : ''}
+                        </div>
+                    ` : `
+                        <div class="text-content">
+                            ${this.activity.slideshow || '<p>Content coming soon...</p>'}
+                        </div>
+                    `}
+                    
+                    <div class="stage-navigation">
+                        <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('intro')">
+                            <span class="btn-arrow">←</span> Back
+                        </button>
+                        <button class="primary-btn next-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('do')">
+                            Ready to Practice! <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        getDoContent() {
+            const questions = this.questions.filter(q => !q.field_1314);
+            
+            return `
+                <div class="stage-content do-content">
+                    <div class="stage-header">
+                        <h2>Your Turn!</h2>
+                        <p class="stage-description">Complete the following activities.</p>
+                    </div>
+                    
+                    <div class="activity-questions">
+                        ${questions.map(question => this.getQuestionHTML(question)).join('')}
+                    </div>
+                    
+                    <div class="stage-navigation">
+                        <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
+                            <span class="btn-arrow">←</span> Review Materials
+                        </button>
+                        <button class="primary-btn next-stage-btn" 
+                                onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')"
+                                ${!this.canProceedFromDo() ? 'disabled' : ''}>
+                            Continue to Reflection <span class="btn-arrow">→</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        getReflectContent() {
+            const reflectionQuestions = this.questions.filter(q => q.field_1314 === 'Yes');
+            
+            return `
+                <div class="stage-content reflect-content">
+                    <div class="stage-header">
+                        <h2>Reflection Time</h2>
+                        <p class="stage-description">Take a moment to reflect on what you've learned.</p>
+                    </div>
+                    
+                    <div class="reflection-questions">
+                        ${reflectionQuestions.map(question => this.getQuestionHTML(question)).join('')}
+                    </div>
+                    
+                    <div class="stage-navigation">
+                        <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('do')">
+                            <span class="btn-arrow">←</span> Back to Activities
+                        </button>
+                        <button class="primary-btn complete-btn" 
+                                onclick="window.vespaActivityRenderer.completeActivity()"
+                                ${!this.canComplete() ? 'disabled' : ''}>
+                            Complete Activity! <span class="btn-arrow">🎉</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        getCompleteContent() {
+            const points = this.activity.level === 'Level 3' ? 15 : 10;
+            
+            return `
+                <div class="stage-content complete-content">
+                    <div class="completion-celebration">
+                        <div class="celebration-icon">🎉</div>
+                        <h2>Congratulations!</h2>
+                        <p>You've completed "${this.activity.name}"</p>
+                        
+                        <div class="points-earned">
+                            <span class="points-value">+${points}</span>
+                            <span class="points-label">Points Earned!</span>
+                        </div>
+                        
+                        <div class="completion-actions">
+                            <button class="primary-btn" onclick="window.vespaActivityRenderer.handleExit()">
+                                Return to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        getQuestionHTML(question) {
+            const response = this.responses[question.id] || '';
+            const isRequired = question.field_2341 === 'Yes';
+            
+            let inputHTML = '';
+            
+            switch (question.field_1290) {
+                case 'Paragraph Text':
+                    inputHTML = `
+                        <div class="input-wrapper">
+                            <textarea 
+                                class="question-input paragraph-input" 
+                                id="question-${question.id}"
+                                data-question-id="${question.id}"
+                                placeholder="Type your response here..."
+                                ${isRequired ? 'required' : ''}>${response}</textarea>
+                            <div class="input-feedback">
+                                <span class="word-count">0 words</span>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'Dropdown':
+                    const options = (question.field_1291 || '').split(',');
+                    inputHTML = `
+                        <select class="question-input dropdown-input" 
+                                id="question-${question.id}"
+                                data-question-id="${question.id}"
+                                ${isRequired ? 'required' : ''}>
+                            <option value="">Choose an option...</option>
+                            ${options.map(opt => `
+                                <option value="${opt.trim()}" ${response === opt.trim() ? 'selected' : ''}>
+                                    ${opt.trim()}
+                                </option>
+                            `).join('')}
+                        </select>
+                    `;
+                    break;
+                    
+                default:
+                    inputHTML = `
+                        <input type="text" 
+                               class="question-input text-input"
+                               id="question-${question.id}"
+                               data-question-id="${question.id}"
+                               value="${response}"
+                               placeholder="Enter your response..."
+                               ${isRequired ? 'required' : ''}>
+                    `;
+            }
+            
+            return `
+                <div class="question-block ${isRequired ? 'required' : ''}" data-question-id="${question.id}">
+                    ${question.field_1310 ? `<div class="question-context">${question.field_1310}</div>` : ''}
+                    <label class="question-label">
+                        ${question.field_1279}
+                        ${isRequired ? '<span class="required-star">*</span>' : ''}
+                    </label>
+                    ${inputHTML}
+                </div>
+            `;
+        }
+        
+        getFooterHTML() {
+            return `
+                <footer class="activity-footer">
+                    <div class="save-status">
+                        <span class="save-icon">💾</span>
+                        <span class="save-text">Auto-saving enabled</span>
+                        <span class="last-saved">Last saved: just now</span>
+                    </div>
+                </footer>
+            `;
+        }
+        
+        getCategoryColor() {
+            const colors = {
+                vision: { primary: '#ff8f00', light: '#ffb347' },
+                effort: { primary: '#86b4f0', light: '#a8c8f5' },
+                systems: { primary: '#72cb44', light: '#8ed666' },
+                practice: { primary: '#7f31a4', light: '#a155c7' },
+                attitude: { primary: '#f032e6', light: '#ff5eef' }
+            };
+            return colors[this.activity.category] || colors.vision;
+        }
+        
+        getCategoryEmoji() {
+            const emojis = {
+                vision: '👁️',
+                effort: '💪',
+                systems: '⚙️',
+                practice: '🎯',
+                attitude: '🧠'
+            };
+            return emojis[this.activity.category] || '📚';
+        }
+        
+        getActivityObjective() {
+            if (this.activity.instructions) {
+                return this.activity.instructions.substring(0, 100) + '...';
+            }
+            return 'Develop key skills in ' + this.activity.category;
+        }
+        
+        getProgressPercentage() {
+            const currentIndex = this.stages.indexOf(this.currentStage);
+            return Math.round((currentIndex / (this.stages.length - 1)) * 100);
+        }
+        
+        isStageCompleted(stage) {
+            const stageIndex = this.stages.indexOf(stage);
+            const currentIndex = this.stages.indexOf(this.currentStage);
+            return stageIndex < currentIndex;
+        }
+        
+        canAccessStage(stage) {
+            if (stage === 'complete') {
+                return this.canComplete();
+            }
+            return true;
+        }
+        
+        canProceedFromDo() {
+            const requiredQuestions = this.questions.filter(q => 
+                q.field_2341 === 'Yes' && !q.field_1314
+            );
+            
+            return requiredQuestions.every(q => {
+                const response = this.responses[q.id];
+                return response && response.trim().length > 0;
+            });
+        }
+        
+        canComplete() {
+            const allRequiredQuestions = this.questions.filter(q => q.field_2341 === 'Yes');
+            
+            return allRequiredQuestions.every(q => {
+                const response = this.responses[q.id];
+                return response && response.trim().length > 0;
+            });
+        }
+        
+        attachEventListeners() {
+            document.querySelectorAll('.stage-nav-item').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    if (!btn.disabled) {
+                        this.handleStageNavigation(btn.dataset.stage);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.question-input').forEach(input => {
+                input.addEventListener('input', this.handleInputChange);
+                input.addEventListener('blur', this.handleSave);
+            });
+            
+            document.querySelectorAll('.media-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    this.switchMediaTab(tab.dataset.media);
+                });
+            });
+            
+            window.vespaActivityRenderer = this;
+        }
+        
+        handleStageNavigation(newStage) {
+            this.currentStage = newStage;
+            this.render();
+        }
+        
+        handleInputChange(e) {
+            const questionId = e.target.dataset.questionId;
+            this.responses[questionId] = e.target.value;
+            
+            if (e.target.tagName === 'TEXTAREA') {
+                const wordCount = e.target.value.trim().split(/\s+/).length;
+                const counter = e.target.closest('.input-wrapper').querySelector('.word-count');
+                if (counter) {
+                    counter.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+                }
+            }
+        }
+        
+        handleSave() {
+            const saveData = {
+                activityId: this.activity.id,
+                responses: this.responses,
+                currentStage: this.currentStage,
+                lastSaved: Date.now()
+            };
+            
+            localStorage.setItem(`vespa-activity-${this.activity.id}`, JSON.stringify(saveData));
+            
+            const saveText = document.querySelector('.last-saved');
+            if (saveText) {
+                saveText.textContent = 'Last saved: just now';
+            }
+            
+            // Create response handler to save to Knack
+            const responseHandler = new ResponseHandler(this.config);
+            responseHandler.saveActivityResponse({
+                activityId: this.activity.id,
+                studentId: this.config.studentId,
+                responses: this.responses,
+                status: this.currentStage === 'complete' ? 'completed' : 'in_progress'
+            });
+        }
+        
+        async handleExit() {
+            if (this.isExiting) return;
+            
+            this.isExiting = true;
+            
+            await this.handleSave();
+            
+            this.stopAutoSave();
+            document.body.style.overflow = '';
+            
+            const modal = document.querySelector('.activity-modal-fullpage');
+            if (modal) {
+                modal.remove();
+            }
+            
+            if (window.vespaApp) {
+                window.vespaApp.onActivityClose();
+            }
+        }
+        
+        startAutoSave() {
+            this.autoSaveInterval = setInterval(() => {
+                this.handleSave();
+            }, 30000);
+        }
+        
+        stopAutoSave() {
+            if (this.autoSaveInterval) {
+                clearInterval(this.autoSaveInterval);
+            }
+        }
+        
+        switchMediaTab(mediaType) {
+            document.querySelectorAll('.media-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.media === mediaType);
+            });
+            
+            document.querySelectorAll('.media-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === `${mediaType}-panel`);
+            });
+        }
+        
+        async completeActivity() {
+            // Calculate activity statistics
+            const timeSpent = Math.round((Date.now() - this.startTime) / 60000); // minutes
+            const wordCount = Object.values(this.responses).join(' ').split(/\s+/).filter(w => w).length;
+            
+            // Save final responses with completed status
+            const responseHandler = new ResponseHandler(this.config);
+            await responseHandler.saveActivityResponse({
+                activityId: this.activity.id,
+                studentId: this.config.studentId,
+                responses: this.responses,
+                status: 'completed',
+                timeSpent: timeSpent,
+                wordCount: wordCount
+            });
+            
+            // Create activity progress record (Object_126)
+            try {
+                await responseHandler.createActivityProgress({
+                    activityId: this.activity.id,
+                    studentId: this.config.studentId,
+                    cycleNumber: 1,
+                    status: 'completed',
+                    timeMinutes: timeSpent,
+                    pointsEarned: this.activity.level === 'Level 3' ? 15 : 10,
+                    selectedVia: 'student_choice',
+                    wordCount: wordCount
+                });
+            } catch (error) {
+                console.error('Error creating activity progress:', error);
+            }
+            
+            // Check for achievements
+            const achievementSystem = new AchievementSystem(this.config);
+            const studentStats = {
+                activitiesCompleted: 1, // This would need to be fetched from actual data
+                currentActivityWords: wordCount,
+                lastActivityTime: timeSpent,
+                level3Activities: this.activity.level === 'Level 3' ? 1 : 0
+            };
+            
+            const newAchievements = achievementSystem.checkAchievements(studentStats);
+            
+            // Save and show any new achievements
+            for (const achievement of newAchievements) {
+                achievementSystem.showAchievementUnlocked(achievement);
+                await achievementSystem.saveAchievementToKnack(achievement, this.config.studentId);
+            }
+            
+            // Update stage and render completion screen
+            this.currentStage = 'complete';
+            this.render();
+        }
+        
+        initializeDynamicContent() {
+            // Any dynamic content initialization
+        }
+    }
+    
+    // ========================================
+    // END MODULE CLASSES
+    // ========================================
+    
     // Main application class
     class VESPAActivitiesApp {
         constructor(config) {
@@ -623,7 +1563,7 @@
                         video: attrs.field_1288 || attrs.field_1288_raw || '', // Activity Video
                         slideshow: attrs.field_1293 || attrs.field_1293_raw || '', // Activity Slideshow
                         instructions: attrs.field_1309 || attrs.field_1309_raw || '', // Activity Instructions
-                        level: attrs.field_1295 || attrs.field_1295_raw || attrs['Level (field_1295)'] || 'Level 2', // Level - check multiple possible field names
+                        level: attrs.field_3568 || attrs.field_3568_raw || 'Level 2', // Level - now using new short text field
                         order: parseInt(attrs.field_1298 || attrs.field_1298_raw || 0), // Order
                         active: attrs.field_1299 !== 'No' && attrs.field_1299 !== false, // Active (Yes/No)
                         color: attrs.field_1308 || attrs.field_1308_raw || '', // Activity Color
@@ -644,8 +1584,8 @@
                             category: activityData.category,
                             active: activityData.active,
                             level: activityData.level,
-                            levelRaw: attrs.field_1295,
-                            levelRaw2: attrs.field_1295_raw
+                            levelField3568: attrs.field_3568,
+                            levelField3568_raw: attrs.field_3568_raw
                         });
                     }
                     
@@ -1166,7 +2106,7 @@
                 <section class="activities-section">
                     <h2 class="section-title">
                         <span class="title-icon">✨</span>
-                        Your Recommended Activities
+                        Your Activities
                         <span class="title-badge">${toCompleteCount} to complete | ${completedCount} completed</span>
                     </h2>
                     
@@ -1464,18 +2404,110 @@
                 return;
             }
             
-            // TODO: Implement activity modal or navigation
-            // For now, show a message
-            this.showMessage(`Starting "${activity.name}"...`, 'info');
-            
-            // In production, this would:
-            // 1. Create an activity progress record via API
-            // 2. Show activity content in modal or navigate to activity page
-            // 3. Track time spent
-            // 4. Handle completion and points
-            
-            // Placeholder: Mark as started
-            console.log('Activity to start:', activity);
+            // Load activity questions from Object_45
+            this.loadActivityQuestions(activityId).then(questions => {
+                // Get existing progress if any
+                const existingProgress = this.state.activities.progress.find(p => p.activityId === activityId);
+                
+                // Create the activity renderer
+                const renderer = new window.ActivityRenderer(
+                    activity,
+                    questions,
+                    existingProgress,
+                    {
+                        studentId: this.getCurrentStudentId(),
+                        knackAppId: this.config.knackAppId,
+                        knackApiKey: this.config.knackApiKey
+                    }
+                );
+                
+                // Render the activity
+                renderer.render();
+                
+                // Set up the close callback
+                window.vespaApp.onActivityClose = () => {
+                    // Refresh data after activity close
+                    this.loadInitialData();
+                    this.render();
+                };
+            }).catch(error => {
+                console.error('Failed to load activity questions:', error);
+                this.showMessage('Failed to load activity. Please try again.', 'error');
+            });
+        }
+        
+        // Load activity questions from Object_45
+        async loadActivityQuestions(activityId) {
+            try {
+                log('Loading questions for activity:', activityId);
+                
+                const filters = {
+                    match: 'and',
+                    rules: [{
+                        field: 'field_1286', // Connection to Activity
+                        operator: 'is',
+                        value: activityId
+                    }]
+                };
+                
+                const headers = {
+                    'X-Knack-Application-Id': this.config.knackAppId,
+                    'X-Knack-REST-API-Key': this.config.knackApiKey,
+                    'Content-Type': 'application/json'
+                };
+                
+                // If user token is available, use it for authentication
+                const userToken = Knack.getUserToken ? Knack.getUserToken() : null;
+                if (userToken) {
+                    headers['Authorization'] = userToken;
+                }
+                
+                const url = 'https://api.knack.com/v1/objects/object_45/records';
+                const params = new URLSearchParams({
+                    filters: JSON.stringify(filters),
+                    rows_per_page: 100, // Get all questions for the activity
+                    sort_field: 'field_1303', // Sort by Order
+                    sort_order: 'asc'
+                });
+                
+                const response = await fetch(`${url}?${params}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load activity questions: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('Loaded activity questions:', data.records.length);
+                
+                // Transform the records to match our expected format
+                return data.records.map(record => ({
+                    id: record.id,
+                    field_1303: parseInt(record.field_1303) || 0, // Order
+                    field_1279: record.field_1279 || '', // Question text
+                    field_1290: record.field_1290 || 'Short Text', // Input type
+                    field_1291: record.field_1291 || '', // Dropdown options
+                    field_1310: record.field_1310 || '', // Context/Instructions (HTML)
+                    field_2341: record.field_2341 || 'No', // Required (Yes/No)
+                    field_1314: record.field_1314 || 'No' // Is final question (Yes/No)
+                })).sort((a, b) => a.field_1303 - b.field_1303);
+                
+            } catch (error) {
+                console.error('Error loading activity questions:', error);
+                // Return empty array on error rather than throwing
+                // This allows the app to continue functioning
+                this.showError('Failed to load activity questions. Please try again.');
+                return [];
+            }
+        }
+        
+        // Get current student ID
+        getCurrentStudentId() {
+            // Get from Knack user or state
+            const user = Knack.getUserAttributes();
+            return user?.id || this.state.studentId || 'unknown';
         }
         
         selectProblem(problemId, category) {
