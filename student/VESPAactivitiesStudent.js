@@ -37,33 +37,34 @@
         constructor(config) {
             this.config = config;
             this.state = {
-                currentView: 'dashboard', // dashboard, problems, all-activities, activity-detail
-                selectedProblem: null,
-                selectedActivity: null,
+                view: 'dashboard',
+                vespaScores: {},
                 activities: {
                     prescribed: [],
-                    allActivities: [],
                     completed: [],
-                    inProgress: []
+                    all: [],
+                    progress: []
                 },
-                vespaScores: {},
-                points: 0,
-                level: 1,
-                streak: 0
+                prescribedActivityIds: [],
+                finishedActivityIds: [],
+                problemMappings: null,
+                stats: {
+                    totalPoints: 0,
+                    currentStreak: 0,
+                    activitiesCompleted: 0,
+                    averageWordCount: 0,
+                    nextMilestone: { points: 50, name: 'Getting Started! 🌱' }
+                }
             };
-            
-            // VESPA theme colors
-            this.colors = {
-                vision: { primary: '#ff8f00', light: '#ffb347', dark: '#cc7000' },
-                effort: { primary: '#86b4f0', light: '#a8c8f5', dark: '#5a8fdb' },
-                systems: { primary: '#72cb44', light: '#8ed666', dark: '#5cb32e' },
-                practice: { primary: '#7f31a4', light: '#a155c7', dark: '#5f2481' },
-                attitude: { primary: '#f032e6', light: '#ff5eef', dark: '#d11dc9' }
-            };
-            
-            // Cache DOM elements
             this.container = null;
-            this.dataViews = {};
+            // Color scheme for VESPA categories
+            this.colors = {
+                vision: { primary: '#ff8f00', secondary: '#ffa726', emoji: '👁️' },
+                effort: { primary: '#86b4f0', secondary: '#64b5f6', emoji: '💪' },
+                systems: { primary: '#72cb44', secondary: '#81c784', emoji: '⚙️' },
+                practice: { primary: '#7f31a4', secondary: '#ab47bc', emoji: '🎯' },
+                attitude: { primary: '#f032e6', secondary: '#e91e63', emoji: '🧠' }
+            };
         }
         
         async init() {
@@ -116,45 +117,228 @@
             // Show loading state
             this.container.innerHTML = this.getLoadingHTML();
             
-            // Simulate data loading (will be replaced with actual Knack data parsing)
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Parse VESPA scores
-            this.parseVESPAScores();
-            
-            // Parse activities
-            this.parseActivities();
-            
-            // Load problem mappings
-            await this.loadProblemMappings();
-            
-            // Calculate initial stats
-            this.calculateStats();
+            // Parse data from Knack views
+            try {
+                // Parse VESPA scores from view_3164
+                this.parseVESPAScores();
+                
+                // Parse student record and activities
+                this.parseStudentRecord();
+                this.parseActivities();
+                this.parseActivityProgress();
+                
+                // Load problem mappings
+                await this.loadProblemMappings();
+                
+                // Calculate initial stats
+                this.calculateStats();
+                
+                log('Initial data loaded successfully', this.state);
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                this.showError('Failed to load data. Please refresh the page.');
+            }
         }
         
         parseVESPAScores() {
-            // Placeholder - will parse from actual Knack view
-            this.state.vespaScores = {
-                vision: 75,
-                effort: 82,
-                systems: 68,
-                practice: 90,
-                attitude: 77
-            };
+            log('Parsing VESPA scores from view', this.config.views.vespaResults);
+            
+            // Get the VESPA results view element
+            const vespaView = document.querySelector(`#${this.config.views.vespaResults}`);
+            if (!vespaView) {
+                log('VESPA results view not found');
+                return;
+            }
+            
+            // Look for the data in the view's records
+            const records = Knack.views[this.config.views.vespaResults]?.model?.data?.models || [];
+            
+            if (records.length > 0) {
+                const record = records[0].attributes;
+                
+                // Parse scores using configured field IDs
+                this.state.vespaScores = {
+                    vision: parseInt(record[this.config.fields.visionScore] || 0),
+                    effort: parseInt(record[this.config.fields.effortScore] || 0),
+                    systems: parseInt(record[this.config.fields.systemsScore] || 0),
+                    practice: parseInt(record[this.config.fields.practiceScore] || 0),
+                    attitude: parseInt(record[this.config.fields.attitudeScore] || 0)
+                };
+                
+                log('Parsed VESPA scores:', this.state.vespaScores);
+            } else {
+                // Default scores if no data found
+                this.state.vespaScores = {
+                    vision: 0,
+                    effort: 0,
+                    systems: 0,
+                    practice: 0,
+                    attitude: 0
+                };
+                log('No VESPA scores found, using defaults');
+            }
+        }
+        
+        parseStudentRecord() {
+            log('Parsing student record from view', this.config.views.studentRecord);
+            
+            // Get the student record view
+            const studentView = document.querySelector(`#${this.config.views.studentRecord}`);
+            if (!studentView) {
+                log('Student record view not found');
+                return;
+            }
+            
+            // Get student data from Knack
+            const records = Knack.views[this.config.views.studentRecord]?.model?.data?.models || [];
+            
+            if (records.length > 0) {
+                const record = records[0].attributes;
+                
+                // Parse prescribed activities (field_1683) - this is a connection field
+                const prescribedRaw = record[this.config.fields.prescribedActivities + '_raw'] || [];
+                this.state.prescribedActivityIds = prescribedRaw.map(item => item.id);
+                
+                // Parse finished activities (field_1380) - this is a connection field
+                const finishedRaw = record[this.config.fields.finishedActivities + '_raw'] || [];
+                this.state.finishedActivityIds = finishedRaw.map(item => item.id);
+                
+                log('Prescribed activity IDs:', this.state.prescribedActivityIds);
+                log('Finished activity IDs:', this.state.finishedActivityIds);
+            }
         }
         
         parseActivities() {
-            // Placeholder - will parse from actual Knack views
-            this.state.activities.prescribed = [
-                { id: 1, name: 'Vision Board Creation', category: 'vision', points: 50 },
-                { id: 2, name: 'Study Schedule Setup', category: 'systems', points: 40 },
-                { id: 3, name: 'Practice Test Strategy', category: 'practice', points: 60 }
-            ];
+            log('Parsing activities from view', this.config.views.allActivities);
             
-            // Mark some as completed for demo
-            this.state.activities.completed = [
-                { id: 4, name: 'Goal Setting Workshop', category: 'vision', points: 45, completedDate: new Date() }
-            ];
+            // Get all activities view
+            const activitiesView = document.querySelector(`#${this.config.views.allActivities}`);
+            if (!activitiesView) {
+                log('Activities view not found');
+                return;
+            }
+            
+            // Get activities data from Knack
+            const records = Knack.views[this.config.views.allActivities]?.model?.data?.models || [];
+            
+            // Parse all activities
+            const allActivities = records.map(model => {
+                const activity = model.attributes;
+                
+                // Using correct field IDs from activities.json
+                return {
+                    id: activity.id,
+                    knackId: activity.field_2074 || activity.id, // Activity_id field
+                    name: activity.field_1278 || 'Unnamed Activity', // Activities Name
+                    category: this.parseActivityCategory(activity.field_1285 || ''), // VESPA Category
+                    points: 50, // Default points since no field exists
+                    description: activity.field_1309 || '', // Activity Instructions
+                    level: activity.field_1295 || '', // Level (Level 2 or Level 3)
+                    active: activity.field_1299 !== 'No', // Active field
+                    color: activity.field_1308 || '', // Activity Color
+                    content: activity.field_1289 || '', // Activity Text (HTML)
+                    video: activity.field_1288 || '', // Activity Video
+                    slideshow: activity.field_1293 || '', // Activity Slideshow
+                    minScore: parseInt(activity.field_1287 || 0), // Score to show (If More Than)
+                    maxScore: parseInt(activity.field_1294 || 10), // Score to show (If Less Than or Equal To)
+                    order: parseInt(activity.field_1298 || 0), // Order
+                    raw: activity // Keep raw data for reference
+                };
+            });
+            
+            // Filter only active activities
+            const activeActivities = allActivities.filter(activity => activity.active);
+            
+            // Filter prescribed activities
+            this.state.activities.prescribed = activeActivities.filter(activity => 
+                this.state.prescribedActivityIds?.includes(activity.id)
+            );
+            
+            // Filter completed activities
+            this.state.activities.completed = activeActivities.filter(activity => 
+                this.state.finishedActivityIds?.includes(activity.id)
+            );
+            
+            // Store all active activities for browsing
+            this.state.activities.all = activeActivities;
+            
+            log('Parsed activities:', {
+                all: this.state.activities.all.length,
+                prescribed: this.state.activities.prescribed.length,
+                completed: this.state.activities.completed.length
+            });
+        }
+        
+        parseActivityProgress() {
+            log('Parsing activity progress from view', this.config.views.activityProgress);
+            
+            // Get activity progress view
+            const progressView = document.querySelector(`#${this.config.views.activityProgress}`);
+            if (!progressView) {
+                log('Activity progress view not found');
+                return;
+            }
+            
+            // Get progress data from Knack
+            const records = Knack.views[this.config.views.activityProgress]?.model?.data?.models || [];
+            
+            // Parse progress records
+            this.state.activities.progress = records.map(model => {
+                const progress = model.attributes;
+                
+                return {
+                    id: progress.id,
+                    activityId: progress[this.config.fields.activity + '_raw']?.[0]?.id || null,
+                    activityName: progress[this.config.fields.activity] || '',
+                    cycleNumber: parseInt(progress[this.config.fields.cycle] || 0),
+                    dateAssigned: progress[this.config.fields.dateAssigned] || null,
+                    dateStarted: progress[this.config.fields.dateStarted] || null,
+                    dateCompleted: progress[this.config.fields.dateCompleted] || null,
+                    timeMinutes: parseInt(progress[this.config.fields.timeMinutes] || 0),
+                    status: progress[this.config.fields.status] || 'not_started',
+                    verified: progress[this.config.fields.verified] === 'Yes',
+                    pointsEarned: parseInt(progress[this.config.fields.points] || 0),
+                    selectedVia: progress[this.config.fields.selectedVia] || '',
+                    reflection: progress[this.config.fields.reflection] || '',
+                    wordCount: parseInt(progress[this.config.fields.wordCount] || 0)
+                };
+            });
+            
+            // Update completed activities with progress data
+            this.state.activities.progress.forEach(progress => {
+                if (progress.status === 'completed' && progress.activityId) {
+                    const completedActivity = this.state.activities.all.find(a => a.id === progress.activityId);
+                    if (completedActivity && !this.state.activities.completed.find(a => a.id === completedActivity.id)) {
+                        this.state.activities.completed.push({
+                            ...completedActivity,
+                            completedDate: progress.dateCompleted,
+                            pointsEarned: progress.pointsEarned,
+                            timeSpent: progress.timeMinutes
+                        });
+                    }
+                }
+            });
+            
+            log('Parsed activity progress:', this.state.activities.progress);
+        }
+        
+        parseActivityCategory(categoryValue) {
+            // Parse the category value to match our expected format
+            const categoryMap = {
+                'vision': 'vision',
+                'effort': 'effort',
+                'systems': 'systems',
+                'practice': 'practice',
+                'attitude': 'attitude',
+                'v': 'vision',
+                'e': 'effort',
+                's': 'systems',
+                'p': 'practice',
+                'a': 'attitude'
+            };
+            
+            const normalized = (categoryValue || '').toLowerCase().trim();
+            return categoryMap[normalized] || normalized;
         }
         
         async loadProblemMappings() {
@@ -193,19 +377,81 @@
         }
         
         calculateStats() {
-            // Calculate points
-            this.state.points = this.state.activities.completed.reduce((sum, activity) => sum + activity.points, 0);
+            // Calculate total points from activity progress
+            const totalPoints = this.state.activities.progress
+                .filter(p => p.status === 'completed')
+                .reduce((sum, p) => sum + p.pointsEarned, 0);
             
-            // Calculate level (every 200 points = new level)
-            this.state.level = Math.floor(this.state.points / 200) + 1;
+            // Calculate activities completed
+            const activitiesCompleted = this.state.activities.completed.length;
             
-            // Calculate streak (placeholder)
-            this.state.streak = 3;
+            // Calculate average word count
+            const completedWithWords = this.state.activities.progress
+                .filter(p => p.status === 'completed' && p.wordCount > 0);
+            const avgWordCount = completedWithWords.length > 0
+                ? Math.round(completedWithWords.reduce((sum, p) => sum + p.wordCount, 0) / completedWithWords.length)
+                : 0;
+            
+            // Calculate current streak (simplified - would need date logic)
+            const currentStreak = this.calculateStreak();
+            
+            // Determine next milestone
+            const milestones = [
+                { points: 50, name: 'Getting Started! 🌱' },
+                { points: 100, name: 'Making Progress! 🚀' },
+                { points: 250, name: 'On Fire! 🔥' },
+                { points: 500, name: 'VESPA Champion! 🏆' },
+                { points: 1000, name: 'VESPA Legend! ⭐' }
+            ];
+            
+            const nextMilestone = milestones.find(m => m.points > totalPoints) || 
+                                { points: totalPoints + 500, name: 'Beyond Legendary! 🌟' };
+            
+            this.state.stats = {
+                totalPoints,
+                currentStreak,
+                activitiesCompleted,
+                averageWordCount: avgWordCount,
+                nextMilestone
+            };
+            
+            log('Calculated stats:', this.state.stats);
+        }
+        
+        calculateStreak() {
+            // Simple streak calculation based on consecutive days
+            // This would need more sophisticated date handling in production
+            const sortedProgress = [...this.state.activities.progress]
+                .filter(p => p.status === 'completed' && p.dateCompleted)
+                .sort((a, b) => new Date(b.dateCompleted) - new Date(a.dateCompleted));
+            
+            if (sortedProgress.length === 0) return 0;
+            
+            let streak = 1;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let i = 0; i < sortedProgress.length - 1; i++) {
+                const date1 = new Date(sortedProgress[i].dateCompleted);
+                const date2 = new Date(sortedProgress[i + 1].dateCompleted);
+                date1.setHours(0, 0, 0, 0);
+                date2.setHours(0, 0, 0, 0);
+                
+                const dayDiff = (date1 - date2) / (1000 * 60 * 60 * 24);
+                
+                if (dayDiff === 1) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
         }
         
         render() {
             const html = `
-                <div class="vespa-student-activities" data-view="${this.state.currentView}">
+                <div class="vespa-student-activities" data-view="${this.state.view}">
                     ${this.getHeaderHTML()}
                     ${this.getNavigationHTML()}
                     <div class="vespa-content-area">
@@ -229,85 +475,81 @@
         }
         
         getHeaderHTML() {
+            const user = Knack.getUserAttributes();
+            const firstName = user?.name?.split(' ')[0] || 'Student';
             const progress = this.calculateOverallProgress();
-            const nextLevelPoints = this.state.level * 200;
-            const currentLevelProgress = ((this.state.points % 200) / 200) * 100;
             
             return `
-                <header class="vespa-header">
+                <div class="vespa-header">
                     <div class="header-content">
                         <div class="user-welcome">
                             <h1 class="animated-title">
-                                <span class="wave">👋</span> Your VESPA Journey
+                                <span class="wave">👋</span> Hi ${firstName}!
                             </h1>
-                            <p class="subtitle">Level ${this.state.level} Explorer • ${this.state.points} points</p>
+                            <p class="subtitle">Ready to boost your VESPA scores today?</p>
                         </div>
-                        
                         <div class="header-stats">
-                            <div class="stat-card glow">
+                            <div class="stat-card">
+                                <span class="stat-emoji">⭐</span>
+                                <div class="stat-content">
+                                    <div class="stat-value">${this.state.stats.totalPoints}</div>
+                                    <div class="stat-label">Total Points</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
                                 <span class="stat-emoji">🔥</span>
                                 <div class="stat-content">
-                                    <span class="stat-value">${this.state.streak}</span>
-                                    <span class="stat-label">Day Streak</span>
+                                    <div class="stat-value">${this.state.stats.currentStreak}</div>
+                                    <div class="stat-label">Day Streak</div>
                                 </div>
                             </div>
-                            
-                            <div class="stat-card pulse">
-                                <span class="stat-emoji">⚡</span>
+                            <div class="stat-card">
+                                <span class="stat-emoji">🎯</span>
                                 <div class="stat-content">
-                                    <span class="stat-value">${progress}%</span>
-                                    <span class="stat-label">Complete</span>
+                                    <div class="stat-value">${this.state.stats.activitiesCompleted}</div>
+                                    <div class="stat-label">Completed</div>
                                 </div>
                             </div>
-                            
-                            <div class="stat-card bounce">
-                                <span class="stat-emoji">🏆</span>
-                                <div class="stat-content">
-                                    <span class="stat-value">${this.state.activities.completed.length}</span>
-                                    <span class="stat-label">Achieved</span>
+                        </div>
+                        <div class="level-progress">
+                            <div class="progress-info">
+                                <span>Progress to ${this.state.stats.nextMilestone.name}</span>
+                                <span>${this.state.stats.totalPoints} / ${this.state.stats.nextMilestone.points}</span>
+                            </div>
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar-fill" style="width: ${Math.min((this.state.stats.totalPoints / this.state.stats.nextMilestone.points) * 100, 100)}%">
+                                    <div class="progress-shimmer"></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="level-progress">
-                        <div class="progress-info">
-                            <span>Level ${this.state.level}</span>
-                            <span>${this.state.points} / ${nextLevelPoints} XP</span>
-                        </div>
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-bar-fill" style="width: ${currentLevelProgress}%">
-                                <div class="progress-shimmer"></div>
-                            </div>
-                        </div>
-                    </div>
-                </header>
+                </div>
             `;
         }
         
         getNavigationHTML() {
             const navItems = [
-                { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-                { id: 'problems', label: 'Get Help', icon: '💡' },
-                { id: 'all-activities', label: 'All Activities', icon: '📚' },
-                { id: 'achievements', label: 'Achievements', icon: '🏅' }
+                { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
+                { id: 'problems', icon: '🎯', label: 'Find Activities' },
+                { id: 'all-activities', icon: '📚', label: 'All Activities' },
+                { id: 'achievements', icon: '🏆', label: 'Achievements' }
             ];
             
             return `
-                <nav class="vespa-nav">
+                <div class="vespa-nav">
                     ${navItems.map(item => `
-                        <button class="nav-item ${this.state.currentView === item.id ? 'active' : ''}" 
-                                data-view="${item.id}">
+                        <div class="nav-item ${this.state.view === item.id ? 'active' : ''}" 
+                             data-view="${item.id}">
                             <span class="nav-icon">${item.icon}</span>
                             <span class="nav-label">${item.label}</span>
-                        </button>
+                        </div>
                     `).join('')}
-                </nav>
+                </div>
             `;
         }
         
         getContentHTML() {
-            switch(this.state.currentView) {
+            switch (this.state.view) {
                 case 'dashboard':
                     return this.getDashboardHTML();
                 case 'problems':
@@ -396,8 +638,9 @@
         }
         
         getActivityCardHTML(activity, index = 0) {
-            const color = this.colors[activity.category];
+            const color = this.colors[activity.category] || this.colors.vision;
             const isCompleted = this.state.activities.completed.some(a => a.id === activity.id);
+            const progress = this.state.activities.progress.find(p => p.activityId === activity.id);
             const delay = index * 0.1;
             
             return `
@@ -407,11 +650,16 @@
                     <div class="card-glow" style="background: ${color.primary}"></div>
                     <div class="card-content">
                         <div class="card-header">
-                            <span class="category-chip" style="background: ${color.light}; color: ${color.dark}">
-                                ${activity.category}
+                            <span class="category-chip" style="background: ${color.primary}20; color: ${color.primary}">
+                                ${color.emoji} ${activity.category}
                             </span>
+                            ${activity.level ? `
+                                <span class="level-chip" style="background: #079baa20; color: #079baa">
+                                    ${activity.level}
+                                </span>
+                            ` : ''}
                             <span class="points-chip">
-                                +${activity.points} XP
+                                +${activity.points} points
                             </span>
                         </div>
                         <h3 class="activity-name">${activity.name}</h3>
@@ -419,9 +667,10 @@
                             ${isCompleted ? `
                                 <span class="completed-badge">
                                     <span class="checkmark">✓</span> Completed
+                                    ${progress?.pointsEarned ? `(+${progress.pointsEarned} pts)` : ''}
                                 </span>
                             ` : `
-                                <button class="start-activity-btn" style="background: ${color.primary}">
+                                <button class="start-activity-btn" onclick="window.vespaActivitiesApp.startActivity('${activity.id}')" style="background: ${color.primary}">
                                     Start Activity <span class="arrow">→</span>
                                 </button>
                             `}
@@ -433,9 +682,13 @@
         }
         
         getRecentProgressHTML() {
-            const recent = this.state.activities.completed.slice(-3).reverse();
+            // Get recent completed activities from progress data
+            const recentProgress = this.state.activities.progress
+                .filter(p => p.status === 'completed')
+                .sort((a, b) => new Date(b.dateCompleted) - new Date(a.dateCompleted))
+                .slice(0, 3);
             
-            if (recent.length === 0) {
+            if (recentProgress.length === 0) {
                 return `
                     <section class="recent-progress-section">
                         <h2 class="section-title">
@@ -457,17 +710,30 @@
                         Recent Progress
                     </h2>
                     <div class="progress-timeline">
-                        ${recent.map(activity => `
-                            <div class="timeline-item">
-                                <div class="timeline-marker" style="background: ${this.colors[activity.category].primary}"></div>
-                                <div class="timeline-content">
-                                    <h4>${activity.name}</h4>
-                                    <p class="timeline-meta">
-                                        +${activity.points} XP • ${this.formatDate(activity.completedDate)}
-                                    </p>
+                        ${recentProgress.map(progress => {
+                            // Find the activity details
+                            const activity = this.state.activities.all.find(a => a.id === progress.activityId);
+                            const category = activity?.category || 'vision';
+                            
+                            return `
+                                <div class="timeline-item">
+                                    <div class="timeline-marker" style="background: ${this.colors[category].primary}"></div>
+                                    <div class="timeline-content">
+                                        <h4>${progress.activityName || 'Unknown Activity'}</h4>
+                                        <p class="timeline-meta">
+                                            +${progress.pointsEarned} points • 
+                                            ${progress.timeMinutes} minutes • 
+                                            ${this.formatDate(progress.dateCompleted)}
+                                        </p>
+                                        ${progress.wordCount > 0 ? `
+                                            <p class="timeline-meta">
+                                                ${progress.wordCount} words written
+                                            </p>
+                                        ` : ''}
+                                    </div>
                                 </div>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 </section>
             `;
@@ -598,7 +864,7 @@
         }
         
         switchView(view) {
-            this.state.currentView = view;
+            this.state.view = view;
             this.render();
             
             // Add view transition animation
@@ -608,9 +874,27 @@
         }
         
         startActivity(activityId) {
-            log('Starting activity:', activityId);
-            // Will implement activity modal/navigation
-            this.showMessage('Activity starting...', 'success');
+            log(`Starting activity: ${activityId}`);
+            
+            // Find the activity
+            const activity = this.state.activities.all.find(a => a.id === activityId);
+            if (!activity) {
+                this.showError('Activity not found');
+                return;
+            }
+            
+            // TODO: Implement activity modal or navigation
+            // For now, show a message
+            this.showMessage(`Starting "${activity.name}"...`, 'info');
+            
+            // In production, this would:
+            // 1. Create an activity progress record via API
+            // 2. Show activity content in modal or navigate to activity page
+            // 3. Track time spent
+            // 4. Handle completion and points
+            
+            // Placeholder: Mark as started
+            console.log('Activity to start:', activity);
         }
         
         selectProblem(problemId, category) {
@@ -620,7 +904,7 @@
         }
         
         showActivitiesForCategory(category) {
-            this.state.currentView = 'all-activities';
+            this.state.view = 'all-activities';
             // Will filter by category
             this.render();
         }
@@ -685,6 +969,22 @@
     function log(message, data) {
         if (DEBUG) {
             console.log(`[VESPA Activities v${VERSION}]`, message, data || '');
+        }
+    }
+    
+    // Initialize when config is available
+    function waitForConfig() {
+        if (window.VESPA_ACTIVITIES_STUDENT_CONFIG) {
+            log('Config found, initializing app');
+            const app = new VESPAActivitiesApp(window.VESPA_ACTIVITIES_STUDENT_CONFIG);
+            // Make app instance globally available
+            window.vespaActivitiesApp = app;
+            app.init().catch(error => {
+                console.error('Failed to initialize VESPA Activities:', error);
+            });
+        } else {
+            log('Config not found, waiting...');
+            setTimeout(waitForConfig, 100);
         }
     }
     
