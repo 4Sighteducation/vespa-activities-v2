@@ -1,0 +1,54 @@
+Student Activities - Field Mapping - Student Activities
+
+- When the student completes each cycle of the VESPA Questionnaire their activities are automatically generated and populate in their student record (Object_6).
+- Activities populate according the their "Level" taken from their Object_10 connected record and their VESPA score. Object_44 holds the activities - I have created activities.json to represent the data in this table.
+
+- Object_10 - "VESPA RESULTS" - field mappings:
+
+field_133 - Connected VESPA Customer (from Object_2 / field_44 - School Name (Unique))
+field_855 - Questionnaire Completed Date
+field_439 - Many to Many Connected Staff Admin(s) (From Object_5 / field_86 - Staff Admin Email (Unique))-array connection
+field_145  - Many to Many Connected Tutor(s) (From Object_7 / field_96 - Tutor(s) Email (Unique))-array connection
+field_429  - Many to Many Connected Head of Year(s) (From Object_18 / field_417 - Head of Year(s) Email (Unique))-array connection
+field_2191  -Many to Many Connected Subject Teacher(s) (From Object_78 / field_1879 - Subject Teacher(s) Email (Unique))-array connection
+
+field_197 - Student Email (Email Field - Unique)
+field_187 - Student Name (Proper Name Field - ie firstName / lastName sub fields) - use this for personalisation
+field_568 - Level (Short Text, either Level 2 or Level 3
+field_147 - Current Vision score (number /10)
+field_148 - Current Effort score (number /10)
+field_149 - Current Systems score (number /10)
+field_150 - Current Practice score (number /10)
+field_151 - Current Attitude score (number /10)
+
+- Object_6 - "Student" - field mappings
+field_179 - Connected VESPA Customer (from Object_2 / field_44 - School Name (Unique))
+field_182 Connected VESPA Result (Object_10) record (from Object_10 / field_197)
+field_190 - Connected Staff Admin(s) - many to many
+field_1682 - Connected Tutor(s) - many to many
+field_547 - Connected Heads of Year - many to many
+field_2177 - Connected Subject Teachers many to many
+field_1683 - Connected Activities (Connected to Object_44 / field_1278 Activities Name)
+field_1380 - Finished Activities (Short Text - Saved as an array of completed activity IDs for example - 5ffdffb386917a001be0853a,5ffe01865c1cca001b161e42,5ffdfc0d1e82a6001e41e96e)
+
+Object_46 - Studnet Activity Answers - {
+  "object": "Activity Answers",
+  "fields": [
+    { "label": "Name", "type": "person", "field_id": "field_1875" },
+    { "label": "Activity Answers Name", "type": "paragraph_text", "field_id": "field_1300" }, (Stored as json - eg - 5fdfeb09472104001be8676d":{"cycle_1":{"value":"2025-07-15"}},"5fdfef75562205001ce714d2":{"cycle_1":{"value":"12"}},"5fdfed35472104001be868d3":{"cycle_1":{"value":"health and social care \nmaths "}},"5fdfee81472104001be86989":{"cycle_1":{"value":"past exam questions \nrevision cards \n "}},"5fdff173517b5f001dc326a0":{"cycle_1":{"value":""}}})
+    { "label": "Student Responses", "type": "paragraph_text", "field_id": "field_2334" },
+    { "label": "Yes/No", "type": "yes_no", "field_id": "field_2330" },
+    { "label": "Activity Answers", "type": "paragraph_text", "field_id": "field_2068" },
+    { "label": "Student", "type": "connection", "field_id": "field_1301", "connected_object": "Student" },
+    { "label": "Activities", "type": "connection", "field_id": "field_1302", "connected_object": "Activities" },
+    { "label": "Feedback", "type": "paragraph_text", "field_id": "field_1734" },
+    { "label": "Date/Time", "type": "date_time", "field_id": "field_1870" },
+    { "label": "VESPA Customer", "type": "connection", "field_id": "field_1871", "connected_object": "VESPA Customer" },
+    { "label": "Tutor", "type": "connection", "field_id": "field_1872", "connected_object": "Tutor" },
+    { "label": "Staff Admin", "type": "connection", "field_id": "field_1873", "connected_object": "Staff Admin" },
+    { "label": "Re-import", "type": "yes_no", "field_id": "field_2170" },
+    { "label": "Year Group", "type": "short_text", "field_id": "field_2331" },
+    { "label": "Group", "type": "short_text", "field_id": "field_2332" },
+    { "label": "Faculty", "type": "short_text", "field_id": "field_2333" }
+  ]
+}
