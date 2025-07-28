@@ -1,4 +1,4 @@
-// VESPA Activities Student Experience v2.0
+ // VESPA Activities Student Experience v2.0
 // A playful, modern interface for student activity management
 
 (function() {

@@ -55,7 +55,9 @@
                     prescribed: [],
                     completed: [],
                     all: [],
-                    progress: []
+                    available: [],
+                    progress: [],
+                    byCategory: {}  // Add this property
                 },
                 prescribedActivityIds: [],
                 finishedActivityIds: [],
@@ -728,22 +730,27 @@
         }
         
         parseActivityCategory(categoryValue) {
-            // Parse the category value to match our expected format
-            const categoryMap = {
-                'vision': 'vision',
-                'effort': 'effort',
-                'systems': 'systems',
-                'practice': 'practice',
-                'attitude': 'attitude',
-                'v': 'vision',
-                'e': 'effort',
-                's': 'systems',
-                'p': 'practice',
-                'a': 'attitude'
-            };
+            if (!categoryValue) return 'other';
             
-            const normalized = (categoryValue || '').toLowerCase().trim();
-            return categoryMap[normalized] || normalized;
+            // Handle HTML strings from Knack connection fields
+            if (typeof categoryValue === 'string' && categoryValue.includes('<span')) {
+                // Extract text from HTML
+                const match = categoryValue.match(/>([^<]+)</);
+                if (match && match[1]) {
+                    categoryValue = match[1];
+                }
+            }
+            
+            const category = categoryValue.toString().toLowerCase();
+            
+            // Map to standard categories
+            if (category.includes('vision')) return 'vision';
+            if (category.includes('effort')) return 'effort';
+            if (category.includes('systems')) return 'systems';
+            if (category.includes('practice')) return 'practice';
+            if (category.includes('attitude')) return 'attitude';
+            
+            return 'other';
         }
         
         async loadProblemMappings() {
