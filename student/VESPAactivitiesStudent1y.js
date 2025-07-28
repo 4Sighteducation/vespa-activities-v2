@@ -223,31 +223,36 @@
         }
         
         async saveActivityResponse(data) {
-            // Debounce saves to prevent race conditions
+            // Store the latest data
+            this.lastSaveData = data;
+            
+            // If a save is already in progress, just update the data and return the pending promise
+            if (this.savePromise) {
+                console.log('Save already in progress, updating data...');
+                return this.savePromise;
+            }
+            
+            // Debounce saves to prevent rapid successive calls
             if (this.saveTimeout) {
                 clearTimeout(this.saveTimeout);
             }
             
-            // Store the latest data
-            this.lastSaveData = data;
-            
-            // Wait 500ms before actually saving
-            return new Promise((resolve) => {
+            // Create a new save promise
+            this.savePromise = new Promise((resolve, reject) => {
                 this.saveTimeout = setTimeout(async () => {
-                    if (this.isSaving) {
-                        console.log('Save already in progress, queuing...');
-                        return resolve(await this.saveActivityResponse(this.lastSaveData));
-                    }
-                    
-                    this.isSaving = true;
                     try {
                         const result = await this.performSave(this.lastSaveData);
                         resolve(result);
+                    } catch (error) {
+                        reject(error);
                     } finally {
-                        this.isSaving = false;
+                        this.savePromise = null;
+                        this.saveTimeout = null;
                     }
                 }, 500);
             });
+            
+            return this.savePromise;
         }
         
         async performSave(data) {
@@ -622,20 +627,40 @@
             if (!this.progress || !this.progress.field_1300) return {};
             
             try {
-                const jsonData = JSON.parse(this.progress.field_1300);
+                // Check if field_1300 is a valid JSON string
+                const rawData = this.progress.field_1300;
+                
+                // Handle edge cases where field might contain invalid data
+                if (!rawData || rawData === '.' || rawData.trim() === '') {
+                    console.log('Empty or invalid response data, returning empty object');
+                    return {};
+                }
+                
+                // Try to parse as JSON
+                const jsonData = JSON.parse(rawData);
+                
+                // If jsonData is not an object, return empty
+                if (typeof jsonData !== 'object' || jsonData === null) {
+                    console.log('Parsed data is not an object, returning empty');
+                    return {};
+                }
+                
                 const responses = {};
                 
                 Object.keys(jsonData).forEach(questionId => {
                     const cycles = jsonData[questionId];
-                    const latestCycle = Object.keys(cycles).sort().pop();
-                    if (latestCycle && cycles[latestCycle]) {
-                        responses[questionId] = cycles[latestCycle].value || '';
+                    if (cycles && typeof cycles === 'object') {
+                        const latestCycle = Object.keys(cycles).sort().pop();
+                        if (latestCycle && cycles[latestCycle]) {
+                            responses[questionId] = cycles[latestCycle].value || '';
+                        }
                     }
                 });
                 
                 return responses;
             } catch (e) {
                 console.error('Error parsing existing responses:', e);
+                console.log('Raw data that failed to parse:', this.progress.field_1300);
                 return {};
             }
         }
@@ -811,8 +836,24 @@
                         </div>
                         
                         <div class="media-content">
-                            ${hasVideo ? `<div class="media-panel active" id="video-panel">${videoUrl}</div>` : ''}
-                            ${hasSlides ? `<div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">${slidesContent}</div>` : ''}
+                            ${hasVideo ? `
+                                <div class="media-panel active" id="video-panel">
+                                    <div class="media-loading-state">
+                                        <div class="loading-spinner"></div>
+                                        <p>Loading video...</p>
+                                    </div>
+                                    <div class="media-actual-content" style="display: none;" data-content="${btoa(videoUrl)}"></div>
+                                </div>
+                            ` : ''}
+                            ${hasSlides ? `
+                                <div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">
+                                    <div class="media-loading-state">
+                                        <div class="loading-spinner"></div>
+                                        <p>Loading slides...</p>
+                                    </div>
+                                    <div class="media-actual-content" style="display: none;" data-content="${btoa(slidesContent)}"></div>
+                                </div>
+                            ` : ''}
                         </div>
                     ` : `
                         <div class="text-content">
@@ -1149,6 +1190,11 @@
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
+            
+            // Load media content when navigating to learn stage
+            if (newStage === 'learn') {
+                setTimeout(() => this.loadMediaContent(), 100);
+            }
         }
         
         handleInputChange(e) {
@@ -1257,6 +1303,48 @@
             document.querySelectorAll('.media-panel').forEach(panel => {
                 panel.classList.toggle('active', panel.id === `${mediaType}-panel`);
             });
+            
+            // Load content for the newly active panel
+            this.loadMediaContent();
+        }
+        
+        loadMediaContent() {
+            // Find the active media panel
+            const activePanel = document.querySelector('.media-panel.active');
+            if (!activePanel) return;
+            
+            const loadingState = activePanel.querySelector('.media-loading-state');
+            const contentContainer = activePanel.querySelector('.media-actual-content');
+            
+            if (!contentContainer || contentContainer.style.display !== 'none') {
+                // Content already loaded
+                return;
+            }
+            
+            // Decode and load the content
+            try {
+                const encodedContent = contentContainer.getAttribute('data-content');
+                if (encodedContent) {
+                    const decodedContent = atob(encodedContent);
+                    
+                    // Show the content
+                    contentContainer.innerHTML = decodedContent;
+                    contentContainer.style.display = 'block';
+                    
+                    // Hide the loading state
+                    if (loadingState) {
+                        loadingState.style.display = 'none';
+                    }
+                    
+                    // Clear the data attribute to save memory
+                    contentContainer.removeAttribute('data-content');
+                }
+            } catch (error) {
+                console.error('Error loading media content:', error);
+                if (loadingState) {
+                    loadingState.innerHTML = '<p>Error loading content. Please refresh and try again.</p>';
+                }
+            }
         }
         
         async completeActivity() {
@@ -1305,6 +1393,14 @@
                 console.error('Error creating activity progress:', error);
             }
             
+            // Update the student's finished activities field (field_1380)
+            try {
+                await this.updateStudentFinishedActivities(this.activity.id);
+                console.log('Updated student finished activities field');
+            } catch (error) {
+                console.error('Error updating finished activities:', error);
+            }
+            
             // Check for achievements
             const achievementSystem = new AchievementSystem(this.config);
             const studentStats = {
@@ -1325,6 +1421,56 @@
             // Update stage and render completion screen
             this.currentStage = 'complete';
             this.render();
+        }
+        
+        async updateStudentFinishedActivities(activityId) {
+            try {
+                // Get the student's current finished activities
+                const finishedActivities = window.vespaApp?.state?.finishedActivityIds || [];
+                
+                // Check if activity is already in the list
+                if (finishedActivities.includes(activityId)) {
+                    console.log('Activity already in finished list');
+                    return;
+                }
+                
+                // Add the new activity ID
+                const updatedActivities = [...finishedActivities, activityId];
+                const updatedField = updatedActivities.join(',');
+                
+                // Update the student record in object_6
+                const updateData = {
+                    [this.config.fields.finishedActivities]: updatedField
+                };
+                
+                // Make the API call to update the student record
+                const responseHandler = new ResponseHandler(this.config);
+                await responseHandler.knackAPI(
+                    'PUT',
+                    `objects/${this.config.objects.student}/records/${this.config.studentId}`,
+                    updateData
+                );
+                
+                // Update the local state as well
+                if (window.vespaApp?.state) {
+                    window.vespaApp.state.finishedActivityIds = updatedActivities;
+                    
+                    // Also add to the completed activities list
+                    if (!window.vespaApp.state.activities.completed.find(a => a.id === activityId)) {
+                        window.vespaApp.state.activities.completed.push({
+                            ...this.activity,
+                            completedDate: new Date().toISOString(),
+                            pointsEarned: this.activity.level === 'Level 3' ? 15 : 10,
+                            timeSpent: Math.round((Date.now() - this.startTime) / 60000)
+                        });
+                    }
+                }
+                
+                console.log('Successfully updated finished activities:', updatedField);
+            } catch (error) {
+                console.error('Error updating student finished activities:', error);
+                throw error;
+            }
         }
         
         initializeDynamicContent() {
