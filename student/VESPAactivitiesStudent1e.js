@@ -501,17 +501,40 @@
                 }
                 log('Student name:', this.state.studentName);
                 
-                // Parse prescribed activities (field_1683) - this is a connection field
+                // Parse prescribed activities (field_1683) - this is a connection field returning HTML
                 const prescribedField = record[this.config.fields.prescribedActivities] || 
                                       record[this.config.fields.prescribedActivities + '_raw'] || [];
                 
+                // Extract IDs from HTML strings or raw connection data
                 if (Array.isArray(prescribedField)) {
-                    this.state.prescribedActivityIds = prescribedField.map(item => 
-                        typeof item === 'object' ? (item.id || item._id) : item
-                    );
+                    this.state.prescribedActivityIds = [];
+                    prescribedField.forEach(item => {
+                        if (typeof item === 'string' && item.includes('class="')) {
+                            // Extract ID from HTML string like: <span class="5ff1f0b28a0c35001c57fb89" data-kn="connection-value">
+                            const idMatch = item.match(/class="([a-f0-9]{24})"/);
+                            if (idMatch && idMatch[1]) {
+                                this.state.prescribedActivityIds.push(idMatch[1]);
+                            }
+                        } else if (typeof item === 'object' && (item.id || item._id)) {
+                            // Handle object format
+                            this.state.prescribedActivityIds.push(item.id || item._id);
+                        } else if (typeof item === 'string') {
+                            // Plain string ID
+                            this.state.prescribedActivityIds.push(item);
+                        }
+                    });
                 } else if (typeof prescribedField === 'string' && prescribedField) {
-                    // Handle comma-separated string
-                    this.state.prescribedActivityIds = prescribedField.split(',').map(id => id.trim());
+                    // Single HTML string with multiple activities
+                    const idMatches = prescribedField.match(/class="([a-f0-9]{24})"/g);
+                    if (idMatches) {
+                        this.state.prescribedActivityIds = idMatches.map(match => {
+                            const id = match.match(/class="([a-f0-9]{24})"/);
+                            return id ? id[1] : null;
+                        }).filter(id => id !== null);
+                    } else {
+                        // Try comma-separated
+                        this.state.prescribedActivityIds = prescribedField.split(',').map(id => id.trim());
+                    }
                 } else {
                     this.state.prescribedActivityIds = [];
                 }
@@ -520,6 +543,7 @@
                 // Parse finished activities (field_1380) - this is a text field with comma-separated IDs
                 const finishedField = record[this.config.fields.finishedActivities] || 
                                     record[this.config.fields.finishedActivities + '_raw'] || '';
+                log('Finished activities field (field_1380):', finishedField);
                 
                 if (typeof finishedField === 'string' && finishedField) {
                     this.state.finishedActivityIds = finishedField.split(',').map(id => id.trim());
@@ -592,7 +616,7 @@
                     
                     const activityData = {
                         id: attrs.id || activity.id,
-                        activityId: attrs.field_2074 || attrs.field_2074_raw || attrs.id, // Activity_id field
+                        activityId: attrs.field_2074 || attrs.field_2074_raw || attrs.id || activity.id, // Activity_id field - fallback to record ID
                         name: attrs.field_1278 || attrs.field_1278_raw || 'Unknown Activity', // Activities Name
                         category: this.parseActivityCategory(attrs.field_1285 || attrs.field_1285_raw), // VESPA Category
                         activityText: attrs.field_1289 || attrs.field_1289_raw || '', // Activity Text (HTML)
@@ -610,6 +634,17 @@
                         points: 10, // Default points - will be calculated based on completion
                         finalThoughts: attrs.field_1313 || attrs.field_1313_raw || '' // Final Thoughts Section Content
                     };
+                    
+                    // Debug log first few activities
+                    if (index < 3) {
+                        log(`Activity ${index + 1} data:`, {
+                            id: activityData.id,
+                            activityId: activityData.activityId,
+                            name: activityData.name,
+                            category: activityData.category,
+                            active: activityData.active
+                        });
+                    }
                     
                     // Only add active activities
                     if (activityData.active) {
@@ -634,18 +669,45 @@
             
             // Check for prescribed activities
             if (this.state.prescribedActivityIds && this.state.prescribedActivityIds.length > 0) {
-                this.state.activities.prescribed = this.state.activities.all.filter(activity => 
-                    this.state.prescribedActivityIds.includes(activity.id)
-                );
+                log('Looking for prescribed activities with IDs:', this.state.prescribedActivityIds);
+                log('Available activity IDs to match against:', this.state.activities.all.map(a => ({ 
+                    id: a.id, 
+                    activityId: a.activityId,
+                    name: a.name 
+                })));
+                
+                this.state.activities.prescribed = this.state.activities.all.filter(activity => {
+                    // Check both id and activityId fields against prescribed IDs
+                    const matchesId = this.state.prescribedActivityIds.includes(activity.id);
+                    const matchesActivityId = this.state.prescribedActivityIds.includes(activity.activityId);
+                    
+                    if (matchesId || matchesActivityId) {
+                        log(`Prescribed match found: ${activity.name} (id: ${activity.id}, activityId: ${activity.activityId})`);
+                    }
+                    
+                    return matchesId || matchesActivityId;
+                });
                 log(`Found ${this.state.activities.prescribed.length} prescribed activities`);
+                log('Prescribed activity matches:', this.state.activities.prescribed.map(a => ({ id: a.id, activityId: a.activityId, name: a.name })));
             }
             
             // Check for completed activities
             if (this.state.finishedActivityIds && this.state.finishedActivityIds.length > 0) {
-                this.state.activities.completed = this.state.activities.all.filter(activity => 
-                    this.state.finishedActivityIds.includes(activity.id)
-                );
+                log('Looking for completed activities with IDs:', this.state.finishedActivityIds);
+                
+                this.state.activities.completed = this.state.activities.all.filter(activity => {
+                    // Check both id and activityId fields against finished IDs
+                    const matchesId = this.state.finishedActivityIds.includes(activity.id);
+                    const matchesActivityId = this.state.finishedActivityIds.includes(activity.activityId);
+                    
+                    if (matchesId || matchesActivityId) {
+                        log(`Completed match found: ${activity.name} (id: ${activity.id}, activityId: ${activity.activityId})`);
+                    }
+                    
+                    return matchesId || matchesActivityId;
+                });
                 log(`Found ${this.state.activities.completed.length} completed activities`);
+                log('Completed activity matches:', this.state.activities.completed.map(a => ({ id: a.id, activityId: a.activityId, name: a.name })));
             }
             
             // Filter activities based on VESPA scores
@@ -979,6 +1041,7 @@
             return `
                 <div class="dashboard-container">
                     ${this.getVESPAScoresHTML()}
+                    ${this.getPrescribedActivitiesHTML()}
                     ${this.getRecommendedActivitiesHTML()}
                     ${this.getRecentProgressHTML()}
                     ${this.getMotivationalHTML()}
@@ -1032,57 +1095,89 @@
             `;
         }
         
-        getRecommendedActivitiesHTML() {
-            // Prioritize prescribed activities that aren't completed
+        getPrescribedActivitiesHTML() {
+            // Get prescribed activities that aren't completed
             const prescribedNotCompleted = this.state.activities.prescribed.filter(activity => 
                 !this.state.finishedActivityIds.includes(activity.id) &&
                 !this.state.finishedActivityIds.includes(activity.activityId)
             );
             
-            // Get other available activities not completed
-            const otherAvailable = this.state.activities.available.filter(activity => 
-                !this.state.finishedActivityIds.includes(activity.id) &&
-                !this.state.finishedActivityIds.includes(activity.activityId) &&
-                !this.state.prescribedActivityIds.includes(activity.id)
-            );
-            
-            // Combine prescribed first, then others (limit to 6 total)
-            const recommendedActivities = [...prescribedNotCompleted, ...otherAvailable].slice(0, 6);
+            if (prescribedNotCompleted.length === 0 && this.state.activities.prescribed.length === 0) {
+                return ''; // Don't show section if no prescribed activities
+            }
             
             return `
-                <div class="activities-carousel">
-                    ${recommendedActivities.length > 0 ? 
-                        recommendedActivities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('') :
-                        '<div class="empty-state"><p>No activities available. Check back later!</p></div>'
-                    }
-                </div>
+                <section class="activities-section">
+                    <h2 class="section-title">
+                        <span class="title-icon">📋</span>
+                        Your Prescribed Activities
+                        <span class="title-badge">${prescribedNotCompleted.length} to complete</span>
+                    </h2>
+                    <div class="activities-carousel">
+                        ${prescribedNotCompleted.length > 0 ? 
+                            prescribedNotCompleted.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('') :
+                            '<div class="empty-state"><p>All prescribed activities completed! 🎉</p></div>'
+                        }
+                    </div>
+                </section>
             `;
         }
         
-        getActivityCardHTML(activity, index = 0) {
+        getRecommendedActivitiesHTML() {
+            // Get other available activities not completed and not prescribed
+            const otherAvailable = this.state.activities.available.filter(activity => 
+                !this.state.finishedActivityIds.includes(activity.id) &&
+                !this.state.finishedActivityIds.includes(activity.activityId) &&
+                !this.state.prescribedActivityIds.includes(activity.id) &&
+                !this.state.prescribedActivityIds.includes(activity.activityId)
+            );
+            
+            // Sort by lowest score category first
+            const sortedActivities = otherAvailable.sort((a, b) => {
+                const aScore = this.state.vespaScores[a.category] || 0;
+                const bScore = this.state.vespaScores[b.category] || 0;
+                return aScore - bScore; // Lower scores first
+            });
+            
+            // Take top 6
+            const recommendedActivities = sortedActivities.slice(0, 6);
+            
+            return `
+                <section class="activities-section">
+                    <h2 class="section-title">
+                        <span class="title-icon">✨</span>
+                        Recommended Activities
+                        <span class="title-badge">Based on your VESPA scores</span>
+                    </h2>
+                    <div class="activities-carousel">
+                        ${recommendedActivities.length > 0 ? 
+                            recommendedActivities.map((activity, index) => this.getActivityCardHTML(activity, index, false)).join('') :
+                            '<div class="empty-state"><p>No activities available. Check back later!</p></div>'
+                        }
+                    </div>
+                </section>
+            `;
+        }
+        
+        getActivityCardHTML(activity, index = 0, isPrescribed = false) {
             const isCompleted = this.state.finishedActivityIds.includes(activity.id) || 
                               this.state.finishedActivityIds.includes(activity.activityId);
             const categoryEmoji = this.getCategoryEmoji(activity.category);
-            const categoryColor = {
-                vision: '#ff8f00',
-                effort: '#86b4f0', 
-                systems: '#72cb44',
-                practice: '#7f31a4',
-                attitude: '#f032e6'
-            }[activity.category] || '#666';
+            const categoryColor = this.colors[activity.category]?.primary || '#666';
             
             // Extract points based on level (Level 2 = 10, Level 3 = 15 base points)
             const basePoints = activity.level === 'Level 3' ? 15 : 10;
             
             return `
-                <div class="activity-card ${isCompleted ? 'completed' : ''}" 
+                <div class="activity-card ${isCompleted ? 'completed' : ''} ${isPrescribed ? 'prescribed' : ''}" 
                      data-activity-id="${activity.id}"
                      style="animation-delay: ${index * 0.1}s">
-                    <div class="card-glow"></div>
+                    <div class="card-glow" style="background: ${categoryColor}"></div>
                     <div class="card-header">
                         <span class="category-chip" style="background: ${categoryColor}20; color: ${categoryColor}">
                             ${categoryEmoji} ${activity.category.charAt(0).toUpperCase() + activity.category.slice(1)}
                         </span>
+                        ${isPrescribed ? '<span class="prescribed-chip">Prescribed</span>' : ''}
                         <span class="level-chip">${activity.level}</span>
                         <span class="points-chip">+${basePoints} pts</span>
                     </div>
@@ -1091,7 +1186,7 @@
                     <div class="card-footer">
                         ${isCompleted ? 
                             '<span class="completed-badge"><span class="checkmark">✓</span> Completed</span>' :
-                            '<button class="start-activity-btn" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start <span class="arrow">→</span></button>'
+                            '<button class="start-activity-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start Activity <span class="arrow">→</span></button>'
                         }
                     </div>
                     <div class="card-hover-effect"></div>
