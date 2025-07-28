@@ -821,12 +821,12 @@
             try {
                 const response = await fetch(this.config.problemMappingsUrl);
                 const data = await response.json();
-                this.problemMappings = data.problemMappings;
-                log('Problem mappings loaded:', this.problemMappings);
+                this.state.problemMappings = data.problemMappings;
+                log('Problem mappings loaded:', this.state.problemMappings);
             } catch (error) {
                 console.error('Failed to load problem mappings:', error);
                 // Use fallback mappings
-                this.problemMappings = this.getFallbackProblemMappings();
+                this.state.problemMappings = this.getFallbackProblemMappings();
             }
         }
         
@@ -1123,44 +1123,47 @@
         }
         
         getRecommendedActivitiesHTML() {
-            // Show all prescribed activities from field_1683 that aren't completed
-            const recommendedNotCompleted = this.state.activities.prescribed.filter(activity => 
-                !this.state.finishedActivityIds.includes(activity.id) &&
-                !this.state.finishedActivityIds.includes(activity.activityId)
-            );
+            // Show ALL prescribed activities, including completed ones
+            const allPrescribed = this.state.activities.prescribed;
             
-            // Sort by category to group them
-            const sortedActivities = recommendedNotCompleted.sort((a, b) => {
-                if (a.category === b.category) return 0;
-                return a.category < b.category ? -1 : 1;
+            // Group by category
+            const activitiesByCategory = {};
+            allPrescribed.forEach(activity => {
+                if (!activitiesByCategory[activity.category]) {
+                    activitiesByCategory[activity.category] = [];
+                }
+                activitiesByCategory[activity.category].push(activity);
             });
             
             if (this.state.activities.prescribed.length === 0) {
                 return ''; // Don't show section if no prescribed activities
             }
             
-            // Show missing activities message if not all prescribed activities were found
-            const missingCount = this.state.prescribedActivityIds.length - this.state.activities.prescribed.length;
+            const completedCount = allPrescribed.filter(activity => 
+                this.state.finishedActivityIds.includes(activity.id) ||
+                this.state.finishedActivityIds.includes(activity.activityId)
+            ).length;
+            
+            const toCompleteCount = allPrescribed.length - completedCount;
             
             return `
                 <section class="activities-section">
                     <h2 class="section-title">
                         <span class="title-icon">✨</span>
                         Your Recommended Activities
-                        <span class="title-badge">${recommendedNotCompleted.length} to complete</span>
+                        <span class="title-badge">${toCompleteCount} to complete | ${completedCount} completed</span>
                     </h2>
-                    ${missingCount > 0 ? `
-                        <div class="warning-message">
-                            <span class="warning-icon">⚠️</span>
-                            ${missingCount} recommended activities couldn't be loaded. Please contact support if this persists.
+                    
+                    ${Object.entries(activitiesByCategory).map(([category, activities]) => `
+                        <div class="category-group">
+                            <h3 class="category-group-title">
+                                ${this.getCategoryEmoji(category)} ${category.toUpperCase()}
+                            </h3>
+                            <div class="activities-grid">
+                                ${activities.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('')}
+                            </div>
                         </div>
-                    ` : ''}
-                    <div class="activities-carousel">
-                        ${recommendedNotCompleted.length > 0 ? 
-                            sortedActivities.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('') :
-                            '<div class="empty-state"><p>All recommended activities completed! 🎉</p></div>'
-                        }
-                    </div>
+                    `).join('')}
                 </section>
             `;
         }
@@ -1190,7 +1193,7 @@
                     ${activity.instructions ? `<p class="activity-description">${activity.instructions.substring(0, 100)}...</p>` : ''}
                     <div class="card-footer">
                         ${isCompleted ? 
-                            '<span class="completed-badge"><span class="checkmark">✓</span> Completed</span>' :
+                            '<button class="redo-activity-btn" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Redo Activity <span class="arrow">↻</span></button>' :
                             '<button class="start-activity-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start Activity <span class="arrow">→</span></button>'
                         }
                     </div>
@@ -1346,8 +1349,6 @@
                             `;
                         }).join('')}
                     </div>
-                    
-                    <div id="category-activities-container"></div>
                 </div>
             `;
         }
@@ -1461,29 +1462,70 @@
         }
         
         showCategoryActivities(category) {
-            const container = document.getElementById('category-activities-container');
-            if (!container) return;
-            
             // Get all activities for this category (not just available ones)
             const categoryActivities = this.state.activities.byCategory[category] || [];
+            const color = this.colors[category];
             
-            container.innerHTML = `
-                <div class="category-activities">
-                    <h3 class="category-activities-title">
-                        ${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities
-                        <button class="close-category-btn" onclick="document.getElementById('category-activities-container').innerHTML = ''">✕</button>
-                    </h3>
-                    <div class="activities-grid">
-                        ${categoryActivities.length > 0 ? 
-                            categoryActivities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('') :
-                            '<p>No activities found in this category.</p>'
-                        }
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'activities-modal-overlay';
+            modal.innerHTML = `
+                <div class="activities-modal">
+                    <div class="modal-header" style="background: ${color.primary}">
+                        <h2 class="modal-title">
+                            ${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities
+                        </h2>
+                        <button class="modal-close-btn" onclick="this.closest('.activities-modal-overlay').remove()">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-subtitle">Explore all ${categoryActivities.length} activities in this category</p>
+                        <div class="modal-activities-grid">
+                            ${categoryActivities.length > 0 ? 
+                                categoryActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                                '<p>No activities found in this category.</p>'
+                            }
+                        </div>
                     </div>
                 </div>
             `;
             
-            // Scroll to the activities
-            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            document.body.appendChild(modal);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+        
+        getCompactActivityCardHTML(activity, index = 0) {
+            const isCompleted = this.state.finishedActivityIds.includes(activity.id) || 
+                              this.state.finishedActivityIds.includes(activity.activityId);
+            const categoryColor = this.colors[activity.category]?.primary || '#666';
+            const basePoints = activity.level === 'Level 3' ? 15 : 10;
+            
+            return `
+                <div class="compact-activity-card ${isCompleted ? 'completed' : ''}" 
+                     data-activity-id="${activity.id}"
+                     style="animation-delay: ${index * 0.05}s">
+                    <div class="compact-card-header">
+                        <span class="compact-level">${activity.level}</span>
+                        <span class="compact-points">+${basePoints}</span>
+                    </div>
+                    <h4 class="compact-activity-name">${activity.name}</h4>
+                    <div class="compact-card-footer">
+                        ${isCompleted ? 
+                            '<span class="compact-completed">✓ Completed</span>' :
+                            '<button class="compact-start-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start</button>'
+                        }
+                    </div>
+                </div>
+            `;
         }
         
         // Animations

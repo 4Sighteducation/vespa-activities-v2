@@ -1,234 +1,257 @@
+vespa-academy#my-vespa-activities/:1  Uncaught (in promise) 
+vespa-academy#my-vespa-activities/:1  Uncaught (in promise) 
 vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+ [Knack Builder Loader v3.16] Script start.
+ [Loader v3.16] DOM ready. Attaching Knack event listeners. 
+ [Loader v3.16] jQuery confirmed available. 
+ [Loader v3.16] Assigned $ to window.jQuery for compatibility with libraries expecting jQuery global. 
+ [Loader v3.16] Knack render event listeners attached. 
+ [Loader v3.16] Loader setup complete. Waiting for render events. 
+ [Loader v3.16] Knack Builder Loader setup registered. Waiting for DOM ready. 
+ Developed byKsense Technology Group LLCPRODUCTION MODE - Branch: main
+ [Loader v3.16] View rendered: Storing view key 'view_3168' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3168 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3168'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] View rendered: Storing view key 'view_3164' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3164 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3164'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] View rendered: Storing view key 'view_3167' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3167 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3167'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] View rendered: Storing view key 'view_3166' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3166 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3166'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] View rendered: Storing view key 'view_3165' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3165 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3165'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] Scene rendered: Storing scene key 'scene_1258' 
+ [Loader v3.16] Removing landing page background for scene scene_1258 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: scene_1258, Last Rendered View: view_3165 
+ [Loader v3.16] findAppToLoad: Checking if generalHeader should load on scene_1258 
+ [Loader v3.16] findAppToLoad: [generalHeader] Universal load enabled - will load on any scene 
+ [Loader v3.16] findAppToLoad: Checking if questionnaireValidator should load on scene_1258 
+ [Loader v3.16] findAppToLoad: [questionnaireValidator] Will load for all users (student check happens in script) 
+ [Loader v3.16] findAppToLoad: [questionnaireValidator] Universal load enabled - will load on any scene 
+ [Loader v3.16] findAppToLoad: Standard Search: Searching for app matching Scene Key: scene_1258, View Key: view_3165 
+ [Loader v3.16] findAppToLoad: Standard Match found for app 'VESPAActivitiesStudentV2'. 
+ [Loader v3.16] findAppToLoad: Apps identified for loading: generalHeader, questionnaireValidator, VESPAActivitiesStudentV2 
+ [Loader v3.16] tryLoadApp: Using sceneKey 'all' and viewKey 'any' for generalHeader config. 
+ [Loader v3.16] tryLoadApp: Built instance config for generalHeader Object
+ [Loader v3.16] tryLoadApp: Attempting to load script for generalHeader from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js 
+ [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js
+ --webpack updated--
+ Play error: play() failed because the user didn't interact with the document first.
+ [General Header] Script loaded, waiting for initialization...
+ [General Header] Script setup complete, initializer function ready
+ [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js
+ [Loader v3.16] tryLoadApp: Script successfully loaded for app 'generalHeader'. 
+ [Loader v3.16] tryLoadApp: Set global config variable 'GENERAL_HEADER_CONFIG' for generalHeader 
+ [Loader v3.16] tryLoadApp: Calling initializer function: initializeGeneralHeader for generalHeader 
+ [General Header] Initializing with config: Object
+ [General Header] Starting General Header initialization... 
+ [Loader v3.16] tryLoadApp: Initializer function initializeGeneralHeader called successfully for generalHeader. 
+ [Loader v3.16] tryLoadApp: Set global flag _generalHeaderLoaded = true 
+ [Loader v3.16] tryLoadApp: Using sceneKey 'all' and viewKey 'any' for questionnaireValidator config. 
+ [Loader v3.16] tryLoadApp: Built instance config for questionnaireValidator Object
+ [Loader v3.16] tryLoadApp: Attempting to load script for questionnaireValidator from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js 
+ [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js
+ [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js
+ [Loader v3.16] tryLoadApp: Script successfully loaded for app 'questionnaireValidator'. 
+ [Loader v3.16] tryLoadApp: Set global config variable 'QUESTIONNAIRE_VALIDATOR_CONFIG' for questionnaireValidator 
+ [Loader v3.16] tryLoadApp: Calling initializer function: initializeQuestionnaireValidator for questionnaireValidator 
+ [Questionnaire Validator] Initializing questionnaire validator 
+ [Questionnaire Validator] Questionnaire validator initialized 
+ [Loader v3.16] tryLoadApp: Initializer function initializeQuestionnaireValidator called successfully for questionnaireValidator. 
+ [Loader v3.16] tryLoadApp: Using sceneKey 'scene_1258' and viewKey 'any' for VESPAActivitiesStudentV2 config. 
+ [Loader v3.16] tryLoadApp: Built instance config for VESPAActivitiesStudentV2 Object
+ [Loader v3.16] tryLoadApp: Loading CSS for VESPAActivitiesStudentV2 from https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css... 
+ [Loader v3.16] loadCSS: Attempting to load stylesheet: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css
+ [General Header] User attributes: Object
+ [General Header] User role from field_73: Array(1)
+ [General Header] Checking all roles: Array(1)
+ [General Header] Account type field_441: GOLD
+ [General Header] User has ONLY student role 
+ [General Header] Detected user type: student
+ [General Header] Creating header for userType: student, isResource: false 
+ [General Header] Questionnaire validator is enabled - button will be intercepted 
+ [General Header] Header injected successfully 
+ [General Header] Page view tracked: Object
+ [General Header] User attributes: Object
+ [General Header] User role from field_73: Array(1)
+ [General Header] Checking all roles: Array(1)
+ [General Header] Account type field_441: GOLD
+ [General Header] User has ONLY student role 
+ [General Header] DEBUG: Nav button computed styles after setup: Object
+ [Loader v3.16] loadCSS: Stylesheet loaded successfully: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css
+ [Loader v3.16] tryLoadApp: CSS for VESPAActivitiesStudentV2 loaded successfully. 
+ [Loader v3.16] tryLoadApp: Attempting to load script for VESPAActivitiesStudentV2 from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js 
+ [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js
+ [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js
+ [Loader v3.16] tryLoadApp: Script successfully loaded for app 'VESPAActivitiesStudentV2'. 
+ [Loader v3.16] tryLoadApp: Set global config variable 'VESPA_ACTIVITIES_STUDENT_CONFIG' for VESPAActivitiesStudentV2 
+ [Loader v3.16] tryLoadApp: Calling initializer function: initializeVESPAActivitiesStudent for VESPAActivitiesStudentV2 
+ [VESPA Activities v2.0] Initializing VESPA Activities Student Experience Object
+ [VESPA Activities v2.0] Immediately hid view: view_3164
+ [VESPA Activities v2.0] Immediately hid view: view_3165
+ [VESPA Activities v2.0] Immediately hid view: view_3166
+ [VESPA Activities v2.0] Immediately hid view: view_3167
+ [VESPA Activities v2.0] Starting initialization 
+ [VESPA Activities v2.0] Setting up view render listeners 
+ [VESPA Activities v2.0] Waiting for Knack views to be ready... 
+ [VESPA Activities v2.0] Initial Knack.views: Array(5)
+ [VESPA Activities v2.0] Checking DOM for view elements: 
+ [VESPA Activities v2.0] view_3164 in DOM: true
+ [VESPA Activities v2.0] view_3165 in DOM: true
+ [VESPA Activities v2.0] view_3166 in DOM: true
+ [VESPA Activities v2.0] view_3167 in DOM: true
+ [VESPA Activities v2.0] All views are ready with data in Knack.views 
+ [VESPA Activities v2.0] VESPA Activities initialized successfully 
+ [Loader v3.16] tryLoadApp: Initializer function initializeVESPAActivitiesStudent called successfully for VESPAActivitiesStudentV2. 
+ [VESPA Activities v2.0] Hiding data views... 
+ [VESPA Activities v2.0] Hiding data views... 
+ [VESPA Activities v2.0] Hidden view: view_3164 
+ [VESPA Activities v2.0] Hidden view: view_3165 
+ [VESPA Activities v2.0] Hidden view: view_3166 
+ [VESPA Activities v2.0] Hidden view: view_3167 
+ [VESPA Activities v2.0] Injected CSS to hide data views 
+ [VESPA Activities v2.0] Loading initial data... 
+ [VESPA Activities v2.0] loadInitialData method called - starting data loading process 
+ [VESPA Activities v2.0] Looking for container: view_3168
+ [VESPA Activities v2.0] Container found, showing loading state 
+ [VESPA Activities v2.0] About to parse data from Knack views 
+ [VESPA Activities v2.0] Calling parseVESPAScores... 
+ [VESPA Activities v2.0] Parsing VESPA scores from view view_3164
+ [VESPA Activities v2.0] View data object: G.i
+ [VESPA Activities v2.0] Found record in details view format: Object
+ [VESPA Activities v2.0] Record found, parsing scores... 
+ [VESPA Activities v2.0] Available fields in record: Array(41)
+ [VESPA Activities v2.0] Parsed VESPA scores: Object
+ [VESPA Activities v2.0] Calling parseStudentRecord... 
+ [VESPA Activities v2.0] Parsing student record from view view_3165
+ [VESPA Activities v2.0] Student view object: G.i
+ [VESPA Activities v2.0] Found student record in details view format: Object
+ [VESPA Activities v2.0] Student record found, parsing data... 
+ [VESPA Activities v2.0] Available fields in student record: Array(33)
+ [VESPA Activities v2.0] Student name: Student
+ [VESPA Activities v2.0] Prescribed activity IDs: Array(12)
+ [VESPA Activities v2.0] Finished activities field (field_1380): 5fcd517ba74fa2001bd48dad,5ff1f0b28a0c35001c57fb89
+ [VESPA Activities v2.0] Finished activity IDs: Array(2)
+ [VESPA Activities v2.0] Calling parseActivities... 
+ [VESPA Activities v2.0] Parsing activities from view view_3166
+ [VESPA Activities v2.0] Activities view object: G.i
+ [VESPA Activities v2.0] Found activities in table view format: 75
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] First activity structure: Array(13)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 1 data: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 2 data: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 3 data: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed 75 activities 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activities by category: Array(5)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Looking for prescribed activities with IDs: Array(12)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Available activity IDs to match against: Array(75)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 20 Questions (id: 5fcb62a903d876001c5e1fcf, activityId: 5fcb62a903d876001c5e1fcf) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 2-4-8 Rule (id: 5fe08034a529d3001b2b5b29, activityId: 5fe08034a529d3001b2b5b29) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 2 Slow, 1 Fast (id: 5fecf758845cf7001bd26679, activityId: 5fecf758845cf7001bd26679) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Inner Story Telling (id: 5fd5197510f706001b0465d6, activityId: 5fd5197510f706001b0465d6) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Know the Skills (id: 5fed8f7f8ff75c001b6ebd5f, activityId: 5fed8f7f8ff75c001b6ebd5f) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Leitner Box (id: 5fe8ca680c7c48001bd7db56, activityId: 5fe8ca680c7c48001bd7db56) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Revision Questionnaire (id: 5fe38371c76bfd001b459923, activityId: 5fe38371c76bfd001b459923) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: The Lead Domino (id: 5fe0dcf4590766001ba431cf, activityId: 5fe0dcf4590766001ba431cf) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Vampire Test (id: 5fef592f648880001c1b7296, activityId: 5fef592f648880001c1b7296) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Working Weeks (id: 5fd52773ccb3a3002350961d, activityId: 5fd52773ccb3a3002350961d) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Found 12 prescribed activities 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed activity matches: Array(12)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Looking for completed activities with IDs: Array(2)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Found 2 completed activities 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed activity matches: Array(2)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "10min Rule" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "21st Birthday" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "3R's of Habit" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "9 Box Grid" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Benefit Finding" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Breakfast Club" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Change Curve" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Effort Thermometer" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Eisenhower Matrix" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Energy Line" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Failing Forwards" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Fake It!" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Five Roads" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Force Field" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Frogs & Bannisters" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Getting Dreams Done" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Graphic Organisers" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Growth Mindset" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Independent Work" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Kill Your Critic" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Learn from Mistakes" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Managing Reactions" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mechanical vs Flexible" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mental Contrasting" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mission & Medal" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Motivation Diamond" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Now vs Most" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "One to Ten" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Packing Bags" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Perfect Day" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Power of If" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Pre-Made Decisions" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Priority Matrix" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Project Progress Chart" hidden - student's systems score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Recognising your blockers" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Right-Wrong-Right" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Roadmap" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Rule of 3" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "SMART Goals" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Snack Don't Binge" hidden - student's systems score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Spaced Practice" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Stand Tall" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Stopping Negative Thoughts" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "STQR" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Test Yourself" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The Battery" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The Bottom Left" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The First Aid Kit" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Time to Teach" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Weekly Planner" hidden - student's systems score (3) not in range 5-10 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "What's Stopping You" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Will vs Skill" hidden - student's practice score (3) not in range 0-2 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] 23 activities available based on VESPA scores 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed activities: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calling parseActivityProgress... 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsing activity progress from view view_3167
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed activity progress: Array(0)
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Loading problem mappings... 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Problem mappings loaded: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calculating stats... 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calculated stats: Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Initial data loaded successfully Object
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Rendering UI... 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Attaching event listeners... 
+VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Initialization complete 
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 [NEW] Explain Console errors by using Copilot in Edge: click
          
          to explain an error. 
         Learn more
         Don't show again
-main.js?1753711996905&_=1753711997410:226 [Knack Builder Loader v3.16] Script start.
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] DOM ready. Attaching Knack event listeners. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] jQuery confirmed available. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Assigned $ to window.jQuery for compatibility with libraries expecting jQuery global. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Knack render event listeners attached. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Loader setup complete. Waiting for render events. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Knack Builder Loader setup registered. Waiting for DOM ready. 
-index2.4.0.js:118 Developed byKsense Technology Group LLCPRODUCTION MODE - Branch: main
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] View rendered: Storing view key 'view_3168' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3168 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3168'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] View rendered: Storing view key 'view_3166' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3166 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3166'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] View rendered: Storing view key 'view_3165' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3165 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3165'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] View rendered: Storing view key 'view_3164' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3164 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3164'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] View rendered: Storing view key 'view_3167' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3167 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3167'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Scene rendered: Storing scene key 'scene_1258' 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] Removing landing page background for scene scene_1258 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: scene_1258, Last Rendered View: view_3167 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: Checking if generalHeader should load on scene_1258 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: [generalHeader] Universal load enabled - will load on any scene 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: Checking if questionnaireValidator should load on scene_1258 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: [questionnaireValidator] Will load for all users (student check happens in script) 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: [questionnaireValidator] Universal load enabled - will load on any scene 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: Standard Search: Searching for app matching Scene Key: scene_1258, View Key: view_3167 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: Standard Match found for app 'VESPAActivitiesStudentV2'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] findAppToLoad: Apps identified for loading: generalHeader, questionnaireValidator, VESPAActivitiesStudentV2 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Using sceneKey 'all' and viewKey 'any' for generalHeader config. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Built instance config for generalHeader {knackAppId: '5ee90912c38ae7001510c1a9', knackApiKey: '8f733aa5-dd35-4464-8348-64824d1f5f0d', sendGrid: {…}, appType: 'generalHeader', debugMode: true, …}
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Attempting to load script for generalHeader from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js
-any.js:13 --webpack updated--
-GeneralHeader2e.js?_=1753712001112:9 [General Header] Script loaded, waiting for initialization...
-GeneralHeader2e.js?_=1753712001112:958 [General Header] Script setup complete, initializer function ready
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/GeneralHeader2e.js
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Script successfully loaded for app 'generalHeader'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Set global config variable 'GENERAL_HEADER_CONFIG' for generalHeader 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Calling initializer function: initializeGeneralHeader for generalHeader 
-GeneralHeader2e.js?_=1753712001112:19 [General Header] Initializing with config: {knackAppId: '5ee90912c38ae7001510c1a9', knackApiKey: '8f733aa5-dd35-4464-8348-64824d1f5f0d', sendGrid: {…}, appType: 'generalHeader', debugMode: true, …}
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Starting General Header initialization... 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Initializer function initializeGeneralHeader called successfully for generalHeader. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Set global flag _generalHeaderLoaded = true 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Using sceneKey 'all' and viewKey 'any' for questionnaireValidator config. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Built instance config for questionnaireValidator {knackAppId: '5ee90912c38ae7001510c1a9', knackApiKey: '8f733aa5-dd35-4464-8348-64824d1f5f0d', sendGrid: {…}, appType: 'questionnaireValidator', debugMode: true, …}
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Attempting to load script for questionnaireValidator from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/questionnaireValidator1n.js
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Script successfully loaded for app 'questionnaireValidator'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Set global config variable 'QUESTIONNAIRE_VALIDATOR_CONFIG' for questionnaireValidator 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Calling initializer function: initializeQuestionnaireValidator for questionnaireValidator 
-questionnaireValidator1n.js?_=1753712001142:49 [Questionnaire Validator] Initializing questionnaire validator 
-questionnaireValidator1n.js?_=1753712001142:49 [Questionnaire Validator] Questionnaire validator initialized 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Initializer function initializeQuestionnaireValidator called successfully for questionnaireValidator. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Using sceneKey 'scene_1258' and viewKey 'any' for VESPAActivitiesStudentV2 config. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Built instance config for VESPAActivitiesStudentV2 {knackAppId: '5ee90912c38ae7001510c1a9', knackApiKey: '8f733aa5-dd35-4464-8348-64824d1f5f0d', sendGrid: {…}, appType: 'VESPAActivitiesStudentV2', debugMode: true, …}
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Loading CSS for VESPAActivitiesStudentV2 from https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.css... 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadCSS: Attempting to load stylesheet: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.css
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User attributes: {id: '630510eb3c91500021a8fad2', values: {…}, roles: Array(1), email: 'aramsey@vespa.academy', name: 'Alena Ramsey'}
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User role from field_73: ['profile_6']
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Checking all roles: ['profile_6']
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Account type field_441: GOLD
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User has ONLY student role 
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Detected user type: student
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Creating header for userType: student, isResource: false 
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Questionnaire validator is enabled - button will be intercepted 
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Header injected successfully 
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Page view tracked: {userType: 'student', scene: 'all'}
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User attributes: {id: '630510eb3c91500021a8fad2', values: {…}, roles: Array(1), email: 'aramsey@vespa.academy', name: 'Alena Ramsey'}
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User role from field_73: ['profile_6']
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Checking all roles: ['profile_6']
-GeneralHeader2e.js?_=1753712001112:31 [General Header] Account type field_441: GOLD
-GeneralHeader2e.js?_=1753712001112:31 [General Header] User has ONLY student role 
-GeneralHeader2e.js?_=1753712001112:31 [General Header] DEBUG: Nav button computed styles after setup: {padding: '8px 14px', fontSize: '13px', width: 176, userType: 'student'}
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadCSS: Stylesheet loaded successfully: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.css
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: CSS for VESPAActivitiesStudentV2 loaded successfully. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Attempting to load script for VESPAActivitiesStudentV2 from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.js 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.js
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1d.js
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Script successfully loaded for app 'VESPAActivitiesStudentV2'. 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Set global config variable 'VESPA_ACTIVITIES_STUDENT_CONFIG' for VESPAActivitiesStudentV2 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Calling initializer function: initializeVESPAActivitiesStudent for VESPAActivitiesStudentV2 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Initializing VESPA Activities Student Experience {knackAppId: '5ee90912c38ae7001510c1a9', knackApiKey: '8f733aa5-dd35-4464-8348-64824d1f5f0d', sendGrid: {…}, appType: 'VESPAActivitiesStudentV2', debugMode: true, …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Immediately hid view: view_3164
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Immediately hid view: view_3165
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Immediately hid view: view_3166
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Immediately hid view: view_3167
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting initialization 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Setting up view render listeners 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Waiting for Knack views to be ready... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Initial Knack.views: (5) ['view_3164', 'view_3165', 'view_3166', 'view_3167', 'view_3168']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Checking DOM for view elements: 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] view_3164 in DOM: true
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] view_3165 in DOM: true
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] view_3166 in DOM: true
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] view_3167 in DOM: true
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] All views are ready with data in Knack.views 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] VESPA Activities initialized successfully 
-main.js?1753711996905&_=1753711997410:1090 [Loader v3.16] tryLoadApp: Initializer function initializeVESPAActivitiesStudent called successfully for VESPAActivitiesStudentV2. 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hiding data views... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hiding data views... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hidden view: view_3164 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hidden view: view_3165 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hidden view: view_3166 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Hidden view: view_3167 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Injected CSS to hide data views 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Loading initial data... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] loadInitialData method called - starting data loading process 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Looking for container: view_3168
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Container found, showing loading state 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] About to parse data from Knack views 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calling parseVESPAScores... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsing VESPA scores from view view_3164
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] View data object: {cid: 'view3105', model: {…}, el: div#view_3164.kn-details.kn-view.view_3164, $el: init, domSelector: undefined, …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Found record in details view format: {id: '685be7aa20fafa030b51c8c1', field_133: '', field_133_raw: Array(0), field_855: '24/07/2025', field_855_raw: {…}, …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Record found, parsing scores... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Available fields in record: (41) ['id', 'field_133', 'field_133_raw', 'field_855', 'field_855_raw', 'field_439', 'field_439_raw', 'field_187', 'field_187_raw', 'field_197', 'field_197_raw', 'field_143_raw', 'field_143', 'field_568_raw', 'field_568', 'field_223_raw', 'field_223', 'field_145', 'field_145_raw', 'field_429', 'field_429_raw', 'field_2191', 'field_2191_raw', 'field_144_raw', 'field_144', 'field_782_raw', 'field_782', 'field_146', 'field_146_raw', 'field_147', 'field_147_raw', 'field_148', 'field_148_raw', 'field_149', 'field_149_raw', 'field_150', 'field_150_raw', 'field_151', 'field_151_raw', 'field_152', 'field_152_raw']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsed VESPA scores: {vision: 7, effort: 7, systems: 6, practice: 9, attitude: 7}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calling parseStudentRecord... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsing student record from view view_3165
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Student view object: {cid: 'view3107', model: {…}, el: div#view_3165.kn-details.kn-view.view_3165, $el: init, domSelector: undefined, …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Found student record in details view format: {id: '630510ea3c91500021a8fad1', account_status: 'active', approval_status: 'approved', utility_key: '17255243733681lvgwmb', profile_keys: 'Student', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Student record found, parsing data... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Available fields in student record: (34) ['id', 'account_status', 'approval_status', 'utility_key', 'profile_keys', 'profile_keys_raw', 'field_179', 'field_179_raw', 'field_90', 'field_90_raw', 'field_180', 'field_180_raw', 'field_182', 'field_182_raw', 'field_190', 'field_190_raw', 'field_91', 'field_91_raw', 'field_1682', 'field_1682_raw', 'field_547', 'field_547_raw', 'field_2177', 'field_2177_raw', 'field_548', 'field_548_raw', 'field_565', 'field_565_raw', 'field_567', 'field_567_raw', 'field_1380', 'field_1380_raw', 'field_1683', 'field_1683_raw']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Student name: Student
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Prescribed activity IDs: ['<span class="6005de7c1e85bf001c4c451e" data-kn="co…-kn="connection-value">Getting Dreams Done</span>']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Finished activity IDs: (14) ['5ffe01865c1cca001b161e42', '5ff3841848789d001c52ed81', '5fec5dc532f5b1001bb756bf', '5ffe02d95d4ee5001c30f11d', '5fcd49ed0e734a001db4166f', '5fcd2a08a8369b001b9f8883', '5fcccf1303d876001c5f371e', '5fcd52daa8369b001b9fb551', '5fe8ca680c7c48001bd7db56', '5fe8d54dc4627e001b8ccd12', '5fef592f648880001c1b7296', '5fe28f3c514b63001bb3a768', '6005de7c1e85bf001c4c451e', '5fedc39cf3be06001b6ddbe3']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calling parseActivities... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsing activities from view view_3166
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activities view object: {cid: 'view3109', model: {…}, el: div#view_3166.kn-table.kn-view.view_3166, $el: init, domSelector: undefined, …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Found activities in table view format: 25
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] First activity structure: (13) ['id', 'field_1278', 'field_1278_raw', 'field_1289', 'field_1289_raw', 'field_1285', 'field_1285_raw', 'field_1287', 'field_1287_raw', 'field_1294', 'field_1294_raw', 'field_1306_raw', 'field_1306']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsed 25 activities 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activities by category: (5) ['effort: 5', 'vision: 6', 'systems: 5', 'practice: 4', 'attitude: 5']
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Found 0 prescribed activities 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Found 4 completed activities 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "10min Rule" hidden - student's effort score (7) not in range 0-2 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "20 Questions" hidden - student's vision score (7) not in range 0-3 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "21st Birthday" hidden - student's vision score (7) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "2-4-8 Rule" hidden - student's systems score (6) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "25min Sprints" hidden - student's effort score (7) not in range 0-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "2 Slow, 1 Fast" hidden - student's practice score (9) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "3R's of Habit" hidden - student's effort score (7) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "9 Box Grid" hidden - student's practice score (9) not in range 5-8 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Benefit Finding" hidden - student's attitude score (7) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Breakfast Club" hidden - student's systems score (6) not in range 0-2 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Chunking Steps" hidden - student's systems score (6) not in range 0-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Eisenhower Matrix" hidden - student's systems score (6) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Energy Line" hidden - student's systems score (6) not in range 0-2 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Failing Forwards" hidden - student's attitude score (7) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Fake It!" hidden - student's vision score (7) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Five Roads" hidden - student's vision score (7) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Fix your dashboard" hidden - student's vision score (7) not in range 0-2 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Force Field" hidden - student's attitude score (7) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Frogs & Bannisters" hidden - student's effort score (7) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "Getting Dreams Done" hidden - student's vision score (7) not in range 8-10 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Activity "High Flow Spaces" hidden - student's practice score (9) not in range 2-5 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] 4 activities available based on VESPA scores 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsed activities: {all: 25, available: 4, prescribed: 0, completed: 4}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calling parseActivityProgress... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsing activity progress from view view_3167
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Parsed activity progress: []
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Loading problem mappings... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Problem mappings loaded: {Vision: Array(7), Effort: Array(7), Systems: Array(7), Practice: Array(7), Attitude: Array(7)}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calculating stats... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Calculated stats: {totalPoints: 0, currentStreak: 0, activitiesCompleted: 4, averageWordCount: 0, nextMilestone: {…}}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Initial data loaded successfully {view: 'dashboard', vespaScores: {…}, activities: {…}, prescribedActivityIds: Array(1), finishedActivityIds: Array(14), …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Rendering UI... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Attaching event listeners... 
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Initialization complete 
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5feb62388fd0f4001b0e9d04 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Graphic Organisers"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5feb62388fd0f4001b0e9d04', activityId: '5feb62388fd0f4001b0e9d04', name: 'Graphic Organisers', category: 'practice', activityText: '<hr /><h2 style="text-align:center;color:#a986ff;m…alysis.png" class=" overlayWrapper" />\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5feb62388fd0f4001b0e9d04 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Graphic Organisers"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5feb62388fd0f4001b0e9d04', activityId: '5feb62388fd0f4001b0e9d04', name: 'Graphic Organisers', category: 'practice', activityText: '<hr /><h2 style="text-align:center;color:#a986ff;m…alysis.png" class=" overlayWrapper" />\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe1476226f20001b060044 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Growth Mindset"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe1476226f20001b060044', activityId: '5ffe1476226f20001b060044', name: 'Growth Mindset', category: 'attitude', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…get="_blank">DOWNLOAD PDF</a></strong>\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe1476226f20001b060044 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Growth Mindset"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe1476226f20001b060044', activityId: '5ffe1476226f20001b060044', name: 'Growth Mindset', category: 'attitude', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…get="_blank">DOWNLOAD PDF</a></strong>\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe1476226f20001b060044 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Growth Mindset"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe1476226f20001b060044', activityId: '5ffe1476226f20001b060044', name: 'Growth Mindset', category: 'attitude', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…get="_blank">DOWNLOAD PDF</a></strong>\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe1476226f20001b060044 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Growth Mindset"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe1476226f20001b060044', activityId: '5ffe1476226f20001b060044', name: 'Growth Mindset', category: 'attitude', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…get="_blank">DOWNLOAD PDF</a></strong>\n</p><hr />', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
-VESPAactivitiesStudent1d.js?_=1753712001709:13 [VESPA Activities v2.0] Starting activity: 5ffe09d15d4ee5001c30f799 
-VESPAactivitiesStudent1d.js?_=1753712001709:1396 [info] Starting "Effort Thermometer"...
-VESPAactivitiesStudent1d.js?_=1753712001709:1340 Activity to start: {id: '5ffe09d15d4ee5001c30f799', activityId: '5ffe09d15d4ee5001c30f799', name: 'Effort Thermometer', category: 'effort', activityText: '<hr /><h2 style="text-align:center;margin:0px;colo…fort you need to put in changes.<br /><br />\n</p>', …}
