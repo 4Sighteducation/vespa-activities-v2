@@ -1,0 +1,146 @@
+Object_126 - Activity Progress - Field Mapping
+
+
+Connection
+Activities
+field_3537
+
+Connection
+Student
+field_3536
+
+Auto Increment
+progress_id
+field_3535
+
+Short Text
+Name
+field_3534
+
+Number
+Cycle Number
+field_3538
+
+Date/Time
+date_assigned
+field_3539
+
+Date/Time
+date_started
+field_3540
+
+Date/Time
+date_completed
+field_3541
+
+Number
+total_time_minutes
+field_3542
+
+Multiple Choice
+completion_status
+field_3543
+
+Yes/No
+staff_verified
+field_3544
+
+Number
+points_earned
+field_3545
+
+Multiple Choice
+selected_via
+field_3546
+
+Paragraph Text
+staff_notes
+field_3547
+
+Paragraph Text
+student_reflection
+field_3548
+
+Number
+word_count
+field_3549
+
+
+
+Object_127 - Student Achievements
+
+Connection (to Object_3 - Accounts record linked to email - field_70)
+issued_by_staff
+field_3559
+
+Short Text
+icon_emoji
+field_3558
+
+Number
+points_value
+field_3557
+
+Date/Time
+date_earned
+field_3556
+
+Paragraph Text
+achievement_description
+field_3555
+
+Short Text
+achievement_name
+field_3554
+
+Multiple Choice
+achievement_type
+field_3553
+
+Connection
+Student
+field_3552
+
+Auto Increment
+achievement_id
+field_3551
+
+Short Text
+Name
+field_3550
+
+Paragraph Text
+criteria_met
+field_3560
+
+
+
+Object_128 - Activity Feedback 
+
+Connection
+staff_member
+field_3564
+
+Connection
+Activity Progress
+field_3563
+
+Auto Increment
+feedback_id
+field_3562
+
+Short Text
+Name
+field_3561
+
+Paragraph Text
+feedback_text
+field_3565
+
+Date/Time
+feedback_date
+field_3566
+
+Multiple Choice
+feedback_type
+field_3567

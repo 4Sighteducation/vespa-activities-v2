@@ -1,0 +1,229 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-28",
+    "description": "Maps student problems to recommended VESPA activities"
+  },
+  "problemMappings": {
+    "Vision": [
+      {
+        "id": "svision_1",
+        "text": "I'm unsure about my future goals",
+        "recommendedActivities": ["Dream Big", "Vision Boards"],
+        "activityIds": ["5ffe0a2bd4e8f1001bb71e9f", "5ffe094fb4e11f001be60d95"]
+      },
+      {
+        "id": "svision_2", 
+        "text": "I'm not feeling motivated for my studies",
+        "recommendedActivities": ["Finding Your Why", "Goal Setting Genius"],
+        "activityIds": ["5ffe078aabc5d9001c11b02b", "5ffe084a4fb15e001ddf65e0"]
+      },
+      {
+        "id": "svision_3",
+        "text": "I can't see how school connects to my future",
+        "recommendedActivities": ["Future Me", "Career Connections"],
+        "activityIds": ["5ffe06e6472104001be86608", "5ffe05f6d4e8f1001bb71da2"]
+      },
+      {
+        "id": "svision_4",
+        "text": "I don't really know what success looks like for me",
+        "recommendedActivities": ["My Personal Best", "Success Criteria"],
+        "activityIds": ["5ffe04acd4e8f1001bb71d37", "5ffe0576472104001be8657f"]
+      },
+      {
+        "id": "svision_5",
+        "text": "I haven't thought about what I want to achieve this year",
+        "recommendedActivities": ["Goal Setting Genius", "Dream Big"],
+        "activityIds": ["5ffe084a4fb15e001ddf65e0", "5ffe0a2bd4e8f1001bb71e9f"]
+      },
+      {
+        "id": "svision_6",
+        "text": "I find it hard to picture myself doing well",
+        "recommendedActivities": ["Future Me", "My Personal Best"],
+        "activityIds": ["5ffe06e6472104001be86608", "5ffe04acd4e8f1001bb71d37"]
+      },
+      {
+        "id": "svision_7",
+        "text": "I rarely think about where I'm heading or why I'm here",
+        "recommendedActivities": ["Finding Your Why", "Vision Boards"],
+        "activityIds": ["5ffe078aabc5d9001c11b02b", "5ffe094fb4e11f001be60d95"]
+      }
+    ],
+    "Effort": [
+      {
+        "id": "seffort_1",
+        "text": "I struggle to complete my homework on time",
+        "recommendedActivities": ["Time Thief", "Effort Audits"],
+        "activityIds": ["5ffe005e86917a001be08436", "5fdffc59472104001be865cf"]
+      },
+      {
+        "id": "seffort_2",
+        "text": "I find it hard to keep trying when things get difficult",
+        "recommendedActivities": ["Grit and Resilience", "Marshmallow Test"],
+        "activityIds": ["5fdffae686917a001be08405", "5fdffba01e82a6001e41e978"]
+      },
+      {
+        "id": "seffort_3",
+        "text": "I often give up if I don't get things right straight away",
+        "recommendedActivities": ["Failing Forwards", "Growth Mindset"],
+        "activityIds": ["6005de7c1e85bf001c4c451e", "5ffe1476226f20001b060044"]
+      },
+      {
+        "id": "seffort_4",
+        "text": "I do the bare minimum just to get by",
+        "recommendedActivities": ["Effort Audits", "Excellence Habits"],
+        "activityIds": ["5fdffc59472104001be865cf", "5fdff9ba86917a001be08388"]
+      },
+      {
+        "id": "seffort_5",
+        "text": "I get distracted really easily when I try to study",
+        "recommendedActivities": ["Distractions and Flow", "High Flow Spaces"],
+        "activityIds": ["5fdff894b4e11f001be60d25", "5ffe11ac86917a001be095b6"]
+      },
+      {
+        "id": "seffort_6",
+        "text": "I avoid topics or tasks that feel too hard",
+        "recommendedActivities": ["Will vs Skill", "Grit and Resilience"],
+        "activityIds": ["5ffe10871e82a6001e41fe00", "5fdffae686917a001be08405"]
+      },
+      {
+        "id": "seffort_7",
+        "text": "I put things off until I'm under pressure",
+        "recommendedActivities": ["Procrastination Buster", "Time Thief"],
+        "activityIds": ["5fdff7b3cf36ef001b1c5cd9", "5ffe005e86917a001be08436"]
+      }
+    ],
+    "Systems": [
+      {
+        "id": "ssystems_1",
+        "text": "I'm not very organized with my notes and deadlines",
+        "recommendedActivities": ["Weekly Planner", "Note-Taking Strategies"],
+        "activityIds": ["5fdff5c8562205001ce71326", "5fdff6d586917a001be08327"]
+      },
+      {
+        "id": "ssystems_2",
+        "text": "I don't have a good revision plan",
+        "recommendedActivities": ["Revision Timetable", "Leitner Box"],
+        "activityIds": ["5fdff4281e82a6001e41e8a1", "5fdff4fb4fb15e001ddf6455"]
+      },
+      {
+        "id": "ssystems_3",
+        "text": "I keep forgetting what homework I have",
+        "recommendedActivities": ["Homework Tracker", "Weekly Planner"],
+        "activityIds": ["5fdff330562205001ce712c5", "5fdff5c8562205001ce71326"]
+      },
+      {
+        "id": "ssystems_4",
+        "text": "I leave everything to the last minute",
+        "recommendedActivities": ["Procrastination Buster", "Time Management Matrix"],
+        "activityIds": ["5fdff7b3cf36ef001b1c5cd9", "5fdff223562205001ce7125f"]
+      },
+      {
+        "id": "ssystems_5",
+        "text": "I don't use a planner or calendar to track my work",
+        "recommendedActivities": ["Weekly Planner", "Academic Calendar"],
+        "activityIds": ["5fdff5c8562205001ce71326", "5fdff12e86917a001be0820e"]
+      },
+      {
+        "id": "ssystems_6",
+        "text": "My notes are all over the place and hard to follow",
+        "recommendedActivities": ["Note-Taking Strategies", "Cornell Notes"],
+        "activityIds": ["5fdff6d586917a001be08327", "5fdff02d4fb15e001ddf6362"]
+      },
+      {
+        "id": "ssystems_7",
+        "text": "I struggle to prioritise what to do first",
+        "recommendedActivities": ["Time Management Matrix", "Prioritisation Pyramid"],
+        "activityIds": ["5fdff223562205001ce7125f", "5fdfef75562205001ce714d2"]
+      }
+    ],
+    "Practice": [
+      {
+        "id": "spractice_1",
+        "text": "I don't review my work regularly",
+        "recommendedActivities": ["Test Yourself", "Spaced Repetition"],
+        "activityIds": ["5ffe134d1e82a6001e41ffe7", "5fdfee81472104001be86989"]
+      },
+      {
+        "id": "spractice_2",
+        "text": "I tend to cram before tests",
+        "recommendedActivities": ["Revision Timetable", "Leitner Box"],
+        "activityIds": ["5fdff4281e82a6001e41e8a1", "5fdff4fb4fb15e001ddf6455"]
+      },
+      {
+        "id": "spractice_3",
+        "text": "I avoid practising topics I find hard",
+        "recommendedActivities": ["Will vs Skill", "Deliberate Practice"],
+        "activityIds": ["5ffe10871e82a6001e41fe00", "5fdfed35472104001be868d3"]
+      },
+      {
+        "id": "spractice_4",
+        "text": "I'm not sure how to revise effectively",
+        "recommendedActivities": ["Time to Teach", "9 Box Grid"],
+        "activityIds": ["5ffe12c89ff689001bcb2281", "5ffe111a1e82a6001e41fe2b"]
+      },
+      {
+        "id": "spractice_5",
+        "text": "I don't practise exam-style questions enough",
+        "recommendedActivities": ["Past Paper Practice", "Test Yourself"],
+        "activityIds": ["5fdfec59b4e11f001be60cb2", "5ffe134d1e82a6001e41ffe7"]
+      },
+      {
+        "id": "spractice_6",
+        "text": "I don't really learn from the mistakes I make",
+        "recommendedActivities": ["Failing Forwards", "Mistake Analysis"],
+        "activityIds": ["6005de7c1e85bf001c4c451e", "5fdfeb62562205001ce71430"]
+      },
+      {
+        "id": "spractice_7",
+        "text": "I rarely check my understanding before moving on",
+        "recommendedActivities": ["Test Yourself", "Independent Learning"],
+        "activityIds": ["5ffe134d1e82a6001e41ffe7", "5ffe12545d4ee5001c30fefa"]
+      }
+    ],
+    "Attitude": [
+      {
+        "id": "sattitude_1",
+        "text": "I worry I'm not smart enough",
+        "recommendedActivities": ["Growth Mindset", "The Battery"],
+        "activityIds": ["5ffe1476226f20001b060044", "5ffe15ccf6034a001b98b749"]
+      },
+      {
+        "id": "sattitude_2",
+        "text": "I get easily discouraged by setbacks",
+        "recommendedActivities": ["Rocky Road", "Failing Forwards"],
+        "activityIds": ["5ffe16205c1cca001b162fe2", "6005de7c1e85bf001c4c451e"]
+      },
+      {
+        "id": "sattitude_3",
+        "text": "I often compare myself to others and feel behind",
+        "recommendedActivities": ["My Personal Best", "The Battery"],
+        "activityIds": ["5ffe04acd4e8f1001bb71d37", "5ffe15ccf6034a001b98b749"]
+      },
+      {
+        "id": "sattitude_4",
+        "text": "I don't believe my effort really makes a difference",
+        "recommendedActivities": ["Growth Mindset", "Effort Audits"],
+        "activityIds": ["5ffe1476226f20001b060044", "5fdffc59472104001be865cf"]
+      },
+      {
+        "id": "sattitude_5",
+        "text": "I feel overwhelmed when I don't get something straight away",
+        "recommendedActivities": ["Stress Management", "Stand Tall"],
+        "activityIds": ["5ffe16205c1cca001b162fe2", "6005de7c1e85bf001c4c451e"]
+      },
+      {
+        "id": "sattitude_6",
+        "text": "I tell myself I'm just not good at certain subjects",
+        "recommendedActivities": ["Growth Mindset", "Stopping Negative Thoughts"],
+        "activityIds": ["5ffe1476226f20001b060044", "6005f0b6041501001c676cb8"]
+      },
+      {
+        "id": "sattitude_7",
+        "text": "I find it hard to stay positive about school",
+        "recommendedActivities": ["Network Audits", "The Battery"],
+        "activityIds": ["5ffe15505c1cca001b162f4b", "5ffe15ccf6034a001b98b749"]
+      }
+    ]
+  }
+} 
