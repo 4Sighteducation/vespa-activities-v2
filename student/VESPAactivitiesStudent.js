@@ -7,30 +7,42 @@
     const VERSION = '2.0';
     const DEBUG = true;
     
-    // Wait for configuration
-    function waitForConfig() {
-        if (typeof window.VESPA_ACTIVITIES_STUDENT_CONFIG === 'undefined') {
-            setTimeout(waitForConfig, 100);
-            return;
-        }
-        initializeVESPAActivitiesStudent();
-    }
-    
-    // Main initialization function
+    // Export the initializer function that will be called by KnackAppLoader
     window.initializeVESPAActivitiesStudent = function() {
-        const config = window.VESPA_ACTIVITIES_STUDENT_CONFIG;
+        log('Initializing VESPA Activities Student Experience', window.VESPA_ACTIVITIES_STUDENT_CONFIG);
         
-        if (!config) {
-            console.error('[VESPA Activities Student] No configuration found');
+        if (!window.VESPA_ACTIVITIES_STUDENT_CONFIG) {
+            console.error('[VESPA Activities] Config not found!');
             return;
         }
         
-        log('Initializing VESPA Activities Student Experience', config);
+        // Prevent duplicate initialization
+        if (window.vespaActivitiesApp) {
+            log('App already initialized, skipping');
+            return;
+        }
         
-        // Create the app instance
-        const app = new VESPAActivitiesApp(config);
-        app.init();
+        try {
+            // Create and initialize the app
+            const app = new VESPAActivitiesApp(window.VESPA_ACTIVITIES_STUDENT_CONFIG);
+            window.vespaActivitiesApp = app;
+            
+            // Initialize the app
+            app.init().then(() => {
+                log('VESPA Activities initialized successfully');
+            }).catch(error => {
+                console.error('[VESPA Activities] Failed to initialize:', error);
+            });
+        } catch (error) {
+            console.error('[VESPA Activities] Error creating app:', error);
+        }
     };
+    
+    // Also support direct initialization if the script loads after config is set
+    if (window.VESPA_ACTIVITIES_STUDENT_CONFIG && !window.vespaActivitiesApp) {
+        log('Config already available, initializing immediately');
+        window.initializeVESPAActivitiesStudent();
+    }
     
     // Main application class
     class VESPAActivitiesApp {
@@ -69,27 +81,69 @@
         
         async init() {
             try {
-                // Hide data views
+                log('Starting initialization');
+                
+                // Wait a bit for Knack views to fully render
+                await this.waitForViews();
+                
+                // Hide the data views
                 this.hideDataViews();
                 
                 // Load initial data
                 await this.loadInitialData();
                 
-                // Create the UI
+                // Initial render
                 this.render();
                 
-                // Initialize interactions
+                // Attach event listeners
                 this.attachEventListeners();
                 
                 // Start animations
                 this.startAnimations();
                 
-                log('Student Activities initialized successfully');
-                
+                log('Initialization complete');
             } catch (error) {
-                console.error('[VESPA Activities] Initialization error:', error);
-                this.showError('Failed to load activities. Please refresh the page.');
+                console.error('Error during initialization:', error);
+                this.showError('Failed to initialize the application');
             }
+        }
+        
+        async waitForViews() {
+            log('Waiting for Knack views to be ready...');
+            
+            // Wait up to 5 seconds for views to be available
+            const maxWaitTime = 5000;
+            const checkInterval = 100;
+            let waitedTime = 0;
+            
+            while (waitedTime < maxWaitTime) {
+                // Check if all required views exist in Knack.views
+                const requiredViews = [
+                    this.config.views.vespaResults,
+                    this.config.views.studentRecord,
+                    this.config.views.allActivities,
+                    this.config.views.activityProgress
+                ];
+                
+                const allViewsReady = requiredViews.every(viewKey => {
+                    const exists = viewKey in (Knack.views || {});
+                    if (!exists) {
+                        log(`View ${viewKey} not yet available`);
+                    }
+                    return exists;
+                });
+                
+                if (allViewsReady) {
+                    log('All views are ready');
+                    return;
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+                waitedTime += checkInterval;
+            }
+            
+            log('Warning: Timeout waiting for views, proceeding anyway');
+            log('Available views:', Object.keys(Knack.views || {}));
         }
         
         hideDataViews() {
@@ -146,15 +200,26 @@
             // Get the VESPA results view element
             const vespaView = document.querySelector(`#${this.config.views.vespaResults}`);
             if (!vespaView) {
-                log('VESPA results view not found');
+                log('VESPA results view element not found in DOM');
                 return;
             }
             
             // Look for the data in the view's records
-            const records = Knack.views[this.config.views.vespaResults]?.model?.data?.models || [];
+            const viewData = Knack.views[this.config.views.vespaResults];
+            log('View data object:', viewData);
+            
+            if (!viewData) {
+                log('Knack.views does not contain', this.config.views.vespaResults);
+                log('Available views:', Object.keys(Knack.views || {}));
+                return;
+            }
+            
+            const records = viewData?.model?.data?.models || [];
+            log('Records found:', records.length);
             
             if (records.length > 0) {
                 const record = records[0].attributes;
+                log('First record attributes:', record);
                 
                 // Parse scores using configured field IDs
                 this.state.vespaScores = {
@@ -972,27 +1037,4 @@
         }
     }
     
-    // Initialize when config is available
-    function waitForConfig() {
-        if (window.VESPA_ACTIVITIES_STUDENT_CONFIG) {
-            log('Config found, initializing app');
-            const app = new VESPAActivitiesApp(window.VESPA_ACTIVITIES_STUDENT_CONFIG);
-            // Make app instance globally available
-            window.vespaActivitiesApp = app;
-            app.init().catch(error => {
-                console.error('Failed to initialize VESPA Activities:', error);
-            });
-        } else {
-            log('Config not found, waiting...');
-            setTimeout(waitForConfig, 100);
-        }
-    }
-    
-    // Start initialization when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', waitForConfig);
-    } else {
-        waitForConfig();
-    }
-    
-})();
+})(); // End IIFE
