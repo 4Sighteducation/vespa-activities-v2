@@ -2992,25 +2992,34 @@
         async loadActivitiesJson() {
             try {
                 log('Loading activities.json for media content...');
-                const response = await fetch('/AIVESPACoach/activities.json');
+                // Use JSDelivr CDN to load from your GitHub repo with CORS support
+                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities.json');
+                
                 if (response.ok) {
                     const data = await response.json();
                     // Store globally for activity renderer to access
                     window.vespaActivitiesData = {};
-                    data.activities.forEach(activity => {
-                        if (activity.Activities_id) {
-                            window.vespaActivitiesData[activity.Activities_id] = {
-                                video: activity["Activity Video"],
-                                slideshow: activity["Activity Slideshow"],
-                                instructions: activity["Activity Instructions"]
+                    // Fix: data is directly an array, not data.activities
+                    data.forEach(activity => {
+                        // Fix: use the correct field name
+                        const activityId = activity['Activity_id (field_2074)'];
+                        if (activityId) {
+                            window.vespaActivitiesData[activityId] = {
+                                video: activity['Activity Video (field_1288)'],
+                                slideshow: activity['Activity Slideshow (field_1293)'],
+                                instructions: activity['Activity Instructions (field_1309)'],
+                                finalThoughts: activity['Final Thoughts Section Content (field_1313)']
                             };
                         }
                     });
-                    log('Loaded activities.json data');
+                    log('Loaded activities.json data for', Object.keys(window.vespaActivitiesData).length, 'activities');
+                } else {
+                    log('Failed to load activities.json:', response.status);
                 }
             } catch (error) {
                 console.error('Failed to load activities.json:', error);
                 // Non-critical - continue without it
+                window.vespaActivitiesData = {};
             }
         }
     }
