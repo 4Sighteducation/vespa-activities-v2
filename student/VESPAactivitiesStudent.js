@@ -18,6 +18,18 @@
     window.initializeVESPAActivitiesStudent = function() {
         log('Initializing VESPA Activities Student Experience', window.VESPA_ACTIVITIES_STUDENT_CONFIG);
         
+        // IMMEDIATE: Hide data views to prevent flash of content
+        const viewsToHide = ['view_3164', 'view_3165', 'view_3166', 'view_3167'];
+        viewsToHide.forEach(viewId => {
+            const el = document.querySelector(`#${viewId}`);
+            if (el) {
+                el.style.display = 'none';
+                const wrapper = el.closest('.kn-view');
+                if (wrapper) wrapper.style.display = 'none';
+                log(`Immediately hid view: ${viewId}`);
+            }
+        });
+        
         if (!window.VESPA_ACTIVITIES_STUDENT_CONFIG) {
             console.error('[VESPA Activities] Config not found!');
             return;
