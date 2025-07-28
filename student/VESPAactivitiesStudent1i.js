@@ -623,7 +623,7 @@
                         video: attrs.field_1288 || attrs.field_1288_raw || '', // Activity Video
                         slideshow: attrs.field_1293 || attrs.field_1293_raw || '', // Activity Slideshow
                         instructions: attrs.field_1309 || attrs.field_1309_raw || '', // Activity Instructions
-                        level: attrs.field_1295 || attrs.field_1295_raw || 'Level 2', // Level
+                        level: attrs.field_1295 || attrs.field_1295_raw || attrs['Level (field_1295)'] || 'Level 2', // Level - check multiple possible field names
                         order: parseInt(attrs.field_1298 || attrs.field_1298_raw || 0), // Order
                         active: attrs.field_1299 !== 'No' && attrs.field_1299 !== false, // Active (Yes/No)
                         color: attrs.field_1308 || attrs.field_1308_raw || '', // Activity Color
@@ -1336,8 +1336,6 @@
                             </div>
                         `).join('')}
                     </div>
-                    
-                    <div id="problem-recommendations" class="problem-recommendations"></div>
                 </div>
             `;
         }
@@ -1498,27 +1496,42 @@
                 recommendedActivityNames.includes(activity.name)
             );
             
-            // Display recommendations
-            const container = document.getElementById('problem-recommendations');
-            if (container) {
-                container.innerHTML = `
-                    <div class="recommendations-section">
-                        <h3 class="recommendations-title">
-                            <span class="rec-icon">💡</span>
-                            Recommended Activities for: "${problem.text}"
-                        </h3>
-                        <div class="recommended-activities-grid">
-                            ${recommendedActivities.length > 0 ? 
-                                recommendedActivities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('') :
-                                '<p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities.</p>'
-                            }
+            // Create and display modal with recommendations
+            const modalHTML = `
+                <div class="activities-modal-overlay" id="problem-recommendations-modal">
+                    <div class="activities-modal">
+                        <div class="modal-header">
+                            <h2 class="modal-title">
+                                <span class="rec-icon">💡</span>
+                                Recommended Activities
+                            </h2>
+                            <button class="modal-close-btn" onclick="document.getElementById('problem-recommendations-modal').remove()">
+                                <span>×</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="modal-subtitle">For: "${problem.text}"</p>
+                            <div class="modal-activities-grid">
+                                ${recommendedActivities.length > 0 ? 
+                                    recommendedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                                    '<p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities.</p>'
+                                }
+                            </div>
                         </div>
                     </div>
-                `;
-                
-                // Scroll to recommendations
-                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
+                </div>
+            `;
+            
+            // Add modal to body
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Add event listener to close modal on overlay click
+            const modal = document.getElementById('problem-recommendations-modal');
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
         
         showActivitiesForCategory(category) {
