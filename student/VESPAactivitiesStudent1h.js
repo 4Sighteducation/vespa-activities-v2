@@ -642,7 +642,10 @@
                             activityId: activityData.activityId,
                             name: activityData.name,
                             category: activityData.category,
-                            active: activityData.active
+                            active: activityData.active,
+                            level: activityData.level,
+                            levelRaw: attrs.field_1295,
+                            levelRaw2: attrs.field_1295_raw
                         });
                     }
                     
@@ -851,10 +854,22 @@
         }
         
         calculateStats() {
-            // Calculate total points from activity progress
-            const totalPoints = this.state.activities.progress
-                .filter(p => p.status === 'completed')
-                .reduce((sum, p) => sum + p.pointsEarned, 0);
+            // Calculate total points from completed activities
+            // Since activity progress is empty, calculate based on completed activities
+            let totalPoints = 0;
+            
+            if (this.state.activities.progress.length > 0) {
+                // Use activity progress if available
+                totalPoints = this.state.activities.progress
+                    .filter(p => p.status === 'completed')
+                    .reduce((sum, p) => sum + p.pointsEarned, 0);
+            } else {
+                // Calculate based on completed activities (10 points for Level 2, 15 for Level 3)
+                totalPoints = this.state.activities.completed.reduce((sum, activity) => {
+                    const points = activity.level === 'Level 3' ? 15 : 10;
+                    return sum + points;
+                }, 0);
+            }
             
             // Calculate activities completed
             const activitiesCompleted = this.state.activities.completed.length;
@@ -890,6 +905,7 @@
             };
             
             log('Calculated stats:', this.state.stats);
+            log('Completed activities for points:', this.state.activities.completed);
         }
         
         calculateStreak() {
@@ -1287,22 +1303,41 @@
             return `
                 <div class="problems-container">
                     <div class="problems-header">
-                        <h2>What would you like help with?</h2>
-                        <p>Select a challenge and we'll recommend activities to help you overcome it!</p>
+                        <h2>🎯 What would you like help with?</h2>
+                        <p>Select a challenge below and we'll recommend activities to help you overcome it!</p>
+                    </div>
+                    
+                    <div class="problems-steps">
+                        <div class="step">
+                            <span class="step-number">1</span>
+                            <span class="step-text">Choose a category</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">2</span>
+                            <span class="step-text">Select your challenge</span>
+                        </div>
+                        <div class="step">
+                            <span class="step-number">3</span>
+                            <span class="step-text">Get recommendations</span>
+                        </div>
                     </div>
                     
                     <div class="problems-categories">
                         ${Object.keys(this.colors).map(category => `
                             <div class="problem-category" data-category="${category}">
-                                <h3 class="category-title" style="color: ${this.colors[category].primary}">
-                                    ${this.getCategoryEmoji(category)} ${category.toUpperCase()}
-                                </h3>
+                                <div class="category-header" style="background: ${this.colors[category].primary}20; border-color: ${this.colors[category].primary}">
+                                    <h3 class="category-title" style="color: ${this.colors[category].primary}">
+                                        ${this.getCategoryEmoji(category)} ${category.toUpperCase()}
+                                    </h3>
+                                </div>
                                 <div class="problems-list">
                                     ${this.getProblemsForCategory(category)}
                                 </div>
                             </div>
                         `).join('')}
                     </div>
+                    
+                    <div id="problem-recommendations" class="problem-recommendations"></div>
                 </div>
             `;
         }
@@ -1447,8 +1482,43 @@
         
         selectProblem(problemId, category) {
             log('Selected problem:', problemId, category);
-            // Will show recommended activities for this problem
-            this.showMessage('Finding activities to help with this...', 'info');
+            
+            // Find the problem details
+            const categoryKey = category.charAt(0).toUpperCase() + category.slice(1);
+            const problem = this.state.problemMappings?.[categoryKey]?.find(p => p.id === problemId);
+            
+            if (!problem) {
+                this.showMessage('Problem not found', 'error');
+                return;
+            }
+            
+            // Find recommended activities
+            const recommendedActivityNames = problem.recommendedActivities || [];
+            const recommendedActivities = this.state.activities.all.filter(activity => 
+                recommendedActivityNames.includes(activity.name)
+            );
+            
+            // Display recommendations
+            const container = document.getElementById('problem-recommendations');
+            if (container) {
+                container.innerHTML = `
+                    <div class="recommendations-section">
+                        <h3 class="recommendations-title">
+                            <span class="rec-icon">💡</span>
+                            Recommended Activities for: "${problem.text}"
+                        </h3>
+                        <div class="recommended-activities-grid">
+                            ${recommendedActivities.length > 0 ? 
+                                recommendedActivities.map((activity, index) => this.getActivityCardHTML(activity, index)).join('') :
+                                '<p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities.</p>'
+                            }
+                        </div>
+                    </div>
+                `;
+                
+                // Scroll to recommendations
+                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         }
         
         showActivitiesForCategory(category) {

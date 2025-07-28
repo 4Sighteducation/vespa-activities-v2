@@ -1,5 +1,3 @@
-vespa-academy#my-vespa-activities/:1  Uncaught (in promise) 
-vespa-academy#my-vespa-activities/:1  Uncaught (in promise) 
 vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
  [Knack Builder Loader v3.16] Script start.
  [Loader v3.16] DOM ready. Attaching Knack event listeners. 
@@ -14,14 +12,14 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3168'. 
  [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
  [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
+ [Loader v3.16] View rendered: Storing view key 'view_3165' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3165 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3165'. 
+ [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
+ [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
  [Loader v3.16] View rendered: Storing view key 'view_3164' 
  [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3164 
  [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3164'. 
- [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
- [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
- [Loader v3.16] View rendered: Storing view key 'view_3167' 
- [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3167 
- [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3167'. 
  [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
  [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
  [Loader v3.16] View rendered: Storing view key 'view_3166' 
@@ -29,20 +27,20 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3166'. 
  [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
  [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
- [Loader v3.16] View rendered: Storing view key 'view_3165' 
- [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3165 
- [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3165'. 
+ [Loader v3.16] View rendered: Storing view key 'view_3167' 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: null, Last Rendered View: view_3167 
+ [Loader v3.16] findAppToLoad: No app configuration found for Scene 'null', View 'view_3167'. 
  [Loader v3.16] tryLoadApp: No app matches current scene/view with effectiveSceneKey. 
  [Loader v3.16] tryLoadApp: No scene key available to attempt loading. 
  [Loader v3.16] Scene rendered: Storing scene key 'scene_1258' 
  [Loader v3.16] Removing landing page background for scene scene_1258 
- [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: scene_1258, Last Rendered View: view_3165 
+ [Loader v3.16] tryLoadApp: Checking load conditions. Effective Scene: scene_1258, Last Rendered View: view_3167 
  [Loader v3.16] findAppToLoad: Checking if generalHeader should load on scene_1258 
  [Loader v3.16] findAppToLoad: [generalHeader] Universal load enabled - will load on any scene 
  [Loader v3.16] findAppToLoad: Checking if questionnaireValidator should load on scene_1258 
  [Loader v3.16] findAppToLoad: [questionnaireValidator] Will load for all users (student check happens in script) 
  [Loader v3.16] findAppToLoad: [questionnaireValidator] Universal load enabled - will load on any scene 
- [Loader v3.16] findAppToLoad: Standard Search: Searching for app matching Scene Key: scene_1258, View Key: view_3165 
+ [Loader v3.16] findAppToLoad: Standard Search: Searching for app matching Scene Key: scene_1258, View Key: view_3167 
  [Loader v3.16] findAppToLoad: Standard Match found for app 'VESPAActivitiesStudentV2'. 
  [Loader v3.16] findAppToLoad: Apps identified for loading: generalHeader, questionnaireValidator, VESPAActivitiesStudentV2 
  [Loader v3.16] tryLoadApp: Using sceneKey 'all' and viewKey 'any' for generalHeader config. 
@@ -74,8 +72,8 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [Loader v3.16] tryLoadApp: Initializer function initializeQuestionnaireValidator called successfully for questionnaireValidator. 
  [Loader v3.16] tryLoadApp: Using sceneKey 'scene_1258' and viewKey 'any' for VESPAActivitiesStudentV2 config. 
  [Loader v3.16] tryLoadApp: Built instance config for VESPAActivitiesStudentV2 Object
- [Loader v3.16] tryLoadApp: Loading CSS for VESPAActivitiesStudentV2 from https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css... 
- [Loader v3.16] loadCSS: Attempting to load stylesheet: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css
+ [Loader v3.16] tryLoadApp: Loading CSS for VESPAActivitiesStudentV2 from https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.css... 
+ [Loader v3.16] loadCSS: Attempting to load stylesheet: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.css
  [General Header] User attributes: Object
  [General Header] User role from field_73: Array(1)
  [General Header] Checking all roles: Array(1)
@@ -92,11 +90,11 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [General Header] Account type field_441: GOLD
  [General Header] User has ONLY student role 
  [General Header] DEBUG: Nav button computed styles after setup: Object
- [Loader v3.16] loadCSS: Stylesheet loaded successfully: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.css
+ [Loader v3.16] loadCSS: Stylesheet loaded successfully: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.css
  [Loader v3.16] tryLoadApp: CSS for VESPAActivitiesStudentV2 loaded successfully. 
- [Loader v3.16] tryLoadApp: Attempting to load script for VESPAActivitiesStudentV2 from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js 
- [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js
- [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1f.js
+ [Loader v3.16] tryLoadApp: Attempting to load script for VESPAActivitiesStudentV2 from URL: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.js 
+ [Loader v3.16] loadScript: Attempting to load script via jQuery: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.js
+ [Loader v3.16] loadScript: Script loaded successfully via getScript: https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/student/VESPAactivitiesStudent1g.js
  [Loader v3.16] tryLoadApp: Script successfully loaded for app 'VESPAActivitiesStudentV2'. 
  [Loader v3.16] tryLoadApp: Set global config variable 'VESPA_ACTIVITIES_STUDENT_CONFIG' for VESPAActivitiesStudentV2 
  [Loader v3.16] tryLoadApp: Calling initializer function: initializeVESPAActivitiesStudent for VESPAActivitiesStudentV2 
@@ -131,14 +129,14 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [VESPA Activities v2.0] About to parse data from Knack views 
  [VESPA Activities v2.0] Calling parseVESPAScores... 
  [VESPA Activities v2.0] Parsing VESPA scores from view view_3164
- [VESPA Activities v2.0] View data object: G.i
+ [VESPA Activities v2.0] View data object: Object
  [VESPA Activities v2.0] Found record in details view format: Object
  [VESPA Activities v2.0] Record found, parsing scores... 
  [VESPA Activities v2.0] Available fields in record: Array(41)
  [VESPA Activities v2.0] Parsed VESPA scores: Object
  [VESPA Activities v2.0] Calling parseStudentRecord... 
  [VESPA Activities v2.0] Parsing student record from view view_3165
- [VESPA Activities v2.0] Student view object: G.i
+ [VESPA Activities v2.0] Student view object: Object
  [VESPA Activities v2.0] Found student record in details view format: Object
  [VESPA Activities v2.0] Student record found, parsing data... 
  [VESPA Activities v2.0] Available fields in student record: Array(33)
@@ -148,108 +146,112 @@ vespa-academy#my-vespa-activities/:1  <meta name="apple-mobile-web-app-capable" 
  [VESPA Activities v2.0] Finished activity IDs: Array(2)
  [VESPA Activities v2.0] Calling parseActivities... 
  [VESPA Activities v2.0] Parsing activities from view view_3166
- [VESPA Activities v2.0] Activities view object: G.i
+ [VESPA Activities v2.0] Activities view object: Object
  [VESPA Activities v2.0] Found activities in table view format: 75
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] First activity structure: Array(13)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 1 data: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 2 data: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity 3 data: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed 75 activities 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activities by category: Array(5)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Looking for prescribed activities with IDs: Array(12)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Available activity IDs to match against: Array(75)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 20 Questions (id: 5fcb62a903d876001c5e1fcf, activityId: 5fcb62a903d876001c5e1fcf) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 2-4-8 Rule (id: 5fe08034a529d3001b2b5b29, activityId: 5fe08034a529d3001b2b5b29) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: 2 Slow, 1 Fast (id: 5fecf758845cf7001bd26679, activityId: 5fecf758845cf7001bd26679) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Inner Story Telling (id: 5fd5197510f706001b0465d6, activityId: 5fd5197510f706001b0465d6) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Know the Skills (id: 5fed8f7f8ff75c001b6ebd5f, activityId: 5fed8f7f8ff75c001b6ebd5f) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Leitner Box (id: 5fe8ca680c7c48001bd7db56, activityId: 5fe8ca680c7c48001bd7db56) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Revision Questionnaire (id: 5fe38371c76bfd001b459923, activityId: 5fe38371c76bfd001b459923) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: The Lead Domino (id: 5fe0dcf4590766001ba431cf, activityId: 5fe0dcf4590766001ba431cf) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Vampire Test (id: 5fef592f648880001c1b7296, activityId: 5fef592f648880001c1b7296) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed match found: Working Weeks (id: 5fd52773ccb3a3002350961d, activityId: 5fd52773ccb3a3002350961d) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Found 12 prescribed activities 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Prescribed activity matches: Array(12)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Looking for completed activities with IDs: Array(2)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Found 2 completed activities 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Completed activity matches: Array(2)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "10min Rule" hidden - student's effort score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "21st Birthday" hidden - student's vision score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "3R's of Habit" hidden - student's effort score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "9 Box Grid" hidden - student's practice score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Benefit Finding" hidden - student's attitude score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Breakfast Club" hidden - student's systems score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Change Curve" hidden - student's attitude score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Effort Thermometer" hidden - student's effort score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Eisenhower Matrix" hidden - student's systems score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Energy Line" hidden - student's systems score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Failing Forwards" hidden - student's attitude score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Fake It!" hidden - student's vision score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Five Roads" hidden - student's vision score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Force Field" hidden - student's attitude score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Frogs & Bannisters" hidden - student's effort score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Getting Dreams Done" hidden - student's vision score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Graphic Organisers" hidden - student's practice score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Growth Mindset" hidden - student's attitude score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Independent Work" hidden - student's effort score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Kill Your Critic" hidden - student's attitude score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Learn from Mistakes" hidden - student's practice score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Managing Reactions" hidden - student's attitude score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mechanical vs Flexible" hidden - student's practice score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mental Contrasting" hidden - student's vision score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Mission & Medal" hidden - student's effort score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Motivation Diamond" hidden - student's vision score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Now vs Most" hidden - student's vision score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "One to Ten" hidden - student's effort score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Packing Bags" hidden - student's effort score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Perfect Day" hidden - student's vision score (1) not in range 2-5 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Power of If" hidden - student's effort score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Pre-Made Decisions" hidden - student's effort score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Priority Matrix" hidden - student's systems score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Project Progress Chart" hidden - student's systems score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Recognising your blockers" hidden - student's effort score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Right-Wrong-Right" hidden - student's practice score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Roadmap" hidden - student's vision score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Rule of 3" hidden - student's vision score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "SMART Goals" hidden - student's vision score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Snack Don't Binge" hidden - student's systems score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Spaced Practice" hidden - student's practice score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Stand Tall" hidden - student's attitude score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Stopping Negative Thoughts" hidden - student's attitude score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "STQR" hidden - student's systems score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Test Yourself" hidden - student's practice score (3) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The Battery" hidden - student's attitude score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The Bottom Left" hidden - student's systems score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "The First Aid Kit" hidden - student's attitude score (1) not in range 8-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Time to Teach" hidden - student's practice score (3) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Weekly Planner" hidden - student's systems score (3) not in range 5-10 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "What's Stopping You" hidden - student's vision score (1) not in range 5-8 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Activity "Will vs Skill" hidden - student's practice score (3) not in range 0-2 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] 23 activities available based on VESPA scores 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed activities: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calling parseActivityProgress... 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsing activity progress from view view_3167
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Parsed activity progress: Array(0)
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Loading problem mappings... 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Problem mappings loaded: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calculating stats... 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Calculated stats: Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Initial data loaded successfully Object
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Rendering UI... 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Attaching event listeners... 
-VESPAactivitiesStudent1f.js?_=1753714539921:13 [VESPA Activities v2.0] Initialization complete 
+ [VESPA Activities v2.0] First activity structure: Array(13)
+ [VESPA Activities v2.0] Activity 1 data: Object
+ [VESPA Activities v2.0] Activity 2 data: Object
+ [VESPA Activities v2.0] Activity 3 data: Object
+ [VESPA Activities v2.0] Parsed 75 activities 
+ [VESPA Activities v2.0] Activities by category: Array(5)
+ [VESPA Activities v2.0] Looking for prescribed activities with IDs: Array(12)
+ [VESPA Activities v2.0] Available activity IDs to match against: Array(75)
+ [VESPA Activities v2.0] Prescribed match found: 20 Questions (id: 5fcb62a903d876001c5e1fcf, activityId: 5fcb62a903d876001c5e1fcf) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: 2-4-8 Rule (id: 5fe08034a529d3001b2b5b29, activityId: 5fe08034a529d3001b2b5b29) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: 2 Slow, 1 Fast (id: 5fecf758845cf7001bd26679, activityId: 5fecf758845cf7001bd26679) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Inner Story Telling (id: 5fd5197510f706001b0465d6, activityId: 5fd5197510f706001b0465d6) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Know the Skills (id: 5fed8f7f8ff75c001b6ebd5f, activityId: 5fed8f7f8ff75c001b6ebd5f) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Leitner Box (id: 5fe8ca680c7c48001bd7db56, activityId: 5fe8ca680c7c48001bd7db56) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Revision Questionnaire (id: 5fe38371c76bfd001b459923, activityId: 5fe38371c76bfd001b459923) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: The Lead Domino (id: 5fe0dcf4590766001ba431cf, activityId: 5fe0dcf4590766001ba431cf) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Vampire Test (id: 5fef592f648880001c1b7296, activityId: 5fef592f648880001c1b7296) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed match found: Working Weeks (id: 5fd52773ccb3a3002350961d, activityId: 5fd52773ccb3a3002350961d) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Found 12 prescribed activities 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Prescribed activity matches: Array(12)
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Looking for completed activities with IDs: Array(2)
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Completed match found: Fix your dashboard (id: 5fcd517ba74fa2001bd48dad, activityId: 5fcd517ba74fa2001bd48dad) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Completed match found: There and Back (id: 5ff1f0b28a0c35001c57fb89, activityId: 5ff1f0b28a0c35001c57fb89) 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Found 2 completed activities 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Completed activity matches: Array(2)
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "10min Rule" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "21st Birthday" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "3R's of Habit" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "9 Box Grid" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Benefit Finding" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Breakfast Club" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Change Curve" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Effort Thermometer" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Eisenhower Matrix" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Energy Line" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Failing Forwards" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Fake It!" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Five Roads" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Force Field" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Frogs & Bannisters" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Getting Dreams Done" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Graphic Organisers" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Growth Mindset" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Independent Work" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Kill Your Critic" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Learn from Mistakes" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Managing Reactions" hidden - student's attitude score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Mechanical vs Flexible" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Mental Contrasting" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Mission & Medal" hidden - student's effort score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Motivation Diamond" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Now vs Most" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "One to Ten" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Packing Bags" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Perfect Day" hidden - student's vision score (1) not in range 2-5 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Power of If" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Pre-Made Decisions" hidden - student's effort score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Priority Matrix" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Project Progress Chart" hidden - student's systems score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Recognising your blockers" hidden - student's effort score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Right-Wrong-Right" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Roadmap" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Rule of 3" hidden - student's vision score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "SMART Goals" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Snack Don't Binge" hidden - student's systems score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Spaced Practice" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Stand Tall" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Stopping Negative Thoughts" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "STQR" hidden - student's systems score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Test Yourself" hidden - student's practice score (3) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "The Battery" hidden - student's attitude score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "The Bottom Left" hidden - student's systems score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "The First Aid Kit" hidden - student's attitude score (1) not in range 8-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Time to Teach" hidden - student's practice score (3) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Weekly Planner" hidden - student's systems score (3) not in range 5-10 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "What's Stopping You" hidden - student's vision score (1) not in range 5-8 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Activity "Will vs Skill" hidden - student's practice score (3) not in range 0-2 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] 23 activities available based on VESPA scores 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Parsed activities: Object
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Calling parseActivityProgress... 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Parsing activity progress from view view_3167
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Parsed activity progress: Array(0)
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Loading problem mappings... 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Problem mappings loaded: Object
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Calculating stats... 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Calculated stats: Object
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Initial data loaded successfully Object
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Rendering UI... 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Attaching event listeners... 
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Initialization complete 
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
-The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Selected problem: svision_1
+VESPAactivitiesStudent1g.js?_=1753715398336:1572 [info] Finding activities to help with this...
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Selected problem: svision_1
+VESPAactivitiesStudent1g.js?_=1753715398336:1572 [info] Finding activities to help with this...
+VESPAactivitiesStudent1g.js?_=1753715398336:13 [VESPA Activities v2.0] Selected problem: svision_3
+VESPAactivitiesStudent1g.js?_=1753715398336:1572 [info] Finding activities to help with this...
 [NEW] Explain Console errors by using Copilot in Edge: click
          
          to explain an error. 
