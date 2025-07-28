@@ -1,6 +1,21 @@
 /* VESPA Activities Student Experience v2.0 - Styles */
 /* A modern, playful design with gamification elements */
 
+/* CRITICAL: Hide data views immediately to prevent flash of content */
+#view_3164, #view_3165, #view_3166, #view_3167,
+#view_3164 *, #view_3165 *, #view_3166 *, #view_3167 * {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -99999px !important;
+    top: -99999px !important;
+    pointer-events: none !important;
+}
+
 /* ===== CSS Variables ===== */
 :root {
     /* VESPA Colors */

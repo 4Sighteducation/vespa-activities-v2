@@ -220,6 +220,12 @@
             } = data;
             
             try {
+                // Validate student ID
+                if (!studentId || studentId === 'unknown' || studentId.length !== 24) {
+                    console.error('Invalid student ID for saving response:', studentId);
+                    throw new Error('Invalid student ID - please refresh the page and try again');
+                }
+                
                 const formattedResponses = this.formatResponsesForKnack(activityId, responses, cycleNumber);
                 
                 // Check if a response already exists
@@ -1046,7 +1052,7 @@
                 modal.remove();
             }
             
-            if (window.vespaApp) {
+            if (window.vespaApp && typeof window.vespaApp.onActivityClose === 'function') {
                 window.vespaApp.onActivityClose();
             }
         }
@@ -1207,51 +1213,68 @@
         }
         
         async init() {
+            log('Starting VESPA Activities initialization...');
+            
             try {
-                log('Starting initialization');
-                
                 // Remove the immediate loading style
                 const immediateStyle = document.getElementById('vespa-activities-immediate-hide');
                 if (immediateStyle) {
                     immediateStyle.remove();
                 }
                 
-                // Set up listeners for view renders
+                // Ensure views are hidden initially
+                this.hideDataViews();
+                
+                // Wait for Knack to be ready
+                await this.waitForKnack();
+                
+                // Setup view listeners
                 this.setupViewListeners();
                 
-                // Wait a bit for Knack views to fully render
+                // Wait for all required views to render
                 await this.waitForViews();
-                
-                // Hide the data views
-                log('Hiding data views...');
-                this.hideDataViews();
                 
                 // Load activities.json for video/slide data
                 await this.loadActivitiesJson();
                 
-                // Load initial data
-                log('Loading initial data...');
+                // Load initial data with validation
                 await this.loadInitialData();
                 
+                // Validate we have required data
+                if (!this.state.studentId) {
+                    console.error('No student ID found after initialization');
+                    this.showError('Unable to load student data. Please refresh the page.');
+                    return;
+                }
+                
+                log('Student ID validated:', this.state.studentId);
+                
                 // Initial render
-                log('Rendering UI...');
                 this.render();
                 
                 // Attach event listeners
-                log('Attaching event listeners...');
                 this.attachEventListeners();
                 
                 // Start animations
                 this.startAnimations();
                 
-                log('Initialization complete');
-                return true; // Return success
+                log('VESPA Activities initialization complete');
             } catch (error) {
-                console.error('Error during initialization:', error);
-                console.error('Error stack:', error.stack);
-                this.showError('Failed to initialize the application');
-                throw error; // Re-throw to be caught by the initializer
+                errorLog('Failed to initialize VESPA Activities:', error);
+                this.showError('Failed to initialize. Please refresh the page.');
             }
+        }
+        
+        async waitForKnack() {
+            return new Promise((resolve) => {
+                if (window.Knack && window.Knack.views && Object.keys(window.Knack.views).length > 0) {
+                    resolve();
+                } else {
+                    setTimeout(() => {
+                        this.waitForKnack().then(resolve);
+                    }, 100);
+                }
+            });
         }
         
         setupViewListeners() {
@@ -2627,10 +2650,20 @@
                 renderer.render();
                 
                 // Set up the close callback
-                window.vespaApp.onActivityClose = () => {
-                    // Refresh data after activity close
-                    this.loadInitialData();
-                    this.render();
+                window.vespaApp.onActivityClose = async () => {
+                    // Only refresh activity progress data, not everything
+                    try {
+                        // Re-parse activity progress to get updated completion status
+                        const progressView = Knack.views[this.config.views.activityProgress];
+                        if (progressView) {
+                            this.parseActivityProgress();
+                            // Only re-render the current view, not reload all data
+                            const currentView = this.state.currentView || 'dashboard';
+                            this.switchView(currentView);
+                        }
+                    } catch (error) {
+                        console.error('Error refreshing after activity close:', error);
+                    }
                 };
             }).catch(error => {
                 console.error('Failed to load activity questions:', error);
@@ -2707,9 +2740,8 @@
         
         // Get current student ID
         getCurrentStudentId() {
-            // Get from Knack user or state
-            const user = Knack.getUserAttributes();
-            return user?.id || this.state.studentId || 'unknown';
+            // Return the student record ID from state, not the Knack user ID
+            return this.state.studentId || null;
         }
         
         selectProblem(problemId, category) {
