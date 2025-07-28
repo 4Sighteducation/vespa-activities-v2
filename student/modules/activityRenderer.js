@@ -181,7 +181,7 @@ class ActivityRenderer {
     
     getLearnContent() {
         const hasVideo = this.activity.video && this.activity.video.includes('iframe');
-        const hasSlides = this.activity.slideshow && this.activity.slideshow.includes('iframe');
+        const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
         
         return `
             <div class="stage-content learn-content">
@@ -193,12 +193,12 @@ class ActivityRenderer {
                 ${hasVideo || hasSlides ? `
                     <div class="media-tabs">
                         ${hasVideo ? '<button class="media-tab active" data-media="video">📺 Video</button>' : ''}
-                        ${hasSlides ? '<button class="media-tab" data-media="slides">📊 Slides</button>' : ''}
+                        ${hasSlides ? `<button class="media-tab ${!hasVideo ? 'active' : ''}" data-media="slides">📊 Slides</button>` : ''}
                     </div>
                     
                     <div class="media-content">
                         ${hasVideo ? `<div class="media-panel active" id="video-panel">${this.activity.video}</div>` : ''}
-                        ${hasSlides ? `<div class="media-panel" id="slides-panel">${this.activity.slideshow}</div>` : ''}
+                        ${hasSlides ? `<div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">${this.activity.slideshow}</div>` : ''}
                     </div>
                 ` : `
                     <div class="text-content">
@@ -219,7 +219,9 @@ class ActivityRenderer {
     }
     
     getDoContent() {
-        const questions = this.questions.filter(q => !q.field_1314);
+        console.log('[ActivityRenderer] All questions:', this.questions);
+        const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
+        console.log('[ActivityRenderer] Filtered DO questions:', questions);
         
         return `
             <div class="stage-content do-content">
@@ -229,7 +231,7 @@ class ActivityRenderer {
                 </div>
                 
                 <div class="activity-questions">
-                    ${questions.map(question => this.getQuestionHTML(question)).join('')}
+                    ${questions.length > 0 ? questions.map(question => this.getQuestionHTML(question)).join('') : '<p style="text-align: center; color: #666;">No questions found for this section. Please check the activity configuration.</p>'}
                 </div>
                 
                 <div class="stage-navigation">
@@ -424,7 +426,7 @@ class ActivityRenderer {
     
     canProceedFromDo() {
         const requiredQuestions = this.questions.filter(q => 
-            q.field_2341 === 'Yes' && !q.field_1314
+            q.field_2341 === 'Yes' && q.field_1314 !== 'Yes'
         );
         
         return requiredQuestions.every(q => {
