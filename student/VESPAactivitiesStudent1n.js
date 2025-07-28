@@ -424,27 +424,36 @@
             
             const modal = document.createElement('div');
             modal.className = 'activity-modal-fullpage';
+            
+            // Wrap content in a container for desktop styling
             modal.innerHTML = `
-                ${this.getHeaderHTML()}
-                <div class="activity-stages-nav">
-                    ${this.getStageNavigationHTML()}
-                </div>
-                <div class="activity-content-wrapper">
-                    <div class="activity-content">
-                        ${this.getContentHTML()}
+                <div class="activity-modal-container">
+                    ${this.getHeaderHTML()}
+                    <div class="activity-stages-nav">
+                        ${this.getStageNavigationHTML()}
                     </div>
+                    <div class="activity-content-wrapper">
+                        <div class="activity-content">
+                            ${this.getContentHTML()}
+                        </div>
+                    </div>
+                    ${this.getFooterHTML()}
                 </div>
-                ${this.getFooterHTML()}
             `;
             
             document.body.appendChild(modal);
             document.body.style.overflow = 'hidden';
             
+            // Add click handler for backdrop on desktop
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal && window.innerWidth >= 1024) {
+                    this.handleExit();
+                }
+            });
+            
             this.attachEventListeners();
             this.startAutoSave();
             this.initializeDynamicContent();
-            
-            return modal;
         }
         
         getHeaderHTML() {
@@ -594,6 +603,22 @@
             const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
             console.log('[ActivityRenderer] Filtered DO questions:', questions);
             
+            // Sort questions by order field
+            const sortedQuestions = questions.sort((a, b) => (a.field_1303 || 0) - (b.field_1303 || 0));
+            
+            // Initialize current question index if not set
+            if (this.currentQuestionIndex === undefined) {
+                this.currentQuestionIndex = 0;
+            }
+            
+            // Group questions (show 2 at a time for better UX)
+            const questionsPerPage = 2;
+            const totalPages = Math.ceil(sortedQuestions.length / questionsPerPage);
+            const currentPage = Math.floor(this.currentQuestionIndex / questionsPerPage);
+            const startIdx = currentPage * questionsPerPage;
+            const endIdx = Math.min(startIdx + questionsPerPage, sortedQuestions.length);
+            const currentQuestions = sortedQuestions.slice(startIdx, endIdx);
+            
             return `
                 <div class="stage-content do-content">
                     <div class="stage-header">
@@ -601,20 +626,57 @@
                         <p class="stage-description">Complete the following activities.</p>
                     </div>
                     
-                    <div class="activity-questions">
-                        ${questions.length > 0 ? questions.map(question => this.getQuestionHTML(question)).join('') : '<p style="text-align: center; color: #666;">No questions found for this section. Please check the activity configuration.</p>'}
-                    </div>
-                    
-                    <div class="stage-navigation">
-                        <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
-                            <span class="btn-arrow">←</span> Review Materials
-                        </button>
-                        <button class="primary-btn next-stage-btn" 
-                                onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')"
-                                ${!this.canProceedFromDo() ? 'disabled' : ''}>
-                            Continue to Reflection <span class="btn-arrow">→</span>
-                        </button>
-                    </div>
+                    ${sortedQuestions.length > 0 ? `
+                        <div class="question-progress">
+                            <div class="progress-text">Question ${startIdx + 1}${endIdx > startIdx + 1 ? `-${endIdx}` : ''} of ${sortedQuestions.length}</div>
+                            <div class="progress-bar-wrapper">
+                                <div class="progress-bar-fill" style="width: ${((startIdx + 1) / sortedQuestions.length) * 100}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-questions">
+                            ${currentQuestions.map(question => this.getQuestionHTML(question)).join('')}
+                        </div>
+                        
+                        <div class="stage-navigation">
+                            ${currentPage > 0 ? `
+                                <button class="secondary-btn prev-questions-btn" onclick="window.vespaActivityRenderer.previousQuestions()">
+                                    <span class="btn-arrow">←</span> Previous
+                                </button>
+                            ` : `
+                                <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
+                                    <span class="btn-arrow">←</span> Review Materials
+                                </button>
+                            `}
+                            
+                            ${currentPage < totalPages - 1 ? `
+                                <button class="primary-btn next-questions-btn" 
+                                        onclick="window.vespaActivityRenderer.nextQuestions()"
+                                        ${!this.canProceedToNextQuestions(currentQuestions) ? 'disabled' : ''}>
+                                    Next <span class="btn-arrow">→</span>
+                                </button>
+                            ` : `
+                                <button class="primary-btn next-stage-btn" 
+                                        onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')"
+                                        ${!this.canProceedFromDo() ? 'disabled' : ''}>
+                                    Continue to Reflection <span class="btn-arrow">→</span>
+                                </button>
+                            `}
+                        </div>
+                    ` : `
+                        <div class="activity-questions">
+                            <p style="text-align: center; color: #666;">No questions found for this section. Please check the activity configuration.</p>
+                        </div>
+                        <div class="stage-navigation">
+                            <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
+                                <span class="btn-arrow">←</span> Review Materials
+                            </button>
+                            <button class="primary-btn next-stage-btn" 
+                                    onclick="window.vespaActivityRenderer.handleStageNavigation('reflect')">
+                                Continue to Reflection <span class="btn-arrow">→</span>
+                            </button>
+                        </div>
+                    `}
                 </div>
             `;
         }
@@ -979,6 +1041,29 @@
         
         initializeDynamicContent() {
             // Any dynamic content initialization
+        }
+        
+        nextQuestions() {
+            const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
+            const questionsPerPage = 2;
+            const maxIndex = questions.length - 1;
+            
+            this.currentQuestionIndex = Math.min(this.currentQuestionIndex + questionsPerPage, maxIndex);
+            this.render();
+        }
+        
+        previousQuestions() {
+            const questionsPerPage = 2;
+            this.currentQuestionIndex = Math.max(this.currentQuestionIndex - questionsPerPage, 0);
+            this.render();
+        }
+        
+        canProceedToNextQuestions(currentQuestions) {
+            // Check if all required questions on current page are answered
+            return currentQuestions.filter(q => q.field_2341 === 'Yes').every(q => {
+                const response = this.responses[q.id];
+                return response && response.trim().length > 0;
+            });
         }
     }
     
@@ -2590,6 +2675,14 @@
         showCategoryActivities(category) {
             // Get all activities for this category (not just available ones)
             const categoryActivities = this.state.activities.byCategory[category] || [];
+            
+            // Filter out prescribed activities to avoid duplicates
+            const nonPrescribedActivities = categoryActivities.filter(activity => {
+                const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
+                                   this.state.prescribedActivityIds.includes(activity.activityId);
+                return !isPrescribed;
+            });
+            
             const color = this.colors[category];
             
             // Create modal
@@ -2604,11 +2697,11 @@
                         <button class="modal-close-btn" onclick="this.closest('.activities-modal-overlay').remove()">✕</button>
                     </div>
                     <div class="modal-body">
-                        <p class="modal-subtitle">Explore all ${categoryActivities.length} activities in this category</p>
+                        <p class="modal-subtitle">Explore ${nonPrescribedActivities.length} additional activities in this category</p>
                         <div class="modal-activities-grid">
-                            ${categoryActivities.length > 0 ? 
-                                categoryActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
-                                '<p>No activities found in this category.</p>'
+                            ${nonPrescribedActivities.length > 0 ? 
+                                nonPrescribedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                                '<p>No additional activities found in this category.</p>'
                             }
                         </div>
                     </div>
@@ -2707,6 +2800,52 @@
                     <button onclick="location.reload()">Refresh Page</button>
                 </div>
             `;
+        }
+        
+        showCategoryModal(category) {
+            log('Showing category modal for:', category);
+            
+            // Get all activities for this category
+            const categoryActivities = this.state.activities.available.filter(a => 
+                a.category === category.toLowerCase()
+            );
+            
+            // Filter out prescribed activities to avoid duplicates
+            const nonPrescribedActivities = categoryActivities.filter(activity => {
+                const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
+                                   this.state.prescribedActivityIds.includes(activity.activityId);
+                return !isPrescribed;
+            });
+            
+            const modal = document.createElement('div');
+            modal.className = 'vespa-modal category-modal';
+            modal.innerHTML = `
+                <div class="modal-backdrop" onclick="this.parentElement.remove()"></div>
+                <div class="modal-content">
+                    <button class="modal-close" onclick="this.closest('.vespa-modal').remove()">×</button>
+                    <h2 class="modal-title">${this.getCategoryEmoji(category)} ${category.toUpperCase()}</h2>
+                    <p class="modal-subtitle">Explore all ${nonPrescribedActivities.length} activities in this category</p>
+                    
+                    <div class="modal-activities-grid">
+                        ${nonPrescribedActivities.map((activity, index) => 
+                            this.getActivityCardHTML(activity, index, false)
+                        ).join('')}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }
+            });
         }
     }
     

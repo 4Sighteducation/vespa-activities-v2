@@ -1569,6 +1569,39 @@ body {
     animation: slideInUp 0.3s ease;
 }
 
+/* Mobile styles for modal container */
+.activity-modal-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Desktop adjustments for activity modal */
+@media (min-width: 1024px) {
+    .activity-modal-fullpage {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .activity-modal-container {
+        background: white;
+        max-width: 1200px;
+        width: 100%;
+        height: calc(100vh - 4rem);
+        max-height: 900px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+}
+
 /* ===== Header ===== */
 .activity-header {
     padding: 1rem;
@@ -1861,6 +1894,33 @@ body {
 }
 
 /* ===== Do & Reflect Stages ===== */
+.question-progress {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.question-progress .progress-bar-wrapper {
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.question-progress .progress-bar-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+}
+
 .activity-questions,
 .reflection-questions {
     display: grid;
