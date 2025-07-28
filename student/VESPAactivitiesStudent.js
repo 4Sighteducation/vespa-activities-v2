@@ -67,7 +67,8 @@
                     activitiesCompleted: 0,
                     averageWordCount: 0,
                     nextMilestone: { points: 50, name: 'Getting Started! 🌱' }
-                }
+                },
+                dataLoaded: false // Track if data has been loaded
             };
             this.container = null;
             this.dataViews = {}; // Initialize dataViews object
@@ -84,6 +85,9 @@
         async init() {
             try {
                 log('Starting initialization');
+                
+                // Set up listeners for view renders
+                this.setupViewListeners();
                 
                 // Wait a bit for Knack views to fully render
                 await this.waitForViews();
@@ -117,38 +121,85 @@
             }
         }
         
+        setupViewListeners() {
+            log('Setting up view render listeners');
+            
+            // Listen for each data view render
+            const dataViews = [
+                this.config.views.vespaResults,
+                this.config.views.studentRecord,
+                this.config.views.allActivities,
+                this.config.views.activityProgress
+            ];
+            
+            dataViews.forEach(viewId => {
+                $(document).on(`knack-view-render.${viewId}`, (event, view) => {
+                    log(`Data view rendered: ${viewId}`);
+                    
+                    // Hide it immediately
+                    const element = document.querySelector(`#${viewId}`);
+                    if (element) {
+                        element.style.display = 'none';
+                        const viewWrapper = element.closest('.kn-view');
+                        if (viewWrapper) {
+                            viewWrapper.style.display = 'none';
+                        }
+                    }
+                    
+                    // Re-parse data if we haven't already
+                    if (!this.state.dataLoaded) {
+                        log('Late data view render detected, parsing data...');
+                        this.parseVESPAScores();
+                        this.parseStudentRecord();
+                        this.parseActivities();
+                        this.parseActivityProgress();
+                        this.calculateStats();
+                        this.render(); // Re-render with new data
+                    }
+                });
+            });
+        }
+        
         async waitForViews() {
             log('Waiting for Knack views to be ready...');
             
             // Log what Knack.views contains initially
             log('Initial Knack.views:', Object.keys(Knack.views || {}));
             
+            // Check if views exist in DOM even if not in Knack.views
+            const requiredViews = [
+                this.config.views.vespaResults,
+                this.config.views.studentRecord,
+                this.config.views.allActivities,
+                this.config.views.activityProgress
+            ];
+            
+            log('Checking DOM for view elements:');
+            requiredViews.forEach(viewId => {
+                const element = document.querySelector(`#${viewId}`);
+                log(`${viewId} in DOM:`, !!element);
+            });
+            
             // Wait up to 5 seconds for views to be available
             const maxWaitTime = 5000;
             const checkInterval = 100;
             let waitedTime = 0;
+            let lastLogTime = 0;
             
             while (waitedTime < maxWaitTime) {
-                // Check if all required views exist in Knack.views
-                const requiredViews = [
-                    this.config.views.vespaResults,
-                    this.config.views.studentRecord,
-                    this.config.views.allActivities,
-                    this.config.views.activityProgress
-                ];
-                
-                log('Checking for views:', requiredViews);
+                // Only log every 1 second to reduce spam
+                if (waitedTime - lastLogTime >= 1000) {
+                    log('Still waiting for views to load...');
+                    lastLogTime = waitedTime;
+                }
                 
                 const allViewsReady = requiredViews.every(viewKey => {
                     const exists = viewKey in (Knack.views || {});
-                    if (!exists) {
-                        log(`View ${viewKey} not yet available`);
-                    }
                     return exists;
                 });
                 
                 if (allViewsReady) {
-                    log('All views are ready');
+                    log('All views are ready in Knack.views');
                     return;
                 }
                 
@@ -156,27 +207,76 @@
                 waitedTime += checkInterval;
             }
             
-            log('Warning: Timeout waiting for views, proceeding anyway');
+            log('Warning: Timeout waiting for views in Knack.views');
             log('Final available views:', Object.keys(Knack.views || {}));
-            log('Expected views:', {
-                vespaResults: this.config.views.vespaResults,
-                studentRecord: this.config.views.studentRecord,
-                allActivities: this.config.views.allActivities,
-                activityProgress: this.config.views.activityProgress
+            log('Expected views:', requiredViews);
+            
+            // Check DOM one more time
+            log('Final DOM check:');
+            requiredViews.forEach(viewId => {
+                const element = document.querySelector(`#${viewId}`);
+                if (element) {
+                    log(`${viewId} found in DOM but not in Knack.views - this suggests a configuration issue`);
+                }
             });
         }
         
         hideDataViews() {
-            // Hide all data views
-            Object.values(this.config.views).forEach(viewId => {
-                if (viewId !== this.config.views.richText) {
-                    const element = document.querySelector(`#${viewId}`);
-                    if (element) {
-                        element.style.display = 'none';
-                        this.dataViews[viewId] = element;
+            log('Hiding data views...');
+            
+            // Hide all data views except the rich text view
+            const viewsToHide = [
+                this.config.views.vespaResults,
+                this.config.views.studentRecord,
+                this.config.views.allActivities,
+                this.config.views.activityProgress
+            ];
+            
+            viewsToHide.forEach(viewId => {
+                const element = document.querySelector(`#${viewId}`);
+                if (element) {
+                    // Hide the view completely
+                    element.style.display = 'none';
+                    element.style.visibility = 'hidden';
+                    element.style.position = 'absolute';
+                    element.style.left = '-9999px';
+                    
+                    // Also hide the parent view wrapper if it exists
+                    const viewWrapper = element.closest('.kn-view');
+                    if (viewWrapper) {
+                        viewWrapper.style.display = 'none';
                     }
+                    
+                    this.dataViews[viewId] = element;
+                    log(`Hidden view: ${viewId}`);
+                } else {
+                    log(`View ${viewId} not found in DOM to hide`);
                 }
             });
+            
+            // Also inject CSS to ensure they stay hidden
+            if (!document.getElementById('vespa-activities-hide-views-css')) {
+                const style = document.createElement('style');
+                style.id = 'vespa-activities-hide-views-css';
+                style.textContent = `
+                    /* Hide VESPA Activities data views */
+                    #${this.config.views.vespaResults},
+                    #${this.config.views.studentRecord},
+                    #${this.config.views.allActivities},
+                    #${this.config.views.activityProgress},
+                    #${this.config.views.vespaResults} .kn-view,
+                    #${this.config.views.studentRecord} .kn-view,
+                    #${this.config.views.allActivities} .kn-view,
+                    #${this.config.views.activityProgress} .kn-view {
+                        display: none !important;
+                        visibility: hidden !important;
+                        height: 0 !important;
+                        overflow: hidden !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                log('Injected CSS to hide data views');
+            }
         }
         
         async loadInitialData() {
@@ -222,6 +322,9 @@
                 log('Calculating stats...');
                 this.calculateStats();
                 
+                // Mark data as loaded
+                this.state.dataLoaded = true;
+                
                 log('Initial data loaded successfully', this.state);
             } catch (error) {
                 console.error('Error loading initial data:', error);
@@ -238,6 +341,17 @@
             const vespaView = document.querySelector(`#${this.config.views.vespaResults}`);
             if (!vespaView) {
                 log('VESPA results view element not found in DOM');
+                // Use mock data for testing
+                if (this.config.debugMode) {
+                    log('DEBUG MODE: Using mock VESPA scores');
+                    this.state.vespaScores = {
+                        vision: 75,
+                        effort: 82,
+                        systems: 68,
+                        practice: 90,
+                        attitude: 77
+                    };
+                }
                 return;
             }
             
@@ -317,6 +431,38 @@
             const activitiesView = document.querySelector(`#${this.config.views.allActivities}`);
             if (!activitiesView) {
                 log('Activities view not found');
+                // Use mock data for testing
+                if (this.config.debugMode) {
+                    log('DEBUG MODE: Using mock activities');
+                    this.state.activities.all = [
+                        {
+                            id: '1',
+                            name: 'Vision Board Creation',
+                            category: 'vision',
+                            points: 50,
+                            level: 'Level 3',
+                            active: true
+                        },
+                        {
+                            id: '2',
+                            name: 'Time Management Matrix',
+                            category: 'systems',
+                            points: 40,
+                            level: 'Level 3',
+                            active: true
+                        },
+                        {
+                            id: '3',
+                            name: 'Growth Mindset Workshop',
+                            category: 'attitude',
+                            points: 60,
+                            level: 'Level 2',
+                            active: true
+                        }
+                    ];
+                    this.state.activities.prescribed = this.state.activities.all.slice(0, 2);
+                    this.state.activities.completed = [this.state.activities.all[2]];
+                }
                 return;
             }
             
