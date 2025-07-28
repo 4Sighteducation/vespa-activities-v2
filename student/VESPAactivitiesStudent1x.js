@@ -3145,14 +3145,25 @@
         }
         
         formatDate(date) {
+            if (!date) return 'Unknown date';
+            
+            // Convert string to Date object if needed
+            const dateObj = date instanceof Date ? date : new Date(date);
+            
+            // Check if the date is valid
+            if (isNaN(dateObj.getTime())) {
+                log('Invalid date format:', date);
+                return 'Invalid date';
+            }
+            
             const now = new Date();
-            const diff = now - date;
+            const diff = now - dateObj;
             const hours = Math.floor(diff / 3600000);
             
             if (hours < 1) return 'Just now';
             if (hours < 24) return `${hours}h ago`;
             if (hours < 48) return 'Yesterday';
-            return date.toLocaleDateString();
+            return dateObj.toLocaleDateString();
         }
         
         showMessage(text, type = 'info') {
