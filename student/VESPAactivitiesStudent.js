@@ -7,6 +7,13 @@
     const VERSION = '2.0';
     const DEBUG = true;
     
+    // Utility function - must be at top to be accessible everywhere
+    function log(message, data) {
+        if (DEBUG) {
+            console.log(`[VESPA Activities v${VERSION}]`, message, data || '');
+        }
+    }
+    
     // Export the initializer function that will be called by KnackAppLoader
     window.initializeVESPAActivitiesStudent = function() {
         log('Initializing VESPA Activities Student Experience', window.VESPA_ACTIVITIES_STUDENT_CONFIG);
@@ -38,12 +45,6 @@
         }
     };
     
-    // Also support direct initialization if the script loads after config is set
-    if (window.VESPA_ACTIVITIES_STUDENT_CONFIG && !window.vespaActivitiesApp) {
-        log('Config already available, initializing immediately');
-        window.initializeVESPAActivitiesStudent();
-    }
-    
     // Main application class
     class VESPAActivitiesApp {
         constructor(config) {
@@ -69,6 +70,7 @@
                 }
             };
             this.container = null;
+            this.dataViews = {}; // Initialize dataViews object
             // Color scheme for VESPA categories
             this.colors = {
                 vision: { primary: '#ff8f00', secondary: '#ffa726', emoji: '👁️' },
@@ -87,29 +89,39 @@
                 await this.waitForViews();
                 
                 // Hide the data views
+                log('Hiding data views...');
                 this.hideDataViews();
                 
                 // Load initial data
+                log('Loading initial data...');
                 await this.loadInitialData();
                 
                 // Initial render
+                log('Rendering UI...');
                 this.render();
                 
                 // Attach event listeners
+                log('Attaching event listeners...');
                 this.attachEventListeners();
                 
                 // Start animations
                 this.startAnimations();
                 
                 log('Initialization complete');
+                return true; // Return success
             } catch (error) {
                 console.error('Error during initialization:', error);
+                console.error('Error stack:', error.stack);
                 this.showError('Failed to initialize the application');
+                throw error; // Re-throw to be caught by the initializer
             }
         }
         
         async waitForViews() {
             log('Waiting for Knack views to be ready...');
+            
+            // Log what Knack.views contains initially
+            log('Initial Knack.views:', Object.keys(Knack.views || {}));
             
             // Wait up to 5 seconds for views to be available
             const maxWaitTime = 5000;
@@ -124,6 +136,8 @@
                     this.config.views.allActivities,
                     this.config.views.activityProgress
                 ];
+                
+                log('Checking for views:', requiredViews);
                 
                 const allViewsReady = requiredViews.every(viewKey => {
                     const exists = viewKey in (Knack.views || {});
@@ -143,7 +157,13 @@
             }
             
             log('Warning: Timeout waiting for views, proceeding anyway');
-            log('Available views:', Object.keys(Knack.views || {}));
+            log('Final available views:', Object.keys(Knack.views || {}));
+            log('Expected views:', {
+                vespaResults: this.config.views.vespaResults,
+                studentRecord: this.config.views.studentRecord,
+                allActivities: this.config.views.allActivities,
+                activityProgress: this.config.views.activityProgress
+            });
         }
         
         hideDataViews() {
@@ -160,37 +180,54 @@
         }
         
         async loadInitialData() {
-            log('Loading initial data...');
+            log('loadInitialData method called - starting data loading process');
             
             // Get container
             this.container = document.querySelector(`#${this.config.views.richText}`);
+            log('Looking for container:', this.config.views.richText);
+            
             if (!this.container) {
+                log('ERROR: Container not found!', this.config.views.richText);
                 throw new Error('Container not found');
             }
+            
+            log('Container found, showing loading state');
             
             // Show loading state
             this.container.innerHTML = this.getLoadingHTML();
             
+            log('About to parse data from Knack views');
+            
             // Parse data from Knack views
             try {
                 // Parse VESPA scores from view_3164
+                log('Calling parseVESPAScores...');
                 this.parseVESPAScores();
                 
                 // Parse student record and activities
+                log('Calling parseStudentRecord...');
                 this.parseStudentRecord();
+                
+                log('Calling parseActivities...');
                 this.parseActivities();
+                
+                log('Calling parseActivityProgress...');
                 this.parseActivityProgress();
                 
                 // Load problem mappings
+                log('Loading problem mappings...');
                 await this.loadProblemMappings();
                 
                 // Calculate initial stats
+                log('Calculating stats...');
                 this.calculateStats();
                 
                 log('Initial data loaded successfully', this.state);
             } catch (error) {
                 console.error('Error loading initial data:', error);
+                console.error('Error stack:', error.stack);
                 this.showError('Failed to load data. Please refresh the page.');
+                throw error; // Re-throw to be caught by init
             }
         }
         
@@ -1027,13 +1064,6 @@
                     <button onclick="location.reload()">Refresh Page</button>
                 </div>
             `;
-        }
-    }
-    
-    // Utility functions
-    function log(message, data) {
-        if (DEBUG) {
-            console.log(`[VESPA Activities v${VERSION}]`, message, data || '');
         }
     }
     
