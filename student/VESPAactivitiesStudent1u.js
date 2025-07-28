@@ -216,8 +216,18 @@
                 studentId,
                 responses,
                 status = 'in_progress',
-                cycleNumber = 1
+                cycleNumber = 1,
+                timeSpent,
+                wordCount
             } = data;
+            
+            console.log('saveActivityResponse called with:', {
+                activityId,
+                studentId,
+                status,
+                responseCount: Object.keys(responses || {}).length,
+                config: this.config
+            });
             
             try {
                 // Validate student ID
@@ -226,29 +236,47 @@
                     throw new Error('Invalid student ID - please refresh the page and try again');
                 }
                 
+                // Validate we have API credentials
+                if (!this.config.knackAppId && !this.config.applicationId) {
+                    console.error('No Knack App ID found in config');
+                    throw new Error('Missing Knack App ID');
+                }
+                
+                if (!this.config.knackApiKey && !this.config.apiKey) {
+                    console.error('No Knack API Key found in config');
+                    throw new Error('Missing Knack API Key');
+                }
+                
                 const formattedResponses = this.formatResponsesForKnack(activityId, responses, cycleNumber);
+                console.log('Formatted responses:', formattedResponses);
                 
                 // Check if a response already exists
                 const existingResponse = await this.findExistingResponse(activityId, studentId);
                 
                 if (existingResponse) {
-                    // Update existing record
-                    return await this.updateResponse(existingResponse.id, {
+                    console.log('Found existing response, updating:', existingResponse.id);
+                    const updateData = {
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
                         field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
-                    });
+                    };
+                    console.log('Update data:', updateData);
+                    return await this.updateResponse(existingResponse.id, updateData);
                 } else {
-                    // Create new record
-                    return await this.createResponse({
+                    console.log('No existing response found, creating new record');
+                    const createData = {
                         field_1301: studentId, // Student connection
                         field_1302: activityId, // Activities connection
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
                         field_1870: status === 'completed' ? new Date().toISOString() : null // Date/Time completed
-                    });
+                    };
+                    console.log('Create data:', createData);
+                    console.log('Student ID:', studentId, 'length:', studentId.length);
+                    console.log('Activity ID:', activityId, 'length:', activityId.length);
+                    return await this.createResponse(createData);
                 }
                 
             } catch (error) {
@@ -332,16 +360,30 @@
         
         // Make Knack API calls
         async knackAPI(method, endpoint, data = null) {
+            console.log('Making Knack API call:', {
+                method,
+                endpoint,
+                data,
+                config: this.config
+            });
+            
             const headers = {
                 'X-Knack-Application-Id': this.config.knackAppId || this.config.applicationId,
                 'X-Knack-REST-API-Key': this.config.knackApiKey || this.config.apiKey,
                 'Content-Type': 'application/json'
             };
             
+            console.log('API Headers:', {
+                appId: headers['X-Knack-Application-Id'],
+                hasApiKey: !!headers['X-Knack-REST-API-Key'],
+                apiKeyLength: headers['X-Knack-REST-API-Key']?.length
+            });
+            
             // If user token is available, use it for authentication
             const userToken = Knack.getUserToken ? Knack.getUserToken() : null;
             if (userToken) {
                 headers['Authorization'] = userToken;
+                console.log('Using user token for authentication');
             }
             
             const options = {
@@ -372,15 +414,36 @@
                 url += `?${params.toString()}`;
             }
             
+            console.log('Making API request to:', url);
+            console.log('Request method:', method);
+            console.log('Request headers:', headers);
+            if (data && method !== 'GET') {
+                console.log('Request body:', options.body);
+            }
+            
             const response = await fetch(url, options);
             
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`Knack API error: ${response.status}`, errorText);
-                throw new Error(`Knack API error: ${response.status} ${response.statusText}`);
+                console.error('Full response:', response);
+                console.error('Response headers:', response.headers);
+                
+                // Check for specific error types
+                if (response.status === 401) {
+                    console.error('Authentication failed - check API key and app ID');
+                } else if (response.status === 403) {
+                    console.error('Permission denied - check object permissions');
+                } else if (response.status === 400) {
+                    console.error('Bad request - check field values and data format');
+                }
+                
+                throw new Error(`Knack API error: ${response.status} ${response.statusText} - ${errorText}`);
             }
             
-            return await response.json();
+            const result = await response.json();
+            console.log('API call successful, result:', result);
+            return result;
         }
         
         // Create activity progress record (Object_126)
@@ -1084,16 +1147,30 @@
             const timeSpent = Math.round((Date.now() - this.startTime) / 60000); // minutes
             const wordCount = Object.values(this.responses).join(' ').split(/\s+/).filter(w => w).length;
             
-            // Save final responses with completed status
-            const responseHandler = new ResponseHandler(this.config);
-            await responseHandler.saveActivityResponse({
+            console.log('Completing activity:', {
                 activityId: this.activity.id,
                 studentId: this.config.studentId,
-                responses: this.responses,
-                status: 'completed',
-                timeSpent: timeSpent,
-                wordCount: wordCount
+                config: this.config,
+                responses: this.responses
             });
+            
+            // Save final responses with completed status
+            const responseHandler = new ResponseHandler(this.config);
+            try {
+                await responseHandler.saveActivityResponse({
+                    activityId: this.activity.id,
+                    studentId: this.config.studentId,
+                    responses: this.responses,
+                    status: 'completed',
+                    timeSpent: timeSpent,
+                    wordCount: wordCount
+                });
+                console.log('Activity response saved successfully');
+            } catch (error) {
+                console.error('Failed to save activity response:', error);
+                alert('Failed to save activity. Please check your connection and try again.');
+                return;
+            }
             
             // Create activity progress record (Object_126)
             try {
@@ -1216,11 +1293,22 @@
             log('Starting VESPA Activities initialization...');
             
             try {
+                // Show loading overlay immediately
+                this.showLoadingOverlay();
+                
+                // Show loading state immediately
+                if (this.container) {
+                    this.container.innerHTML = this.getLoadingHTML();
+                }
+                
                 // Remove the immediate loading style
                 const immediateStyle = document.getElementById('vespa-activities-immediate-hide');
                 if (immediateStyle) {
                     immediateStyle.remove();
                 }
+                
+                // Handle broken images gracefully
+                this.handleBrokenImages();
                 
                 // Ensure views are hidden initially
                 this.hideDataViews();
@@ -1243,6 +1331,7 @@
                 // Validate we have required data
                 if (!this.state.studentId) {
                     console.error('No student ID found after initialization');
+                    this.hideLoadingOverlay();
                     this.showError('Unable to load student data. Please refresh the page.');
                     return;
                 }
@@ -1258,9 +1347,16 @@
                 // Start animations
                 this.startAnimations();
                 
+                // Enable lazy loading for images
+                this.enableLazyLoading();
+                
+                // Hide loading overlay
+                this.hideLoadingOverlay();
+                
                 log('VESPA Activities initialization complete');
             } catch (error) {
                 errorLog('Failed to initialize VESPA Activities:', error);
+                this.hideLoadingOverlay();
                 this.showError('Failed to initialize. Please refresh the page.');
             }
         }
@@ -2641,8 +2737,10 @@
                     existingProgress,
                     {
                         studentId: this.getCurrentStudentId(),
-                        knackAppId: this.config.knackAppId,
-                        knackApiKey: this.config.knackApiKey
+                        knackAppId: this.config.knackAppId || this.config.applicationId,
+                        knackApiKey: this.config.knackApiKey || this.config.apiKey,
+                        apiKey: this.config.apiKey,
+                        applicationId: this.config.applicationId
                     }
                 );
                 
@@ -2943,6 +3041,76 @@
             `;
         }
         
+        showLoadingOverlay() {
+            // Create overlay if it doesn't exist
+            let overlay = document.getElementById('vespa-loading-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'vespa-loading-overlay';
+                overlay.className = 'vespa-loading-overlay';
+                overlay.innerHTML = `
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h3>Loading VESPA Activities...</h3>
+                        <p>Please wait while we prepare your personalized learning experience</p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+        }
+        
+        hideLoadingOverlay() {
+            const overlay = document.getElementById('vespa-loading-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        handleBrokenImages() {
+            // Add event listeners to handle broken images
+            document.addEventListener('error', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    // Check if we've already handled this image
+                    if (e.target.dataset.errorHandled) return;
+                    e.target.dataset.errorHandled = 'true';
+                    
+                    e.target.style.display = 'none';
+                    // Optionally add a placeholder
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'image-placeholder';
+                    placeholder.innerHTML = '🖼️ Image unavailable';
+                    placeholder.style.cssText = 'background: #f0f0f0; padding: 20px; text-align: center; color: #666; border-radius: 8px;';
+                    e.target.parentNode.insertBefore(placeholder, e.target);
+                }
+            }, true);
+        }
+        
+        enableLazyLoading() {
+            // Enable lazy loading for images
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                                observer.unobserve(img);
+                            }
+                        }
+                    });
+                }, {
+                    rootMargin: '50px 0px' // Start loading 50px before entering viewport
+                });
+                
+                // Observe all images with data-src
+                document.querySelectorAll('img[data-src]').forEach(img => {
+                    imageObserver.observe(img);
+                });
+            }
+        }
+        
         showCategoryModal(category) {
             log('Showing category modal for:', category);
             
@@ -2992,8 +3160,17 @@
         async loadActivitiesJson() {
             try {
                 log('Loading activities.json for media content...');
-                // Use JSDelivr CDN to load from your GitHub repo with CORS support
-                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1a.json');
+                
+                // Add timeout for slow connections
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
+                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1b.json', {
+                    signal: controller.signal,
+                    cache: 'default' // Use browser cache
+                });
+                
+                clearTimeout(timeoutId);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -3002,23 +3179,21 @@
                     // Fix: data is directly an array, not data.activities
                     data.forEach(activity => {
                         // Fix: use the correct field name
-                        const activityId = activity['Activity_id (field_2074)'];
+                        const activityId = activity['Activity ID'];
                         if (activityId) {
                             window.vespaActivitiesData[activityId] = {
-                                video: activity['Activity Video (field_1288)'],
-                                slideshow: activity['Activity Slideshow (field_1293)'],
-                                instructions: activity['Activity Instructions (field_1309)'],
-                                finalThoughts: activity['Final Thoughts Section Content (field_1313)']
+                                videoUrl: activity['Activity Video Link'] || '',
+                                slidesUrl: activity['Activity Slides Link'] || ''
                             };
                         }
                     });
-                    log('Loaded activities.json data for', Object.keys(window.vespaActivitiesData).length, 'activities');
+                    log('Activities.json loaded successfully', window.vespaActivitiesData);
                 } else {
-                    log('Failed to load activities.json:', response.status);
+                    log('Failed to load activities.json', response.status);
                 }
             } catch (error) {
-                console.error('Failed to load activities.json:', error);
-                // Non-critical - continue without it
+                console.error('Error loading activities.json:', error);
+                // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }
         }
