@@ -1456,7 +1456,13 @@
             if (hasSlides && this.activity.slideshow) {
                 const slidesPanel = document.getElementById('slides-panel');
                 if (slidesPanel) {
-                    slidesPanel.innerHTML = this.activity.slideshow;
+                    // Wrap iframe/embed content in responsive container
+                    const slideContent = this.activity.slideshow;
+                    if (slideContent.includes('iframe') || slideContent.includes('embed')) {
+                        slidesPanel.innerHTML = `<div class="responsive-embed">${slideContent}</div>`;
+                    } else {
+                        slidesPanel.innerHTML = slideContent;
+                    }
                 }
             }
             
@@ -1488,7 +1494,13 @@
                         if (hasSlides && activityData.slideshow) {
                             const slidesPanel = document.getElementById('slides-panel');
                             if (slidesPanel) {
-                                slidesPanel.innerHTML = activityData.slideshow;
+                                // Wrap iframe/embed content in responsive container
+                                const slideContent = activityData.slideshow;
+                                if (slideContent.includes('iframe') || slideContent.includes('embed')) {
+                                    slidesPanel.innerHTML = `<div class="responsive-embed">${slideContent}</div>`;
+                                } else {
+                                    slidesPanel.innerHTML = slideContent;
+                                }
                             }
                         }
                     }
@@ -2027,6 +2039,10 @@
         async loadInitialData() {
             log('loadInitialData method called - starting data loading process');
             
+            // Start performance monitoring
+            const startTime = performance.now();
+            console.time('VESPADataLoad');
+            
             // Get container
             this.container = document.querySelector(`#${this.config.views.richText}`);
             log('Looking for container:', this.config.views.richText);
@@ -2071,9 +2087,20 @@
                 this.state.dataLoaded = true;
                 
                 log('Initial data loaded successfully', this.state);
+                
+                // End performance monitoring
+                console.timeEnd('VESPADataLoad');
+                const loadTime = performance.now() - startTime;
+                log(`VESPA Activities loaded in ${loadTime.toFixed(2)}ms`);
+                
+                // Log performance warning if slow
+                if (loadTime > 3000) {
+                    console.warn(`VESPA Activities load time exceeded 3 seconds (${loadTime.toFixed(2)}ms). Consider caching data locally.`);
+                }
             } catch (error) {
                 console.error('Error loading initial data:', error);
                 console.error('Error stack:', error.stack);
+                console.timeEnd('VESPADataLoad'); // End timer even on error
                 this.showError('Failed to load data. Please refresh the page.');
                 throw error; // Re-throw to be caught by init
             }
@@ -2137,6 +2164,9 @@
             if (record) {
                 log('Record found, parsing scores...');
                 log('Available fields in record:', Object.keys(record));
+                
+                // Store the full record for cross-referencing with student data
+                this.state.vespaScoresRecord = record;
                 
                 // Parse scores using configured field IDs
                 this.state.vespaScores = {
@@ -2293,14 +2323,28 @@
                 }
                 log('Finished activity IDs:', this.state.finishedActivityIds);
                 
+                // IMPORTANT: These fields might be in the VESPA scores record, not the student record
+                // We'll need to cross-reference with the VESPA scores data
+                
                 // Parse Year Group (field_144) and Group (field_223) for Object_46 saves
                 this.state.yearGroup = record.field_144 || record.field_144_raw || '';
                 this.state.group = record.field_223 || record.field_223_raw || '';
+                
+                // If not found in student record, check if we have them from VESPA scores
+                if (!this.state.yearGroup && this.state.vespaScoresRecord) {
+                    this.state.yearGroup = this.state.vespaScoresRecord.field_144 || this.state.vespaScoresRecord.field_144_raw || '';
+                }
+                if (!this.state.group && this.state.vespaScoresRecord) {
+                    this.state.group = this.state.vespaScoresRecord.field_223 || this.state.vespaScoresRecord.field_223_raw || '';
+                }
+                
                 log('Year Group (field_144):', this.state.yearGroup);
                 log('Group (field_223):', this.state.group);
                 
                 // Parse VESPA Customer (field_122) - connection to school
-                const customerField = record.field_122 || record.field_122_raw;
+                const customerField = record.field_122 || record.field_122_raw || 
+                                    (this.state.vespaScoresRecord && (this.state.vespaScoresRecord.field_133 || this.state.vespaScoresRecord.field_133_raw));
+                
                 if (customerField) {
                     // Extract ID from connection field
                     if (typeof customerField === 'object' && customerField.id) {
@@ -2311,9 +2355,18 @@
                         this.state.vespaCustomerId = customerField[0].id || customerField[0];
                     }
                 }
-                log('VESPA Customer ID (field_122):', this.state.vespaCustomerId);
+                log('VESPA Customer ID (field_122/field_133):', this.state.vespaCustomerId);
                 
                 // Store student name components for field_1875
+                // Also check VESPA scores record for name field (field_187)
+                if (!nameField.first && !nameField.last && this.state.vespaScoresRecord) {
+                    const vespaNameField = this.state.vespaScoresRecord.field_187 || this.state.vespaScoresRecord.field_187_raw || {};
+                    if (vespaNameField.first || vespaNameField.last) {
+                        nameField = vespaNameField;
+                        this.state.studentName = `${vespaNameField.first || ''} ${vespaNameField.last || ''}`.trim();
+                    }
+                }
+                
                 this.state.studentFirstName = nameField.first || '';
                 this.state.studentLastName = nameField.last || '';
                 log('Student name components:', { first: this.state.studentFirstName, last: this.state.studentLastName });
@@ -3192,11 +3245,27 @@
         }
         
         getAchievementsHTML() {
-            // Will implement achievements/badges view
+            // Achievements view with recommendation to remove
             return `
                 <div class="achievements-container">
-                    <h2>Your Achievements</h2>
-                    <p>Coming soon...</p>
+                    <h2>🏆 Achievements System</h2>
+                    <div class="achievement-notice">
+                        <p><strong>Status:</strong> The achievements system has been partially implemented but requires:</p>
+                        <ul>
+                            <li>Backend integration with Knack Object_127</li>
+                            <li>Achievement persistence across sessions</li>
+                            <li>UI implementation for badge display</li>
+                            <li>Testing and refinement</li>
+                        </ul>
+                        <p><strong>Recommendation:</strong> Either complete the implementation or remove this section to avoid confusion.</p>
+                        <p><em>The system is designed to award badges for:</em></p>
+                        <ul>
+                            <li>Completing activities (First Steps, Getting Going, etc.)</li>
+                            <li>Quality achievements (high word counts)</li>
+                            <li>Streak achievements (consecutive days)</li>
+                            <li>Level achievements (completing all Level 2/3 activities)</li>
+                        </ul>
+                    </div>
                 </div>
             `;
         }

@@ -1726,6 +1726,42 @@ body {
         height: 40px;
     }
     
+    /* Fix Recent Progress section */
+    .recent-progress-section {
+        padding: 1rem;
+    }
+    
+    .progress-timeline {
+        padding-left: 1.5rem;
+    }
+    
+    .timeline-item {
+        padding-bottom: 1rem;
+    }
+    
+    /* Fix Your Activities section */
+    .activities-section {
+        padding: 1rem;
+    }
+    
+    .activities-section .section-title {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Fix Inspirational Quote section */
+    .motivational-section {
+        padding: 1rem;
+    }
+    
+    .quote-card p {
+        font-size: 1rem;
+    }
+    
+    .quote-card cite {
+        font-size: 0.875rem;
+    }
+    
     /* Additional Galaxy Fold specific fixes */
     .activity-card-header {
         flex-direction: column;
@@ -1812,6 +1848,53 @@ body {
     }
 }
 
+/* ===== Mobile breakpoint at 485px ===== */
+@media (max-width: 485px) {
+    /* Main container adjustments */
+    .vespa-student-activities {
+        padding: 1rem;
+    }
+    
+    /* Header adjustments */
+    .header-content {
+        padding: 0 1rem;
+    }
+    
+    /* Score cards in single column */
+    .scores-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    /* Activities grid responsive */
+    .activities-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    /* Category buttons single column */
+    .category-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Section padding adjustments */
+    .activities-section,
+    .recent-progress-section,
+    .motivational-section {
+        padding: 1.5rem;
+    }
+    
+    /* Navigation adjustments */
+    .vespa-nav {
+        flex-wrap: wrap;
+    }
+    
+    .nav-item {
+        flex: 0 1 calc(33.333% - 0.5rem);
+        min-width: 80px;
+    }
+}
+
 /* ===== Print Styles ===== */
 @media print {
     .vespa-nav,
@@ -1831,6 +1914,67 @@ body {
         break-inside: avoid;
         box-shadow: none;
         border: 1px solid var(--gray-300);
+    }
+}
+
+/* ===== Responsive Media/Embeds ===== */
+.media-panel iframe,
+.media-panel embed,
+.media-panel object,
+.activity-slideshow iframe {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+    border: none;
+}
+
+/* Responsive container for embeds */
+.responsive-embed {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.responsive-embed iframe,
+.responsive-embed object,
+.responsive-embed embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Override any inline styles for Google Slides */
+.activity-slideshow iframe[src*="docs.google.com/presentation"] {
+    min-height: 400px !important;
+    max-height: 600px !important;
+}
+
+@media (max-width: 768px) {
+    .activity-slideshow iframe[src*="docs.google.com/presentation"] {
+        min-height: 300px !important;
+        max-height: 400px !important;
+    }
+}
+
+/* ===== Remove Emoji Animations on Mobile ===== */
+@media (max-width: 768px) {
+    /* Remove all emoji animations except wave */
+    .stat-icon:not(.wave-emoji),
+    .score-emoji,
+    .category-icon,
+    .empty-icon,
+    .title-icon {
+        animation: none !important;
+    }
+    
+    /* Keep only the wave animation */
+    .wave-emoji {
+        animation: wave 0.6s ease-in-out;
     }
 }
 
