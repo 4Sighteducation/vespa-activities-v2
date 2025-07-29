@@ -171,21 +171,48 @@
         async saveAchievementToKnack(achievement, studentId) {
             try {
                 const achievementData = {
-                    field_3552: studentId, // Student connection
-                    field_3554: achievement.name, // achievement_name
-                    field_3555: achievement.description, // achievement_description
-                    field_3553: 'activity_completion', // achievement_type
-                    field_3556: new Date().toISOString(), // date_earned
-                    field_3557: achievement.points, // points_value
-                    field_3558: achievement.icon, // icon_emoji
-                    field_3560: `Unlocked: ${achievement.name}` // criteria_met
+                    field_3550: studentId, // Student connection (Object_6)
+                    field_3551: achievement.id, // Achievement Type/ID
+                    field_3552: achievement.name, // Achievement Name
+                    field_3553: achievement.description, // Achievement Description
+                    field_3554: achievement.points || 0, // Points Earned
+                    field_3555: new Date().toISOString(), // Date Earned
+                    field_3556: 'Active', // Status
+                    field_3557: achievement.icon || '🏆', // Icon/Emoji
+                    field_3558: JSON.stringify(achievement.criteria), // Criteria (as JSON string)
+                    field_3559: achievement.category || 'general' // Category
                 };
                 
                 // Use the response handler to make the API call
                 const responseHandler = new window.ResponseHandler(this.config);
-                return await responseHandler.knackAPI('POST', 'objects/object_127/records', achievementData);
+                const result = await responseHandler.knackAPI('POST', 'objects/object_127/records', achievementData);
+                
+                log('Achievement saved to Object_127:', result);
+                
+                // Store in localStorage for quick access
+                const savedAchievements = JSON.parse(localStorage.getItem('vespa-achievements') || '[]');
+                savedAchievements.push({
+                    ...achievement,
+                    unlockedAt: new Date().toISOString(),
+                    studentId,
+                    knackRecordId: result.id
+                });
+                localStorage.setItem('vespa-achievements', JSON.stringify(savedAchievements));
+                
+                return result;
             } catch (error) {
-                console.error('Error saving achievement:', error);
+                console.error('Error saving achievement to Object_127:', error);
+                // Still store locally even if Knack save fails
+                const savedAchievements = JSON.parse(localStorage.getItem('vespa-achievements') || '[]');
+                savedAchievements.push({
+                    ...achievement,
+                    unlockedAt: new Date().toISOString(),
+                    studentId,
+                    knackRecordId: null
+                });
+                localStorage.setItem('vespa-achievements', JSON.stringify(savedAchievements));
+                
+                return null;
             }
         }
     }
@@ -701,29 +728,34 @@
                 
                 await this.knackAPI('POST', 'objects/object_126/records', progressData);
                 
-                // Also create achievement record
-                await this.createAchievementRecord(studentId, 'activity_completion');
+                // Achievement records are now created by AchievementSystem in ActivityRenderer.completeActivity()
             } catch (error) {
                 console.error('Error creating progress record:', error);
                 // Don't throw - progress tracking failure shouldn't break activity completion
             }
         }
         
-        // Create achievement record
+        // Create achievement record (deprecated - use AchievementSystem instead)
         async createAchievementRecord(studentId, achievementType) {
             try {
+                // This method is kept for backward compatibility
+                // New achievements should use AchievementSystem.saveAchievementToKnack
+                console.warn('createAchievementRecord is deprecated. Use AchievementSystem.saveAchievementToKnack instead.');
+                
                 const achievementData = {
-                    field_3552: studentId, // Student connection
-                    field_3554: 'First Steps! 🎯', // Achievement name
-                    field_3555: 'Complete your first activity', // Description
-                    field_3553: achievementType, // Type
-                    field_3556: this.formatDateUK(new Date()), // Date earned
-                    field_3557: 5, // Points
-                    field_3558: '🌟', // Icon
-                    field_3560: 'Unlocked: First Steps! 🎯' // Notification text
+                    field_3550: studentId, // Student connection
+                    field_3551: 'first_activity', // Achievement ID
+                    field_3552: 'First Steps! 🎯', // Achievement name
+                    field_3553: 'Complete your first activity', // Description
+                    field_3554: 5, // Points
+                    field_3555: new Date().toISOString(), // Date earned
+                    field_3556: 'Active', // Status
+                    field_3557: '🌟', // Icon
+                    field_3558: JSON.stringify({ activitiesCompleted: 1 }), // Criteria
+                    field_3559: 'general' // Category
                 };
                 
-                await this.knackAPI('POST', 'objects/object_127/records', achievementData);
+                await this.knackAPI('POST', `objects/${this.config.objects.achievements}/records`, achievementData);
             } catch (error) {
                 console.error('Error creating achievement record:', error);
             }
@@ -1196,6 +1228,11 @@
         getCompleteContent() {
             const points = this.activity.level === 'Level 3' ? 15 : 10;
             
+            // Auto-redirect to dashboard after 5 seconds
+            setTimeout(() => {
+                window.vespaActivityRenderer.handleExit();
+            }, 5000);
+            
             return `
                 <div class="stage-content complete-content">
                     <div class="completion-celebration">
@@ -1209,8 +1246,9 @@
                         </div>
                         
                         <div class="completion-actions">
-                            <button class="primary-btn" onclick="window.vespaActivityRenderer.handleExit()">
-                                Return to Dashboard
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Returning to dashboard in 5 seconds...</p>
+                            <button class="secondary-btn" onclick="window.vespaActivityRenderer.handleExit()">
+                                Return Now
                             </button>
                         </div>
                     </div>
@@ -1603,6 +1641,21 @@
         }
         
         async completeActivity() {
+            // Show a fun loading message while saving
+            const stageContent = document.querySelector('.stage-content');
+            if (stageContent) {
+                stageContent.innerHTML = `
+                    <div class="stage-content complete-content">
+                        <div class="completion-celebration">
+                            <div class="loading-spinner"></div>
+                            <h2>Phew, that was a lot of work!</h2>
+                            <p>We're struggling to get it all uploaded... 🏃‍♂️💨</p>
+                            <p style="font-size: 14px; color: #666; margin-top: 10px;">Just kidding! Your amazing work is being saved securely...</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
             // Calculate activity statistics
             const timeSpent = Math.round((Date.now() - this.startTime) / 60000); // minutes
             const wordCount = Object.values(this.responses).join(' ').split(/\s+/).filter(w => w).length;
@@ -1684,6 +1737,39 @@
             // Update stage and render completion screen
             this.currentStage = 'complete';
             this.render();
+            
+            // Refresh the parent app's activity progress data
+            if (window.vespaApp) {
+                // Add this activity to the progress immediately for instant UI update
+                const newProgress = {
+                    id: 'temp-' + Date.now(),
+                    activityId: this.activity.id,
+                    activityName: this.activity.name,
+                    cycleNumber: 1,
+                    dateCompleted: new Date().toISOString(),
+                    timeMinutes: timeSpent,
+                    status: 'completed',
+                    verified: false,
+                    pointsEarned: this.activity.level === 'Level 3' ? 15 : 10,
+                    wordCount: wordCount
+                };
+                
+                // Add to the beginning of progress array
+                window.vespaApp.state.activities.progress.unshift(newProgress);
+                
+                // Also add to completed activities if not already there
+                if (!window.vespaApp.state.activities.completed.find(a => a.id === this.activity.id)) {
+                    window.vespaApp.state.activities.completed.push({
+                        ...this.activity,
+                        completedDate: newProgress.dateCompleted,
+                        pointsEarned: newProgress.pointsEarned,
+                        timeSpent: newProgress.timeMinutes
+                    });
+                }
+                
+                // Recalculate stats
+                window.vespaApp.calculateStats();
+            }
         }
         
         async updateStudentFinishedActivities(activityId) {
