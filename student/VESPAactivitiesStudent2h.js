@@ -960,15 +960,20 @@
         }
         
         getLearnContent() {
-            // Parse video and slides from field_1288
+            // Parse video and slides from field_1288 (which contains both under WATCH and THINK)
             const mediaContent = this.activity.video || '';
             const backgroundInfo = this.activity.slideshow || '';
             
             // Extract video content (usually under WATCH heading)
             let videoContent = '';
-            const videoMatch = mediaContent.match(/<h2[^>]*>.*?WATCH.*?<\/h2>.*?<iframe[^>]*>.*?<\/iframe>/is);
+            const videoMatch = mediaContent.match(/<h2[^>]*>.*?WATCH.*?<\/h2>.*?<iframe[^>]*src=['"](.*?)['"][^>]*>.*?<\/iframe>/is);
             if (videoMatch) {
-                videoContent = videoMatch[0].match(/<iframe[^>]*>.*?<\/iframe>/is)?.[0] || '';
+                const iframeSrc = videoMatch[1];
+                // Only consider it a video if it's YouTube or similar video platform
+                if (iframeSrc.includes('youtube.com') || iframeSrc.includes('youtu.be') || 
+                    iframeSrc.includes('vimeo.com') || iframeSrc.includes('wistia.com')) {
+                    videoContent = videoMatch[0].match(/<iframe[^>]*>.*?<\/iframe>/is)?.[0] || '';
+                }
             }
             
             // Extract slides content (usually under THINK heading)
@@ -976,6 +981,22 @@
             const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>.*?<iframe[^>]*>.*?<\/iframe>/is);
             if (slidesMatch) {
                 slidesContent = slidesMatch[0].match(/<iframe[^>]*>.*?<\/iframe>/is)?.[0] || '';
+            }
+            
+            // If no slides found under THINK, check if there's a non-video iframe anywhere
+            if (!slidesContent && mediaContent) {
+                const allIframes = mediaContent.match(/<iframe[^>]*src=['"](.*?)['"][^>]*>.*?<\/iframe>/gis) || [];
+                for (const iframe of allIframes) {
+                    const srcMatch = iframe.match(/src=['"](.*?)['"]/i);
+                    if (srcMatch) {
+                        const src = srcMatch[1];
+                        // Check if it's slides (Google Slides or slides.com)
+                        if (src.includes('docs.google.com/presentation') || src.includes('slides.com')) {
+                            slidesContent = iframe;
+                            break;
+                        }
+                    }
+                }
             }
             
             const hasVideo = !!videoContent;
@@ -986,14 +1007,14 @@
                 <div class="stage-content learn-content">
                     <div class="stage-header">
                         <h2>Learn & Explore</h2>
-                        <p class="stage-description">Watch the video and review the materials.</p>
+                        <p class="stage-description">Review the slides and watch any videos to understand the activity.</p>
                     </div>
                     
-                    ${hasVideo || hasSlides || hasBackgroundInfo ? `
+                    ${hasSlides || hasVideo || hasBackgroundInfo ? `
                         <div class="media-tabs">
-                            ${hasVideo ? '<button class="media-tab active" data-media="video">📺 Video</button>' : ''}
-                            ${hasSlides ? `<button class="media-tab ${!hasVideo ? 'active' : ''}" data-media="slides">📊 Info</button>` : ''}
-                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasVideo && !hasSlides ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
+                            ${hasSlides ? '<button class="media-tab active" data-media="slides">📊 Slides</button>' : ''}
+                            ${hasVideo ? `<button class="media-tab ${!hasSlides ? 'active' : ''}" data-media="video">📺 Video</button>` : ''}
+                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasSlides && !hasVideo ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
                         </div>
                         
                         <div class="media-content">
@@ -1008,7 +1029,7 @@
                                 </div>
                             ` : ''}
                             ${hasBackgroundInfo ? `
-                                <div class="media-panel ${!hasVideo && !hasSlides ? 'active' : ''}" id="background-panel">
+                                <div class="media-panel ${!hasSlides && !hasVideo ? 'active' : ''}" id="background-panel">
                                     <div class="background-info-content">
                                         ${backgroundInfo}
                                     </div>
@@ -1274,8 +1295,16 @@
         // Add lazy loading to iframes for better performance
         addLazyLoading(iframeContent) {
             if (!iframeContent) return '';
-            // Add loading="lazy" if not already present
-            return iframeContent.replace(/<iframe(?![^>]*loading=)/gi, '<iframe loading="lazy"');
+            
+            // Extract src from iframe
+            const srcMatch = iframeContent.match(/src=['"](.*?)['"]/i);
+            if (!srcMatch) return iframeContent;
+            
+            const src = srcMatch[1];
+            // Replace src with data-src and add a placeholder
+            return iframeContent
+                .replace(/src=['"].*?['"]/i, `data-src="${src}"`)
+                .replace(/<iframe/i, '<iframe data-lazy="true" src="about:blank"');
         }
         
         getActivityObjective() {
@@ -1350,6 +1379,14 @@
                     this.switchMediaTab(tab.dataset.media);
                 });
             });
+            
+            // Load content for the initially active tab
+            const activeTab = document.querySelector('.media-tab.active');
+            if (activeTab) {
+                setTimeout(() => {
+                    this.switchMediaTab(activeTab.dataset.media);
+                }, 100); // Small delay to ensure DOM is ready
+            }
             
             window.vespaActivityRenderer = this;
         }
@@ -1476,7 +1513,47 @@
             });
             
             document.querySelectorAll('.media-panel').forEach(panel => {
-                panel.classList.toggle('active', panel.id === `${mediaType}-panel`);
+                const isActive = panel.id === `${mediaType}-panel`;
+                panel.classList.toggle('active', isActive);
+                
+                // Load iframe content when panel becomes active
+                if (isActive) {
+                    const iframe = panel.querySelector('iframe[data-lazy="true"]');
+                    if (iframe && iframe.getAttribute('data-src') && !iframe.hasAttribute('data-loading')) {
+                        // Mark as loading to prevent duplicate attempts
+                        iframe.setAttribute('data-loading', 'true');
+                        
+                        // Show loading state
+                        const existingLoader = panel.querySelector('.media-loading-state');
+                        if (!existingLoader) {
+                            const loadingDiv = document.createElement('div');
+                            loadingDiv.className = 'media-loading-state';
+                            loadingDiv.innerHTML = '<div class="loading-spinner"></div><p>Loading content...</p>';
+                            panel.appendChild(loadingDiv);
+                            
+                            // Load the iframe
+                            iframe.src = iframe.getAttribute('data-src');
+                            iframe.removeAttribute('data-src');
+                            iframe.removeAttribute('data-lazy');
+                            iframe.removeAttribute('data-loading');
+                            
+                            // Remove loading state once loaded
+                            iframe.onload = () => {
+                                if (loadingDiv.parentNode) {
+                                    loadingDiv.remove();
+                                }
+                            };
+                            
+                            // Also handle error case
+                            iframe.onerror = () => {
+                                if (loadingDiv.parentNode) {
+                                    loadingDiv.innerHTML = '<p style="color: #f44336;">Failed to load content. Please try again.</p>';
+                                }
+                                iframe.removeAttribute('data-loading');
+                            };
+                        }
+                    }
+                }
             });
         }
         
