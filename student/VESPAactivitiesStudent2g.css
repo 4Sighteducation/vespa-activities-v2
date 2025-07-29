@@ -1999,7 +1999,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: slideInUp 0.3s ease;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 /* Mobile styles for modal container */

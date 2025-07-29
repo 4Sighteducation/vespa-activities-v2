@@ -5,7 +5,7 @@
     'use strict';
     
     const VERSION = '2.0';
-    const DEBUG = true;
+    const DEBUG = false;
     
     // Utility function - must be at top to be accessible everywhere
     function log(message, data) {
@@ -227,7 +227,7 @@
                 // Find the activity card
                 const activityCard = document.querySelector(`[data-activity-id="${activityId}"]`);
                 if (!activityCard) {
-                    console.log('Activity card not found for:', activityId);
+                    log('Activity card not found for:', activityId);
                     return;
                 }
                 
@@ -273,7 +273,7 @@
             
             // If a save is already in progress, just update the data and return the pending promise
             if (this.savePromise) {
-                console.log('Save already in progress, updating data...');
+                log('Save already in progress, updating data...');
                 return this.savePromise;
             }
             
@@ -311,7 +311,7 @@
                 wordCount
             } = data;
             
-            console.log('performSave called with:', {
+            log('performSave called with:', {
                 activityId,
                 studentId,
                 status,
@@ -337,13 +337,13 @@
                 }
                 
                 const formattedResponses = this.formatResponsesForKnack(activityId, responses, cycleNumber);
-                console.log('Formatted responses:', formattedResponses);
+                log('Formatted responses:', formattedResponses);
                 
                 // Check if a response already exists
                 const existingResponse = await this.findExistingResponse(activityId, studentId);
                 
                 // Debug logging for field values
-                console.log('Student data before save:', {
+                log('Student data before save:', {
                     yearGroup: this.config.yearGroup,
                     group: this.config.group,
                     vespaCustomerId: this.config.vespaCustomerId,
@@ -354,7 +354,7 @@
                 });
                 
                 if (existingResponse) {
-                    console.log('Found existing response, updating:', existingResponse.id);
+                    log('Found existing response, updating:', existingResponse.id);
                     
                     // Build update data - include connection fields if they're missing
                     const updateData = {
@@ -409,7 +409,7 @@
                             if (window.vespaActivityRenderer) {
                                 try {
                                     await window.vespaActivityRenderer.updateStudentFinishedActivities(activityId);
-                                    console.log('Updated finished activities from performSave (update)');
+                                    log('Updated finished activities from performSave (update)');
                                 } catch (error) {
                                     console.error('Error updating finished activities in performSave:', error);
                                 }
@@ -421,7 +421,7 @@
                         
                         return result;
                 } else {
-                    console.log('No existing response found, creating new record');
+                    log('No existing response found, creating new record');
                     const createData = {
                         field_1301: [studentId], // Student connection as array
                         field_1302: [activityId], // Activities connection as array
@@ -557,7 +557,7 @@
         
         // Make Knack API calls
         async knackAPI(method, endpoint, data = null) {
-            console.log('Making Knack API call:', {
+            log('Making Knack API call:', {
                 method,
                 endpoint,
                 data,
@@ -570,7 +570,7 @@
                 'Content-Type': 'application/json'
             };
             
-            console.log('API Headers:', {
+            log('API Headers:', {
                 appId: headers['X-Knack-Application-Id'],
                 hasApiKey: !!headers['X-Knack-REST-API-Key'],
                 apiKeyLength: headers['X-Knack-REST-API-Key']?.length
@@ -580,7 +580,7 @@
             const userToken = Knack.getUserToken ? Knack.getUserToken() : null;
             if (userToken) {
                 headers['Authorization'] = userToken;
-                console.log('Using user token for authentication');
+                log('Using user token for authentication');
             }
             
             const options = {
@@ -611,11 +611,11 @@
                 url += `?${params.toString()}`;
             }
             
-            console.log('Making API request to:', url);
-            console.log('Request method:', method);
-            console.log('Request headers:', headers);
+            log('Making API request to:', url);
+            log('Request method:', method);
+            log('Request headers:', headers);
             if (data && method !== 'GET') {
-                console.log('Request body:', options.body);
+                log('Request body:', options.body);
             }
             
             const response = await fetch(url, options);
@@ -638,9 +638,9 @@
                 throw new Error(`Knack API error: ${response.status} ${response.statusText} - ${errorText}`);
             }
             
-            const result = await response.json();
-            console.log('API call successful, result:', result);
-            return result;
+                            const result = await response.json();
+                log('API call successful, result:', result);
+                return result;
         }
         
         // Create activity progress record (Object_126)
@@ -795,6 +795,13 @@
         }
         
         render() {
+            // Prevent multiple renders in quick succession
+            if (this.isRendering) {
+                log('Render already in progress, skipping...');
+                return;
+            }
+            this.isRendering = true;
+            
             // Remove any existing modal first
             const existingModal = document.querySelector('.activity-modal-fullpage');
             if (existingModal) {
@@ -822,6 +829,11 @@
             document.body.appendChild(modal);
             document.body.style.overflow = 'hidden';
             
+            // Add modal to DOM with a slight delay to prevent flash
+            requestAnimationFrame(() => {
+                modal.style.opacity = '1';
+            });
+            
             // Add click handler for backdrop on desktop
             modal.addEventListener('click', (e) => {
                 if (e.target === modal && window.innerWidth >= 1024) {
@@ -837,6 +849,11 @@
             }, 5000); // Wait 5 seconds before starting auto-save
             
             this.initializeDynamicContent();
+            
+            // Reset rendering flag
+            setTimeout(() => {
+                this.isRendering = false;
+            }, 100);
         }
         
         getHeaderHTML() {
@@ -980,14 +997,14 @@
                         </div>
                         
                         <div class="media-content">
-                            ${hasVideo ? `
-                                <div class="media-panel active" id="video-panel">
-                                    <div class="responsive-embed">${videoContent}</div>
+                            ${hasSlides ? `
+                                <div class="media-panel active" id="slides-panel">
+                                    <div class="responsive-embed">${this.addLazyLoading(slidesContent)}</div>
                                 </div>
                             ` : ''}
-                            ${hasSlides ? `
-                                <div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">
-                                    <div class="responsive-embed">${slidesContent}</div>
+                            ${hasVideo ? `
+                                <div class="media-panel ${!hasSlides ? 'active' : ''}" id="video-panel">
+                                    <div class="responsive-embed">${this.addLazyLoading(videoContent)}</div>
                                 </div>
                             ` : ''}
                             ${hasBackgroundInfo ? `
@@ -1017,10 +1034,10 @@
         }
         
         getDoContent() {
-            console.log('[ActivityRenderer] All questions:', this.questions);
+            log('[ActivityRenderer] All questions:', this.questions);
             const questions = this.questions.filter(q => q.field_1314 !== 'Yes');
-            console.log('[ActivityRenderer] Filtered DO questions:', questions);
-            console.log('[ActivityRenderer] Current responses:', this.responses);
+            log('[ActivityRenderer] Filtered DO questions:', questions);
+            log('[ActivityRenderer] Current responses:', this.responses);
             
             // Sort questions by order field
             const sortedQuestions = questions.sort((a, b) => (a.field_1303 || 0) - (b.field_1303 || 0));
@@ -1040,7 +1057,7 @@
             
             // Check if we can proceed - log for debugging
             const canProceed = this.canProceedFromDo();
-            console.log('[ActivityRenderer] Can proceed from Do?', canProceed);
+            log('[ActivityRenderer] Can proceed from Do?', canProceed);
             
             return `
                 <div class="stage-content do-content">
@@ -1254,6 +1271,13 @@
             return emojis[this.activity.category] || '📚';
         }
         
+        // Add lazy loading to iframes for better performance
+        addLazyLoading(iframeContent) {
+            if (!iframeContent) return '';
+            // Add loading="lazy" if not already present
+            return iframeContent.replace(/<iframe(?![^>]*loading=)/gi, '<iframe loading="lazy"');
+        }
+        
         getActivityObjective() {
             if (this.activity.instructions) {
                 return this.activity.instructions.substring(0, 100) + '...';
@@ -1340,7 +1364,7 @@
             const questionId = e.target.dataset.questionId;
             this.responses[questionId] = e.target.value;
             
-            console.log('[ActivityRenderer] Input changed:', questionId, e.target.value);
+            log('[ActivityRenderer] Input changed:', { questionId, value: e.target.value });
             
             if (e.target.tagName === 'TEXTAREA') {
                 const wordCount = e.target.value.trim().split(/\s+/).filter(w => w).length;
@@ -1472,7 +1496,7 @@
             const timeSpent = Math.round((Date.now() - this.startTime) / 60000); // minutes
             const wordCount = Object.values(this.responses).join(' ').split(/\s+/).filter(w => w).length;
             
-            console.log('Completing activity:', {
+            log('Completing activity:', {
                 activityId: this.activity.id,
                 studentId: this.config.studentId,
                 config: this.config,
@@ -1498,7 +1522,7 @@
                     timeSpent: timeSpent,
                     wordCount: wordCount
                 });
-                console.log('Activity response saved successfully');
+                log('Activity response saved successfully');
             } catch (error) {
                 console.error('Failed to save activity response:', error);
                 alert('Failed to save activity. Please check your connection and try again.');
@@ -1553,33 +1577,38 @@
         
         async updateStudentFinishedActivities(activityId) {
             try {
-                console.log('updateStudentFinishedActivities called with:', {
-                    activityId,
-                    config: this.config,
-                    studentId: this.config.studentId,
-                    fields: this.config.fields,
-                    objects: this.config.objects
-                });
+                // First, fetch the current student record to get the latest finished activities
+                const responseHandler = new ResponseHandler(this.config);
                 
-                // Get the student's current finished activities
-                const finishedActivities = window.vespaApp?.state?.finishedActivityIds || [];
+                // Get fresh student data from Knack
+                let currentFinishedActivities = [];
+                try {
+                    const studentRecord = await responseHandler.knackAPI(
+                        'GET',
+                        `objects/${this.config.objects.student}/records/${this.config.studentId}`
+                    );
+                    
+                    // Parse the current finished activities field
+                    const finishedField = studentRecord[this.config.fields.finishedActivities] || 
+                                        studentRecord[this.config.fields.finishedActivities + '_raw'] || '';
+                    
+                    if (typeof finishedField === 'string' && finishedField.trim()) {
+                        currentFinishedActivities = finishedField.split(',').map(id => id.trim()).filter(id => id);
+                    }
+                } catch (error) {
+                    console.error('Error fetching current student record:', error);
+                    // Fall back to app state if fetch fails
+                    currentFinishedActivities = window.vespaApp?.state?.finishedActivityIds || [];
+                }
                 
                 // Check if activity is already in the list
-                if (finishedActivities.includes(activityId)) {
-                    console.log('Activity already in finished list');
+                if (currentFinishedActivities.includes(activityId)) {
                     return;
                 }
                 
                 // Add the new activity ID
-                const updatedActivities = [...finishedActivities, activityId];
+                const updatedActivities = [...currentFinishedActivities, activityId];
                 const updatedField = updatedActivities.join(',');
-                
-                console.log('Updating student record with:', {
-                    finishedActivitiesField: this.config.fields.finishedActivities,
-                    studentObject: this.config.objects.student,
-                    studentId: this.config.studentId,
-                    updatedField
-                });
                 
                 // Update the student record in object_6
                 const updateData = {
@@ -1587,12 +1616,10 @@
                 };
                 
                 // Make the API call to update the student record
-                const responseHandler = new ResponseHandler(this.config);
+                // responseHandler already declared above
                 
                 // Use the Knack provided method to update the record
                 if (typeof Knack !== 'undefined' && Knack.$ && Knack.$.ajax) {
-                    console.log('Using Knack.$.ajax to update student record');
-                    
                     const result = await new Promise((resolve, reject) => {
                         Knack.$.ajax({
                             type: 'PUT',
@@ -1605,7 +1632,6 @@
                             contentType: 'application/json',
                             data: JSON.stringify(updateData),
                             success: (data) => {
-                                console.log('Successfully updated student record:', data);
                                 resolve(data);
                             },
                             error: (xhr, status, error) => {
@@ -1614,8 +1640,6 @@
                             }
                         });
                     });
-                    
-                    console.log('Update result:', result);
                 } else {
                     // Fallback to regular API call
                     const result = await responseHandler.knackAPI(
@@ -1623,8 +1647,6 @@
                         `objects/${this.config.objects.student}/records/${this.config.studentId}`,
                         updateData
                     );
-                    
-                    console.log('Update result:', result);
                 }
                 
                 // Update the local state as well
@@ -1641,8 +1663,6 @@
                         });
                     }
                 }
-                
-                console.log('Successfully updated finished activities:', updatedField);
             } catch (error) {
                 console.error('Error updating student finished activities:', error);
                 throw error;
@@ -3296,7 +3316,7 @@
                     });
                     
                     existingResponses = await responseHandler.findExistingResponse(activityId, this.getCurrentStudentId());
-                    console.log('Loaded existing responses:', existingResponses);
+                    log('Loaded existing responses:', existingResponses);
                 } catch (error) {
                     console.error('Error loading existing responses:', error);
                 }
@@ -3318,7 +3338,7 @@
                 );
                 
                 // Log the config being passed to renderer for debugging
-                console.log('Activity Renderer Config:', {
+                log('Activity Renderer Config:', {
                     studentId: this.getCurrentStudentId(),
                     yearGroup: this.state.yearGroup,
                     group: this.state.group,
@@ -3632,7 +3652,7 @@
         
         showMessage(text, type = 'info') {
             // Will implement toast notifications
-            console.log(`[${type}] ${text}`);
+            log(`[${type}] ${text}`);
         }
         
         showError(message) {
@@ -3806,4 +3826,27 @@
         }
     }
     
-})(); // End IIFE
+    })(); // End IIFE
+    
+    // Quick debug helper
+    window.testParsing = function(activityName) {
+        const activity = window.vespaApp?.state?.activities?.all?.find(a => a.name.includes(activityName));
+        if (!activity) return console.error('Activity not found');
+        
+        log(`\nTesting: ${activity.name}`);
+        const content = activity.video || '';
+        
+        // Find all iframes
+        const allIframes = content.match(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi) || [];
+        log(`Total iframes: ${allIframes.length}`);
+        
+        allIframes.forEach((iframe, i) => {
+            const isYouTube = iframe.includes('youtube.com') || iframe.includes('youtu.be');
+            const isGoogleSlides = iframe.includes('docs.google.com/presentation');
+            const isSlidescom = iframe.includes('slides.com');
+            log(`\nIframe ${i + 1}:`, {
+                type: isYouTube ? 'YouTube' : (isGoogleSlides ? 'Google Slides' : (isSlidescom ? 'Slides.com' : 'Unknown')),
+                preview: iframe.substring(0, 100) + '...'
+            });
+        });
+    };
