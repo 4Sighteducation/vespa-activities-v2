@@ -317,6 +317,16 @@
                             wordCount,
                             responseCount: Object.keys(responses || {}).length
                         });
+                        
+                        // Also update the student's finished activities field
+                        if (window.vespaActivityRenderer) {
+                            try {
+                                await window.vespaActivityRenderer.updateStudentFinishedActivities(activityId);
+                                console.log('Updated finished activities from performSave (update)');
+                            } catch (error) {
+                                console.error('Error updating finished activities in performSave:', error);
+                            }
+                        }
                     }
                     
                     return result;
@@ -342,6 +352,16 @@
                             wordCount,
                             responseCount: Object.keys(responses || {}).length
                         });
+                        
+                        // Also update the student's finished activities field
+                        if (window.vespaActivityRenderer) {
+                            try {
+                                await window.vespaActivityRenderer.updateStudentFinishedActivities(activityId);
+                                console.log('Updated finished activities from performSave (create)');
+                            } catch (error) {
+                                console.error('Error updating finished activities in performSave:', error);
+                            }
+                        }
                     }
                     
                     return result;
@@ -817,11 +837,6 @@
             const hasVideo = this.activity.video && this.activity.video.includes('iframe');
             const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
             
-            // Check if we have video/slides in the loaded activities.json data
-            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
-            const videoUrl = activityData?.video || this.activity.video || '';
-            const slidesContent = activityData?.slideshow || this.activity.slideshow || '';
-            
             return `
                 <div class="stage-content learn-content">
                     <div class="stage-header">
@@ -838,18 +853,24 @@
                         <div class="media-content">
                             ${hasVideo ? `
                                 <div class="media-panel active" id="video-panel">
-                                    ${videoUrl}
+                                    <div class="media-loading-state">
+                                        <div class="loading-spinner"></div>
+                                        <p>Loading video...</p>
+                                    </div>
                                 </div>
                             ` : ''}
                             ${hasSlides ? `
                                 <div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">
-                                    ${slidesContent}
+                                    <div class="media-loading-state">
+                                        <div class="loading-spinner"></div>
+                                        <p>Loading slides...</p>
+                                    </div>
                                 </div>
                             ` : ''}
                         </div>
                     ` : `
                         <div class="text-content">
-                            ${slidesContent || '<p>Content coming soon...</p>'}
+                            <p>Content coming soon...</p>
                         </div>
                     `}
                     
@@ -1182,6 +1203,11 @@
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
+            
+            // Load media content when navigating to learn stage
+            if (newStage === 'learn') {
+                setTimeout(() => this.loadMediaForCurrentActivity(), 100);
+            }
         }
         
         handleInputChange(e) {
@@ -1225,7 +1251,7 @@
             }
         }
         
-        handleSave() {
+        async handleSave() {
             const saveData = {
                 activityId: this.activity.id,
                 responses: this.responses,
@@ -1242,12 +1268,24 @@
             
             // Create response handler to save to Knack
             const responseHandler = new ResponseHandler(this.config);
-            responseHandler.saveActivityResponse({
+            const isCompleted = this.currentStage === 'complete';
+            
+            await responseHandler.saveActivityResponse({
                 activityId: this.activity.id,
                 studentId: this.config.studentId,
                 responses: this.responses,
-                status: this.currentStage === 'complete' ? 'completed' : 'in_progress'
+                status: isCompleted ? 'completed' : 'in_progress'
             });
+            
+            // If activity is completed, also update the finished activities field
+            if (isCompleted) {
+                try {
+                    await this.updateStudentFinishedActivities(this.activity.id);
+                    console.log('Updated finished activities from auto-save');
+                } catch (error) {
+                    console.error('Error updating finished activities during auto-save:', error);
+                }
+            }
         }
         
         async handleExit() {
@@ -1292,10 +1330,75 @@
             });
         }
         
+        async loadMediaForCurrentActivity() {
+            const hasVideo = this.activity.video && this.activity.video.includes('iframe');
+            const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
+            
+            if (!hasVideo && !hasSlides) return;
+            
+            // First check if we already have the content from the activity data
+            if (hasVideo && this.activity.video) {
+                const videoPanel = document.getElementById('video-panel');
+                if (videoPanel) {
+                    videoPanel.innerHTML = this.activity.video;
+                }
+            }
+            
+            if (hasSlides && this.activity.slideshow) {
+                const slidesPanel = document.getElementById('slides-panel');
+                if (slidesPanel) {
+                    slidesPanel.innerHTML = this.activity.slideshow;
+                }
+            }
+            
+            // If we don't have the content in activity data, try to load from activities.json
+            // but only for this specific activity
+            if ((!this.activity.video && hasVideo) || (!this.activity.slideshow && hasSlides)) {
+                try {
+                    // Check if we already have the data cached
+                    if (!window.vespaActivitiesData) {
+                        console.log('Loading activity media content...');
+                        const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1c.json?v=${Date.now()}`);
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.vespaActivitiesData = data;
+                        }
+                    }
+                    
+                    if (window.vespaActivitiesData && window.vespaActivitiesData[this.activity.activityId]) {
+                        const activityData = window.vespaActivitiesData[this.activity.activityId];
+                        
+                        if (hasVideo && activityData.video) {
+                            const videoPanel = document.getElementById('video-panel');
+                            if (videoPanel) {
+                                videoPanel.innerHTML = activityData.video;
+                            }
+                        }
+                        
+                        if (hasSlides && activityData.slideshow) {
+                            const slidesPanel = document.getElementById('slides-panel');
+                            if (slidesPanel) {
+                                slidesPanel.innerHTML = activityData.slideshow;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading activity media:', error);
+                    // Show error message
+                    const panels = document.querySelectorAll('.media-panel');
+                    panels.forEach(panel => {
+                        if (panel.querySelector('.media-loading-state')) {
+                            panel.innerHTML = '<div class="error-state"><p>Failed to load content. Please check your connection and refresh.</p></div>';
+                        }
+                    });
+                }
+            }
+        }
+        
         loadMediaContent() {
-            // This function is no longer needed since we're loading content directly
-            // Kept for backwards compatibility
-            return;
+            // Deprecated - use loadMediaForCurrentActivity instead
+            this.loadMediaForCurrentActivity();
         }
         
         async completeActivity() {
@@ -1584,8 +1687,8 @@
                 // Wait for all required views to render
                 await this.waitForViews();
                 
-                // Load activities.json for video/slide data
-                await this.loadActivitiesJson();
+                // Don't load activities.json on startup - it will be loaded on demand
+                // await this.loadActivitiesJson();
                 
                 // Load initial data with validation
                 await this.loadInitialData();
