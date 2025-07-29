@@ -2327,6 +2327,86 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* Background Info Content Styling */
+.background-info-content {
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    overflow-y: auto;
+    max-height: 600px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.background-info-content h2 {
+    color: #a4c2f4;
+    text-align: center;
+    margin: 20px 0;
+    font-size: 1.5rem;
+}
+
+.background-info-content h3 {
+    color: #2a3c7a;
+    margin: 15px 0;
+}
+
+.background-info-content p {
+    margin: 15px 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+.background-info-content ul, .background-info-content ol {
+    margin: 15px 0;
+    padding-left: 30px;
+}
+
+.background-info-content li {
+    margin: 8px 0;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* Uniform Image Sizing for all content */
+.background-info-content img,
+.activity-content img,
+.media-panel img,
+.stage-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Constrain large images */
+.background-info-content img,
+.stage-content img {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+/* Remove any inline styles from rich text */
+.background-info-content hr {
+    margin: 20px 0;
+    border: none;
+    border-top: 2px solid #e0e0e0;
+}
+
+/* Override inline styles that might be in the rich text */
+.background-info-content *[style*="margin"] {
+    margin-top: 15px !important;
+    margin-bottom: 15px !important;
+}
+
+.background-info-content strong {
+    color: #2a3c7a;
+}
+
+.background-info-content em {
+    font-style: italic;
+}
+
 /* ===== Do & Reflect Stages ===== */
 .question-progress {
     margin-bottom: 2rem;
@@ -2773,6 +2853,19 @@ body {
         right: 10px;
         left: 10px;
         max-width: calc(100% - 20px);
+    }
+    
+    .background-info-content {
+        padding: 15px;
+        max-height: 500px;
+    }
+    
+    .background-info-content img {
+        max-height: 250px;
+    }
+    
+    .media-panel iframe {
+        height: 350px;
     }
 }
 

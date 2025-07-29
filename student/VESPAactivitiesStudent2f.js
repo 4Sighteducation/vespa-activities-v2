@@ -943,8 +943,27 @@
         }
         
         getLearnContent() {
-            const hasVideo = this.activity.video && this.activity.video.includes('iframe');
-            const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
+            // Parse video and slides from field_1288
+            const mediaContent = this.activity.video || '';
+            const backgroundInfo = this.activity.slideshow || '';
+            
+            // Extract video content (usually under WATCH heading)
+            let videoContent = '';
+            const videoMatch = mediaContent.match(/<h2[^>]*>.*?WATCH.*?<\/h2>.*?<iframe[^>]*>.*?<\/iframe>/is);
+            if (videoMatch) {
+                videoContent = videoMatch[0].match(/<iframe[^>]*>.*?<\/iframe>/is)?.[0] || '';
+            }
+            
+            // Extract slides content (usually under THINK heading)
+            let slidesContent = '';
+            const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>.*?<iframe[^>]*>.*?<\/iframe>/is);
+            if (slidesMatch) {
+                slidesContent = slidesMatch[0].match(/<iframe[^>]*>.*?<\/iframe>/is)?.[0] || '';
+            }
+            
+            const hasVideo = !!videoContent;
+            const hasSlides = !!slidesContent;
+            const hasBackgroundInfo = backgroundInfo && backgroundInfo.trim() !== '';
             
             return `
                 <div class="stage-content learn-content">
@@ -953,26 +972,28 @@
                         <p class="stage-description">Watch the video and review the materials.</p>
                     </div>
                     
-                    ${hasVideo || hasSlides ? `
+                    ${hasVideo || hasSlides || hasBackgroundInfo ? `
                         <div class="media-tabs">
                             ${hasVideo ? '<button class="media-tab active" data-media="video">📺 Video</button>' : ''}
-                            ${hasSlides ? `<button class="media-tab ${!hasVideo ? 'active' : ''}" data-media="slides">📊 Slides</button>` : ''}
+                            ${hasSlides ? `<button class="media-tab ${!hasVideo ? 'active' : ''}" data-media="slides">📊 Info</button>` : ''}
+                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasVideo && !hasSlides ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
                         </div>
                         
                         <div class="media-content">
                             ${hasVideo ? `
                                 <div class="media-panel active" id="video-panel">
-                                    <div class="media-loading-state">
-                                        <div class="loading-spinner"></div>
-                                        <p>Loading video...</p>
-                                    </div>
+                                    <div class="responsive-embed">${videoContent}</div>
                                 </div>
                             ` : ''}
                             ${hasSlides ? `
                                 <div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">
-                                    <div class="media-loading-state">
-                                        <div class="loading-spinner"></div>
-                                        <p>Loading slides...</p>
+                                    <div class="responsive-embed">${slidesContent}</div>
+                                </div>
+                            ` : ''}
+                            ${hasBackgroundInfo ? `
+                                <div class="media-panel ${!hasVideo && !hasSlides ? 'active' : ''}" id="background-panel">
+                                    <div class="background-info-content">
+                                        ${backgroundInfo}
                                     </div>
                                 </div>
                             ` : ''}
@@ -1312,11 +1333,7 @@
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
-            
-            // Load media content when navigating to learn stage
-            if (newStage === 'learn') {
-                setTimeout(() => this.loadMediaForCurrentActivity(), 100);
-            }
+            // Media content is loaded directly in the render method
         }
         
         handleInputChange(e) {
@@ -1440,86 +1457,14 @@
         }
         
         async loadMediaForCurrentActivity() {
-            const hasVideo = this.activity.video && this.activity.video.includes('iframe');
-            const hasSlides = this.activity.slideshow && this.activity.slideshow.trim() !== '';
-            
-            if (!hasVideo && !hasSlides) return;
-            
-            // First check if we already have the content from the activity data
-            if (hasVideo && this.activity.video) {
-                const videoPanel = document.getElementById('video-panel');
-                if (videoPanel) {
-                    videoPanel.innerHTML = this.activity.video;
-                }
-            }
-            
-            if (hasSlides && this.activity.slideshow) {
-                const slidesPanel = document.getElementById('slides-panel');
-                if (slidesPanel) {
-                    // Wrap iframe/embed content in responsive container
-                    const slideContent = this.activity.slideshow;
-                    if (slideContent.includes('iframe') || slideContent.includes('embed')) {
-                        slidesPanel.innerHTML = `<div class="responsive-embed">${slideContent}</div>`;
-                    } else {
-                        slidesPanel.innerHTML = slideContent;
-                    }
-                }
-            }
-            
-            // If we don't have the content in activity data, try to load from activities.json
-            // but only for this specific activity
-            if ((!this.activity.video && hasVideo) || (!this.activity.slideshow && hasSlides)) {
-                try {
-                    // Check if we already have the data cached
-                    if (!window.vespaActivitiesData) {
-                        console.log('Loading activity media content...');
-                        const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1c.json?v=${Date.now()}`);
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            window.vespaActivitiesData = data;
-                        }
-                    }
-                    
-                    if (window.vespaActivitiesData && window.vespaActivitiesData[this.activity.activityId]) {
-                        const activityData = window.vespaActivitiesData[this.activity.activityId];
-                        
-                        if (hasVideo && activityData.video) {
-                            const videoPanel = document.getElementById('video-panel');
-                            if (videoPanel) {
-                                videoPanel.innerHTML = activityData.video;
-                            }
-                        }
-                        
-                        if (hasSlides && activityData.slideshow) {
-                            const slidesPanel = document.getElementById('slides-panel');
-                            if (slidesPanel) {
-                                // Wrap iframe/embed content in responsive container
-                                const slideContent = activityData.slideshow;
-                                if (slideContent.includes('iframe') || slideContent.includes('embed')) {
-                                    slidesPanel.innerHTML = `<div class="responsive-embed">${slideContent}</div>`;
-                                } else {
-                                    slidesPanel.innerHTML = slideContent;
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error loading activity media:', error);
-                    // Show error message
-                    const panels = document.querySelectorAll('.media-panel');
-                    panels.forEach(panel => {
-                        if (panel.querySelector('.media-loading-state')) {
-                            panel.innerHTML = '<div class="error-state"><p>Failed to load content. Please check your connection and refresh.</p></div>';
-                        }
-                    });
-                }
-            }
+            // Media content is already loaded in getLearnContent() from Knack data
+            // This method is now deprecated but kept for backward compatibility
+            console.log('Media content loaded directly from Knack data');
         }
         
         loadMediaContent() {
-            // Deprecated - use loadMediaForCurrentActivity instead
-            this.loadMediaForCurrentActivity();
+            // Deprecated - media content is loaded directly in the render method
+            console.log('loadMediaContent is deprecated - media loads automatically');
         }
         
         async completeActivity() {
@@ -2435,8 +2380,8 @@
                         name: attrs.field_1278 || attrs.field_1278_raw || 'Unknown Activity', // Activities Name
                         category: this.parseActivityCategory(attrs.field_1285 || attrs.field_1285_raw), // VESPA Category
                         activityText: attrs.field_1289 || attrs.field_1289_raw || '', // Activity Text (HTML)
-                        video: attrs.field_1288 || attrs.field_1288_raw || '', // Activity Video
-                        slideshow: attrs.field_1293 || attrs.field_1293_raw || '', // Activity Slideshow
+                        video: attrs.field_1288 || attrs.field_1288_raw || '', // Activity Video/Slides combined field
+                        slideshow: attrs.field_1293 || attrs.field_1293_raw || '', // Background Information
                         instructions: attrs.field_1309 || attrs.field_1309_raw || '', // Activity Instructions
                         level: attrs.field_3568 || attrs.field_3568_raw || 'Level 2', // Level - now using new short text field
                         order: parseInt(attrs.field_1298 || attrs.field_1298_raw || 0), // Order
