@@ -842,7 +842,7 @@
                                         <div class="loading-spinner"></div>
                                         <p>Loading video...</p>
                                     </div>
-                                    <div class="media-actual-content" style="display: none;" data-content="${btoa(videoUrl)}"></div>
+                                    <div class="media-actual-content" style="display: none;">${videoUrl}</div>
                                 </div>
                             ` : ''}
                             ${hasSlides ? `
@@ -851,7 +851,7 @@
                                         <div class="loading-spinner"></div>
                                         <p>Loading slides...</p>
                                     </div>
-                                    <div class="media-actual-content" style="display: none;" data-content="${btoa(slidesContent)}"></div>
+                                    <div class="media-actual-content" style="display: none;">${slidesContent}</div>
                                 </div>
                             ` : ''}
                         </div>
@@ -1321,23 +1321,16 @@
                 return;
             }
             
-            // Decode and load the content
+            // Show the content
             try {
-                const encodedContent = contentContainer.getAttribute('data-content');
-                if (encodedContent) {
-                    const decodedContent = atob(encodedContent);
-                    
-                    // Show the content
-                    contentContainer.innerHTML = decodedContent;
+                // Content is already in the container, just show it
+                if (contentContainer.innerHTML.trim()) {
                     contentContainer.style.display = 'block';
                     
                     // Hide the loading state
                     if (loadingState) {
                         loadingState.style.display = 'none';
                     }
-                    
-                    // Clear the data attribute to save memory
-                    contentContainer.removeAttribute('data-content');
                 }
             } catch (error) {
                 console.error('Error loading media content:', error);
@@ -1425,6 +1418,14 @@
         
         async updateStudentFinishedActivities(activityId) {
             try {
+                console.log('updateStudentFinishedActivities called with:', {
+                    activityId,
+                    config: this.config,
+                    studentId: this.config.studentId,
+                    fields: this.config.fields,
+                    objects: this.config.objects
+                });
+                
                 // Get the student's current finished activities
                 const finishedActivities = window.vespaApp?.state?.finishedActivityIds || [];
                 
@@ -1438,6 +1439,13 @@
                 const updatedActivities = [...finishedActivities, activityId];
                 const updatedField = updatedActivities.join(',');
                 
+                console.log('Updating student record with:', {
+                    finishedActivitiesField: this.config.fields.finishedActivities,
+                    studentObject: this.config.objects.student,
+                    studentId: this.config.studentId,
+                    updatedField
+                });
+                
                 // Update the student record in object_6
                 const updateData = {
                     [this.config.fields.finishedActivities]: updatedField
@@ -1445,11 +1453,13 @@
                 
                 // Make the API call to update the student record
                 const responseHandler = new ResponseHandler(this.config);
-                await responseHandler.knackAPI(
+                const result = await responseHandler.knackAPI(
                     'PUT',
                     `objects/${this.config.objects.student}/records/${this.config.studentId}`,
                     updateData
                 );
+                
+                console.log('Update result:', result);
                 
                 // Update the local state as well
                 if (window.vespaApp?.state) {
@@ -3012,11 +3022,8 @@
                     questions,
                     existingResponses, // Pass the actual response record from object_46
                     {
-                        studentId: this.getCurrentStudentId(),
-                        knackAppId: this.config.knackAppId || this.config.applicationId,
-                        knackApiKey: this.config.knackApiKey || this.config.apiKey,
-                        apiKey: this.config.apiKey,
-                        applicationId: this.config.applicationId
+                        ...this.config, // Pass the full config including fields and objects
+                        studentId: this.getCurrentStudentId()
                     }
                 );
                 
@@ -3025,16 +3032,23 @@
                 
                 // Set up the close callback
                 window.vespaApp.onActivityClose = async () => {
-                    // Only refresh activity progress data, not everything
+                    // Refresh both student data and activity progress
                     try {
+                        // Re-parse student record to get updated finished activities
+                        const studentView = Knack.views[this.config.views.studentRecord];
+                        if (studentView) {
+                            this.parseStudentRecord();
+                        }
+                        
                         // Re-parse activity progress to get updated completion status
                         const progressView = Knack.views[this.config.views.activityProgress];
                         if (progressView) {
                             this.parseActivityProgress();
-                            // Only re-render the current view, not reload all data
-                            const currentView = this.state.currentView || 'dashboard';
-                            this.switchView(currentView);
                         }
+                        
+                        // Re-render the current view with updated data
+                        const currentView = this.state.currentView || 'dashboard';
+                        this.switchView(currentView);
                     } catch (error) {
                         console.error('Error refreshing after activity close:', error);
                     }
