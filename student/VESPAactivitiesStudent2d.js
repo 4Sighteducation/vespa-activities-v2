@@ -222,6 +222,51 @@
             return `${day}/${month}/${year} ${hours}:${minutes}`;
         }
         
+        updateActivityCardStatus(activityId, status) {
+            try {
+                // Find the activity card
+                const activityCard = document.querySelector(`[data-activity-id="${activityId}"]`);
+                if (!activityCard) {
+                    console.log('Activity card not found for:', activityId);
+                    return;
+                }
+                
+                // Update the finished activities list in state
+                if (status === 'completed' && !this.state.finishedActivityIds.includes(activityId)) {
+                    this.state.finishedActivityIds.push(activityId);
+                    log('Added activity to finished list:', activityId);
+                }
+                
+                // Update the card's visual state
+                const cardFooter = activityCard.querySelector('.card-footer');
+                if (cardFooter && status === 'completed') {
+                    // Replace the button with completed badge
+                    cardFooter.innerHTML = `
+                        <span class="completed-badge">
+                            <span class="checkmark">✓</span> Completed
+                        </span>
+                        <button class="redo-activity-btn" 
+                                onclick="window.vespaApp.startActivity('${activityId}')">
+                            Redo <span class="arrow">↻</span>
+                        </button>
+                    `;
+                    
+                    // Update progress display
+                    const progressDisplay = activityCard.querySelector('.activity-progress');
+                    if (progressDisplay) {
+                        progressDisplay.style.width = '100%';
+                    }
+                }
+                
+                // Update the header stats
+                this.updateHeaderStats();
+                
+                log('Updated activity card status:', { activityId, status });
+            } catch (error) {
+                console.error('Error updating activity card status:', error);
+            }
+        }
+        
         async saveActivityResponse(data) {
             // Store the latest data
             this.lastSaveData = data;
@@ -297,6 +342,17 @@
                 // Check if a response already exists
                 const existingResponse = await this.findExistingResponse(activityId, studentId);
                 
+                // Debug logging for field values
+                console.log('Student data before save:', {
+                    yearGroup: this.config.yearGroup,
+                    group: this.config.group,
+                    vespaCustomerId: this.config.vespaCustomerId,
+                    studentFirstName: this.config.studentFirstName,
+                    studentLastName: this.config.studentLastName,
+                    studentId: studentId,
+                    activityId: activityId
+                });
+                
                 if (existingResponse) {
                     console.log('Found existing response, updating:', existingResponse.id);
                     
@@ -321,19 +377,19 @@
                         console.log('Adding missing activity connection');
                     }
                     
-                    if (!existingResponse.field_1871_raw && !existingResponse.field_1871 && this.config.vespaCustomerId) {
-                        updateData.field_1871 = this.config.vespaCustomerId; // VESPA Customer connection
-                        console.log('Adding missing VESPA Customer connection');
+                    // Always add VESPA Customer connection if available
+                    if (this.config.vespaCustomerId) {
+                        updateData.field_1871 = [this.config.vespaCustomerId]; // VESPA Customer connection as array
+                        console.log('Adding VESPA Customer connection:', this.config.vespaCustomerId);
                     }
                     
-                    // Add Name field if missing (field_1875)
-                    if ((!existingResponse.field_1875_raw && !existingResponse.field_1875) && 
-                        (this.config.studentFirstName || this.config.studentLastName)) {
+                    // Always add Name field if available
+                    if (this.config.studentFirstName || this.config.studentLastName) {
                         updateData.field_1875 = {
                             first: this.config.studentFirstName || '',
                             last: this.config.studentLastName || ''
                         };
-                        console.log('Adding missing Name field');
+                        console.log('Adding Name field:', updateData.field_1875);
                     }
                     
                     console.log('Update data:', updateData);
@@ -358,26 +414,38 @@
                                     console.error('Error updating finished activities in performSave:', error);
                                 }
                             }
+                            
+                            // Update UI to reflect completed status
+                            this.updateActivityCardStatus(activityId, 'completed');
                         }
                         
                         return result;
                 } else {
                     console.log('No existing response found, creating new record');
                     const createData = {
-                        field_1301: studentId, // Student connection
-                        field_1302: activityId, // Activities connection
+                        field_1301: [studentId], // Student connection as array
+                        field_1302: [activityId], // Activities connection as array
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
                         field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null, // Date/Time completed in UK format
                         field_2331: this.config.yearGroup || '', // Year Group
-                        field_2332: this.config.group || '', // Group
-                        field_1871: this.config.vespaCustomerId || '', // VESPA Customer connection
-                        field_1875: { // Name field
+                        field_2332: this.config.group || '' // Group
+                    };
+                    
+                    // Add VESPA Customer connection if available
+                    if (this.config.vespaCustomerId) {
+                        createData.field_1871 = [this.config.vespaCustomerId]; // VESPA Customer connection as array
+                    }
+                    
+                    // Add Name field if available
+                    if (this.config.studentFirstName || this.config.studentLastName) {
+                        createData.field_1875 = {
                             first: this.config.studentFirstName || '',
                             last: this.config.studentLastName || ''
-                        }
-                    };
+                        };
+                    }
+                    
                     console.log('Create data:', createData);
                     const result = await this.createResponse(createData);
                     
@@ -400,6 +468,9 @@
                                 console.error('Error updating finished activities in performSave:', error);
                             }
                         }
+                        
+                        // Update UI to reflect completed status
+                        this.updateActivityCardStatus(activityId, 'completed');
                     }
                     
                     return result;
@@ -3231,6 +3302,17 @@
                         studentLastName: this.state.studentLastName
                     }
                 );
+                
+                // Log the config being passed to renderer for debugging
+                console.log('Activity Renderer Config:', {
+                    studentId: this.getCurrentStudentId(),
+                    yearGroup: this.state.yearGroup,
+                    group: this.state.group,
+                    vespaCustomerId: this.state.vespaCustomerId,
+                    studentFirstName: this.state.studentFirstName,
+                    studentLastName: this.state.studentLastName,
+                    existingResponseId: existingResponses?.id
+                });
                 
                 // Render the activity
                 renderer.render();
