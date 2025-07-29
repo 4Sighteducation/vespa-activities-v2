@@ -843,6 +843,14 @@
             
             this.attachEventListeners();
             
+            // Clone pre-loaded iframes immediately if on learn stage
+            if (this.currentStage === 'learn') {
+                // Use requestAnimationFrame to ensure DOM is ready
+                requestAnimationFrame(() => {
+                    this.clonePreloadedIframes();
+                });
+            }
+            
             // Delay auto-save start to prevent immediate save of existing data
             setTimeout(() => {
                 this.startAutoSave();
@@ -854,6 +862,13 @@
             setTimeout(() => {
                 this.isRendering = false;
             }, 100);
+            
+            // Clone pre-loaded iframes if we're on the learn stage
+            if (this.currentStage === 'learn') {
+                setTimeout(() => {
+                    this.clonePreloadedIframes();
+                }, 100); // Small delay to ensure DOM is ready
+            }
         }
         
         getHeaderHTML() {
@@ -964,32 +979,33 @@
             const mediaContent = this.activity.video || '';
             const backgroundInfo = this.activity.slideshow || '';
             
-            console.log('[VESPA Debug] Media content from field_1288:', mediaContent.substring(0, 200) + '...');
+            // Store iframe data for later use
+            this._mediaIframes = { video: null, slides: null };
             
             // Extract video content (usually under WATCH heading)
             let videoContent = '';
+            let videoSrc = '';
             const videoMatch = mediaContent.match(/<h2[^>]*>.*?WATCH.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>[\s\S]*?<\/iframe>/i);
             if (videoMatch) {
-                const iframeSrc = videoMatch[1];
-                console.log('[VESPA Debug] Found WATCH iframe src:', iframeSrc);
+                videoSrc = videoMatch[1];
                 // Only consider it a video if it's YouTube or similar video platform
-                if (iframeSrc.includes('youtube.com') || iframeSrc.includes('youtu.be') || 
-                    iframeSrc.includes('vimeo.com') || iframeSrc.includes('wistia.com')) {
+                if (videoSrc.includes('youtube.com') || videoSrc.includes('youtu.be') || 
+                    videoSrc.includes('vimeo.com') || videoSrc.includes('wistia.com')) {
                     videoContent = videoMatch[0].match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i)?.[0] || '';
-                    console.log('[VESPA Debug] Video content extracted');
+                    this._mediaIframes.video = videoSrc;
                 }
             }
             
             // Extract slides content (usually under THINK heading)
             let slidesContent = '';
+            let slidesSrc = '';
             const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>[\s\S]*?<\/iframe>/i);
             if (slidesMatch) {
-                const iframeSrc = slidesMatch[1];
-                console.log('[VESPA Debug] Found THINK iframe src:', iframeSrc);
+                slidesSrc = slidesMatch[1];
                 // Only include if it's actually slides
-                if (iframeSrc.includes('docs.google.com/presentation') || iframeSrc.includes('slides.com')) {
+                if (slidesSrc.includes('docs.google.com/presentation') || slidesSrc.includes('slides.com')) {
                     slidesContent = slidesMatch[0].match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i)?.[0] || '';
-                    console.log('[VESPA Debug] Slides content extracted');
+                    this._mediaIframes.slides = slidesSrc;
                 }
             }
             
@@ -1014,12 +1030,26 @@
                         <div class="media-content">
                             ${hasSlides ? `
                                 <div class="media-panel active" id="slides-panel">
-                                    <div class="responsive-embed">${slidesContent}</div>
+                                    <div class="responsive-embed" data-iframe-src="${slidesSrc}">
+                                        <div class="iframe-placeholder" style="width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                                            <div style="text-align: center;">
+                                                <div class="loading-spinner"></div>
+                                                <p style="margin-top: 10px;">Loading slides...</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             ` : ''}
                             ${hasVideo ? `
                                 <div class="media-panel ${!hasSlides ? 'active' : ''}" id="video-panel">
-                                    <div class="responsive-embed">${videoContent}</div>
+                                    <div class="responsive-embed" data-iframe-src="${videoSrc}">
+                                        <div class="iframe-placeholder" style="width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
+                                            <div style="text-align: center;">
+                                                <div class="loading-spinner"></div>
+                                                <p style="margin-top: 10px;">Loading video...</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             ` : ''}
                             ${hasBackgroundInfo ? `
@@ -1364,13 +1394,65 @@
                 });
             });
             
+            // Clone pre-loaded iframes for instant display
+            this.clonePreloadedIframes();
+            
             window.vespaActivityRenderer = this;
+        }
+        
+        clonePreloadedIframes() {
+            // Find all embed containers with data-iframe-src
+            const embedContainers = document.querySelectorAll('.responsive-embed[data-iframe-src]');
+            
+            embedContainers.forEach((container, index) => {
+                const src = container.getAttribute('data-iframe-src');
+                if (!src) return;
+                
+                // Find matching iframe in hidden table
+                const hiddenIframes = document.querySelectorAll('#view_3166 iframe');
+                const matchingIframe = Array.from(hiddenIframes).find(iframe => iframe.src === src);
+                
+                if (matchingIframe) {
+                    // Try moving the actual iframe first (preserves loaded state)
+                    // We'll put it back when the modal closes
+                    const originalParent = matchingIframe.parentElement;
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'iframe-moved-placeholder';
+                    placeholder.dataset.src = src;
+                    
+                    // Mark the placeholder location
+                    originalParent.insertBefore(placeholder, matchingIframe);
+                    
+                    // Move the actual iframe
+                    matchingIframe.style.display = 'block';
+                    matchingIframe.style.width = '100%';
+                    matchingIframe.style.height = '100%';
+                    matchingIframe.style.border = 'none';
+                    
+                    // Clear container and add the actual iframe
+                    container.innerHTML = '';
+                    container.appendChild(matchingIframe);
+                    
+                    // Store reference to restore later
+                    if (!this._movedIframes) this._movedIframes = [];
+                    this._movedIframes.push({ iframe: matchingIframe, placeholder, src });
+                } else {
+                    // Fallback to creating new iframe
+                    container.innerHTML = `<iframe src="${src}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe>`;
+                }
+            });
         }
         
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
-            // Media content is loaded directly in the render method
+            
+            // Clone pre-loaded iframes when navigating to learn stage
+            if (newStage === 'learn') {
+                setTimeout(() => {
+                    this.clonePreloadedIframes();
+                }, 50); // Small delay to ensure DOM is ready
+            }
         }
         
         handleInputChange(e) {
@@ -1457,6 +1539,22 @@
             this.isExiting = true;
             
             await this.handleSave();
+            
+            // Restore moved iframes back to hidden table
+            if (this._movedIframes && this._movedIframes.length > 0) {
+                this._movedIframes.forEach(({ iframe, placeholder }) => {
+                    if (placeholder && placeholder.parentElement) {
+                        // Move iframe back to its original location
+                        placeholder.parentElement.replaceChild(iframe, placeholder);
+                        // Reset styles
+                        iframe.style.display = '';
+                        iframe.style.width = '';
+                        iframe.style.height = '';
+                        iframe.style.border = '';
+                    }
+                });
+                this._movedIframes = [];
+            }
             
             this.stopAutoSave();
             document.body.style.overflow = '';
