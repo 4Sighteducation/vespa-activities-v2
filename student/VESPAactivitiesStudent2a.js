@@ -819,8 +819,8 @@
             
             // Check if we have video/slides in the loaded activities.json data
             const activityData = window.vespaActivitiesData?.[this.activity.activityId];
-            const videoUrl = activityData?.video || this.activity.video;
-            const slidesContent = activityData?.slideshow || this.activity.slideshow;
+            const videoUrl = activityData?.video || this.activity.video || '';
+            const slidesContent = activityData?.slideshow || this.activity.slideshow || '';
             
             return `
                 <div class="stage-content learn-content">
@@ -838,20 +838,12 @@
                         <div class="media-content">
                             ${hasVideo ? `
                                 <div class="media-panel active" id="video-panel">
-                                    <div class="media-loading-state">
-                                        <div class="loading-spinner"></div>
-                                        <p>Loading video...</p>
-                                    </div>
-                                    <div class="media-actual-content" style="display: none;">${videoUrl}</div>
+                                    ${videoUrl}
                                 </div>
                             ` : ''}
                             ${hasSlides ? `
                                 <div class="media-panel ${!hasVideo ? 'active' : ''}" id="slides-panel">
-                                    <div class="media-loading-state">
-                                        <div class="loading-spinner"></div>
-                                        <p>Loading slides...</p>
-                                    </div>
-                                    <div class="media-actual-content" style="display: none;">${slidesContent}</div>
+                                    ${slidesContent}
                                 </div>
                             ` : ''}
                         </div>
@@ -1190,11 +1182,6 @@
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
-            
-            // Load media content when navigating to learn stage
-            if (newStage === 'learn') {
-                setTimeout(() => this.loadMediaContent(), 100);
-            }
         }
         
         handleInputChange(e) {
@@ -1303,41 +1290,12 @@
             document.querySelectorAll('.media-panel').forEach(panel => {
                 panel.classList.toggle('active', panel.id === `${mediaType}-panel`);
             });
-            
-            // Load content for the newly active panel
-            this.loadMediaContent();
         }
         
         loadMediaContent() {
-            // Find the active media panel
-            const activePanel = document.querySelector('.media-panel.active');
-            if (!activePanel) return;
-            
-            const loadingState = activePanel.querySelector('.media-loading-state');
-            const contentContainer = activePanel.querySelector('.media-actual-content');
-            
-            if (!contentContainer || contentContainer.style.display !== 'none') {
-                // Content already loaded
-                return;
-            }
-            
-            // Show the content
-            try {
-                // Content is already in the container, just show it
-                if (contentContainer.innerHTML.trim()) {
-                    contentContainer.style.display = 'block';
-                    
-                    // Hide the loading state
-                    if (loadingState) {
-                        loadingState.style.display = 'none';
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading media content:', error);
-                if (loadingState) {
-                    loadingState.innerHTML = '<p>Error loading content. Please refresh and try again.</p>';
-                }
-            }
+            // This function is no longer needed since we're loading content directly
+            // Kept for backwards compatibility
+            return;
         }
         
         async completeActivity() {
@@ -1453,13 +1411,44 @@
                 
                 // Make the API call to update the student record
                 const responseHandler = new ResponseHandler(this.config);
-                const result = await responseHandler.knackAPI(
-                    'PUT',
-                    `objects/${this.config.objects.student}/records/${this.config.studentId}`,
-                    updateData
-                );
                 
-                console.log('Update result:', result);
+                // Use the Knack provided method to update the record
+                if (typeof Knack !== 'undefined' && Knack.$ && Knack.$.ajax) {
+                    console.log('Using Knack.$.ajax to update student record');
+                    
+                    const result = await new Promise((resolve, reject) => {
+                        Knack.$.ajax({
+                            type: 'PUT',
+                            url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${this.config.studentId}`,
+                            headers: {
+                                'X-Knack-Application-Id': this.config.knackAppId || this.config.applicationId,
+                                'X-Knack-REST-API-Key': this.config.knackApiKey || this.config.apiKey,
+                                'Authorization': Knack.getUserToken()
+                            },
+                            contentType: 'application/json',
+                            data: JSON.stringify(updateData),
+                            success: (data) => {
+                                console.log('Successfully updated student record:', data);
+                                resolve(data);
+                            },
+                            error: (xhr, status, error) => {
+                                console.error('Failed to update student record:', error);
+                                reject(error);
+                            }
+                        });
+                    });
+                    
+                    console.log('Update result:', result);
+                } else {
+                    // Fallback to regular API call
+                    const result = await responseHandler.knackAPI(
+                        'PUT',
+                        `objects/${this.config.objects.student}/records/${this.config.studentId}`,
+                        updateData
+                    );
+                    
+                    console.log('Update result:', result);
+                }
                 
                 // Update the local state as well
                 if (window.vespaApp?.state) {
@@ -2286,14 +2275,29 @@
             this.state.activities.progress = records.map(model => {
                 const progress = model.attributes;
                 
+                // Parse dates from Knack format
+                const parseKnackDate = (field) => {
+                    const rawField = progress[field + '_raw'];
+                    if (rawField && rawField.date) {
+                        // Knack date format: { date: "MM/DD/YYYY", date_formatted: "MM/DD/YYYY", hours: "12", minutes: "00", am_pm: "AM" }
+                        return new Date(rawField.date).toISOString();
+                    }
+                    // Fallback to regular field if raw is not available
+                    const regularField = progress[field];
+                    if (regularField) {
+                        return new Date(regularField).toISOString();
+                    }
+                    return null;
+                };
+                
                 return {
                     id: progress.id,
                     activityId: progress[this.config.fields.activity + '_raw']?.[0]?.id || null,
                     activityName: progress[this.config.fields.activity] || '',
                     cycleNumber: parseInt(progress[this.config.fields.cycle] || 0),
-                    dateAssigned: progress[this.config.fields.dateAssigned] || null,
-                    dateStarted: progress[this.config.fields.dateStarted] || null,
-                    dateCompleted: progress[this.config.fields.dateCompleted] || null,
+                    dateAssigned: parseKnackDate(this.config.fields.dateAssigned),
+                    dateStarted: parseKnackDate(this.config.fields.dateStarted),
+                    dateCompleted: parseKnackDate(this.config.fields.dateCompleted),
                     timeMinutes: parseInt(progress[this.config.fields.timeMinutes] || 0),
                     status: progress[this.config.fields.status] || 'not_started',
                     verified: progress[this.config.fields.verified] === 'Yes',
@@ -2690,6 +2694,17 @@
             
             const toCompleteCount = allPrescribed.length - completedCount;
             
+            // Define VESPA order
+            const vespaOrder = ['vision', 'effort', 'systems', 'practice', 'attitude'];
+            
+            // Sort categories by VESPA order
+            const sortedCategories = Object.entries(activitiesByCategory)
+                .sort(([a], [b]) => {
+                    const aIndex = vespaOrder.indexOf(a.toLowerCase());
+                    const bIndex = vespaOrder.indexOf(b.toLowerCase());
+                    return aIndex - bIndex;
+                });
+            
             return `
                 <section class="activities-section">
                     <h2 class="section-title">
@@ -2698,16 +2713,24 @@
                         <span class="title-badge">${toCompleteCount} to complete | ${completedCount} completed</span>
                     </h2>
                     
-                    ${Object.entries(activitiesByCategory).map(([category, activities]) => `
-                        <div class="category-group">
-                            <h3 class="category-group-title">
-                                ${this.getCategoryEmoji(category)} ${category.toUpperCase()}
-                            </h3>
-                            <div class="activities-grid">
-                                ${activities.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('')}
+                    ${sortedCategories.map(([category, activities]) => {
+                        const categoryLower = category.toLowerCase();
+                        const categoryColor = this.colors[categoryLower]?.primary || '#666';
+                        const backgroundColor = this.colors[categoryLower] ? 
+                            `${categoryColor}10` : '#f5f5f5';
+                        
+                        return `
+                            <div class="category-group vespa-${categoryLower}" 
+                                 style="border-color: ${categoryColor}; background-color: ${backgroundColor}">
+                                <h3 class="category-group-title">
+                                    ${this.getCategoryEmoji(category)} ${category.toUpperCase()}
+                                </h3>
+                                <div class="activities-grid">
+                                    ${activities.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('')}
+                                </div>
                             </div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </section>
             `;
         }

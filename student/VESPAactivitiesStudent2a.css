@@ -522,19 +522,54 @@ body {
 
 /* Category Groups */
 .category-group {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 2px solid;
+    transition: all 0.3s ease;
+}
+
+.category-group:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* VESPA Theme Specific Styles */
+.category-group.vespa-vision {
+    border-color: #ff8f00;
+    background-color: rgba(255, 143, 0, 0.05);
+}
+
+.category-group.vespa-effort {
+    border-color: #86b4f0;
+    background-color: rgba(134, 180, 240, 0.05);
+}
+
+.category-group.vespa-systems {
+    border-color: #72cb44;
+    background-color: rgba(114, 203, 68, 0.05);
+}
+
+.category-group.vespa-practice {
+    border-color: #7f31a4;
+    background-color: rgba(127, 49, 164, 0.05);
+}
+
+.category-group.vespa-attitude {
+    border-color: #f032e6;
+    background-color: rgba(240, 50, 230, 0.05);
 }
 
 .category-group-title {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--gray-800);
-    margin: 0 0 1rem 0;
+    margin: 0 0 1.25rem 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--gray-200);
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* Activity Cards */
@@ -1552,6 +1587,16 @@ body {
         grid-template-columns: 1fr;
     }
     
+    .category-group {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .category-group-title {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+    
     .activities-modal {
         width: 95%;
         max-width: 95%;
@@ -1924,6 +1969,7 @@ body {
 
 .media-panel {
     display: none;
+    width: 100%;
 }
 
 .media-panel.active {
@@ -1933,7 +1979,7 @@ body {
 
 .media-panel iframe {
     width: 100%;
-    height: 400px;
+    height: 500px;
     border: none;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -2406,16 +2452,7 @@ body {
     }
 }
 
-/* Loading States */
-.media-loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    color: #666;
-}
-
+/* Loading States (for other parts of the app) */
 .loading-spinner {
     width: 50px;
     height: 50px;
@@ -2429,14 +2466,4 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-.media-loading-state p {
-    font-size: 16px;
-    margin: 0;
-}
-
-/* Media content container */
-.media-actual-content {
-    width: 100%;
 }
