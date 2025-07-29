@@ -299,37 +299,68 @@
                 
                 if (existingResponse) {
                     console.log('Found existing response, updating:', existingResponse.id);
+                    
+                    // Build update data - include connection fields if they're missing
                     const updateData = {
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
-                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null // Date/Time completed in UK format
+                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null, // Date/Time completed in UK format
+                        field_2331: this.config.yearGroup || '', // Year Group
+                        field_2332: this.config.group || '' // Group
                     };
-                    console.log('Update data:', updateData);
-                    const result = await this.updateResponse(existingResponse.id, updateData);
                     
-                    // Only create progress record if activity is completed
-                    if (status === 'completed' && timeSpent && wordCount !== undefined) {
-                        await this.createProgressRecord({
-                            activityId,
-                            studentId,
-                            timeSpent,
-                            wordCount,
-                            responseCount: Object.keys(responses || {}).length
-                        });
-                        
-                        // Also update the student's finished activities field
-                        if (window.vespaActivityRenderer) {
-                            try {
-                                await window.vespaActivityRenderer.updateStudentFinishedActivities(activityId);
-                                console.log('Updated finished activities from performSave (update)');
-                            } catch (error) {
-                                console.error('Error updating finished activities in performSave:', error);
-                            }
-                        }
+                    // Add connection fields if they're missing
+                    if (!existingResponse.field_1301_raw && !existingResponse.field_1301) {
+                        updateData.field_1301 = studentId; // Student connection
+                        console.log('Adding missing student connection');
                     }
                     
-                    return result;
+                    if (!existingResponse.field_1302_raw && !existingResponse.field_1302) {
+                        updateData.field_1302 = activityId; // Activities connection
+                        console.log('Adding missing activity connection');
+                    }
+                    
+                    if (!existingResponse.field_1871_raw && !existingResponse.field_1871 && this.config.vespaCustomerId) {
+                        updateData.field_1871 = this.config.vespaCustomerId; // VESPA Customer connection
+                        console.log('Adding missing VESPA Customer connection');
+                    }
+                    
+                    // Add Name field if missing (field_1875)
+                    if ((!existingResponse.field_1875_raw && !existingResponse.field_1875) && 
+                        (this.config.studentFirstName || this.config.studentLastName)) {
+                        updateData.field_1875 = {
+                            first: this.config.studentFirstName || '',
+                            last: this.config.studentLastName || ''
+                        };
+                        console.log('Adding missing Name field');
+                    }
+                    
+                    console.log('Update data:', updateData);
+                    const result = await this.updateResponse(existingResponse.id, updateData);
+                        
+                        // Only create progress record if activity is completed
+                        if (status === 'completed' && timeSpent && wordCount !== undefined) {
+                            await this.createProgressRecord({
+                                activityId,
+                                studentId,
+                                timeSpent,
+                                wordCount,
+                                responseCount: Object.keys(responses || {}).length
+                            });
+                            
+                            // Also update the student's finished activities field
+                            if (window.vespaActivityRenderer) {
+                                try {
+                                    await window.vespaActivityRenderer.updateStudentFinishedActivities(activityId);
+                                    console.log('Updated finished activities from performSave (update)');
+                                } catch (error) {
+                                    console.error('Error updating finished activities in performSave:', error);
+                                }
+                            }
+                        }
+                        
+                        return result;
                 } else {
                     console.log('No existing response found, creating new record');
                     const createData = {
@@ -338,7 +369,14 @@
                         field_1300: formattedResponses, // Activity Answers Name (JSON)
                         field_2334: this.generatePlainTextSummary(responses), // Student Responses (readable)
                         field_2068: formattedResponses, // Activity Answers (backup)
-                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null // Date/Time completed in UK format
+                        field_1870: status === 'completed' ? this.formatDateUK(new Date()) : null, // Date/Time completed in UK format
+                        field_2331: this.config.yearGroup || '', // Year Group
+                        field_2332: this.config.group || '', // Group
+                        field_1871: this.config.vespaCustomerId || '', // VESPA Customer connection
+                        field_1875: { // Name field
+                            first: this.config.studentFirstName || '',
+                            last: this.config.studentLastName || ''
+                        }
                     };
                     console.log('Create data:', createData);
                     const result = await this.createResponse(createData);
@@ -1413,6 +1451,14 @@
                 responses: this.responses
             });
             
+            // Update local storage immediately for instant UI feedback
+            const completedActivities = JSON.parse(localStorage.getItem('vespa-completed-activities') || '[]');
+            if (!completedActivities.includes(this.activity.id)) {
+                completedActivities.push(this.activity.id);
+                localStorage.setItem('vespa-completed-activities', JSON.stringify(completedActivities));
+                console.log('Added activity to local completed list:', this.activity.id);
+            }
+            
             // Save final responses with completed status
             const responseHandler = new ResponseHandler(this.config);
             try {
@@ -2176,6 +2222,31 @@
                 }
                 log('Finished activity IDs:', this.state.finishedActivityIds);
                 
+                // Parse Year Group (field_144) and Group (field_223) for Object_46 saves
+                this.state.yearGroup = record.field_144 || record.field_144_raw || '';
+                this.state.group = record.field_223 || record.field_223_raw || '';
+                log('Year Group (field_144):', this.state.yearGroup);
+                log('Group (field_223):', this.state.group);
+                
+                // Parse VESPA Customer (field_122) - connection to school
+                const customerField = record.field_122 || record.field_122_raw;
+                if (customerField) {
+                    // Extract ID from connection field
+                    if (typeof customerField === 'object' && customerField.id) {
+                        this.state.vespaCustomerId = customerField.id;
+                    } else if (typeof customerField === 'string' && customerField.length === 24) {
+                        this.state.vespaCustomerId = customerField;
+                    } else if (Array.isArray(customerField) && customerField.length > 0) {
+                        this.state.vespaCustomerId = customerField[0].id || customerField[0];
+                    }
+                }
+                log('VESPA Customer ID (field_122):', this.state.vespaCustomerId);
+                
+                // Store student name components for field_1875
+                this.state.studentFirstName = nameField.first || '';
+                this.state.studentLastName = nameField.last || '';
+                log('Student name components:', { first: this.state.studentFirstName, last: this.state.studentLastName });
+                
             } else {
                 log('No student record found');
                 // Use default values
@@ -2839,8 +2910,11 @@
         }
         
         getActivityCardHTML(activity, index = 0, isPrescribed = false) {
+            // Check both server data and local storage for completion status
+            const completedActivities = JSON.parse(localStorage.getItem('vespa-completed-activities') || '[]');
             const isCompleted = this.state.finishedActivityIds.includes(activity.id) || 
-                              this.state.finishedActivityIds.includes(activity.activityId);
+                              this.state.finishedActivityIds.includes(activity.activityId) ||
+                              completedActivities.includes(activity.id);
             const categoryEmoji = this.getCategoryEmoji(activity.category);
             const categoryColor = this.colors[activity.category]?.primary || '#666';
             
@@ -3149,7 +3223,12 @@
                     existingResponses, // Pass the actual response record from object_46
                     {
                         ...this.config, // Pass the full config including fields and objects
-                        studentId: this.getCurrentStudentId()
+                        studentId: this.getCurrentStudentId(),
+                        yearGroup: this.state.yearGroup,
+                        group: this.state.group,
+                        vespaCustomerId: this.state.vespaCustomerId,
+                        studentFirstName: this.state.studentFirstName,
+                        studentLastName: this.state.studentLastName
                     }
                 );
                 
@@ -3378,8 +3457,11 @@
         }
         
         getCompactActivityCardHTML(activity, index = 0) {
+            // Check both server data and local storage for completion status
+            const completedActivities = JSON.parse(localStorage.getItem('vespa-completed-activities') || '[]');
             const isCompleted = this.state.finishedActivityIds.includes(activity.id) || 
-                              this.state.finishedActivityIds.includes(activity.activityId);
+                              this.state.finishedActivityIds.includes(activity.activityId) ||
+                              completedActivities.includes(activity.id);
             const categoryColor = this.colors[activity.category]?.primary || '#666';
             const basePoints = activity.level === 'Level 3' ? 15 : 10;
             
