@@ -5,7 +5,7 @@
     'use strict';
     
     const VERSION = '2.0';
-    const DEBUG = false;
+    const DEBUG = true;
     
     // Utility function - must be at top to be accessible everywhere
     function log(message, data) {
@@ -4094,37 +4094,46 @@
         
         async loadActivitiesJson() {
             try {
-                log('Loading activities1e.json for media content...');
+                const jsonUrl = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1e.json';
+                log('Loading activities1e.json from:', jsonUrl);
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1e.json`, {
+                const response = await fetch(jsonUrl, {
                     signal: controller.signal
-                    
                 });
                 
                 clearTimeout(timeoutId);
                 
+                log('Response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    log('Data received:', data);
+                    
                     // Store globally for activity renderer to access
                     window.vespaActivitiesData = {};
                     
-                    data.forEach(activity => {
-                        if (activity.Activity_id) {
-                            window.vespaActivitiesData[activity.Activity_id] = {
-                                videoUrl: activity.media?.video?.url || '',
-                                slidesUrl: activity.media?.slides?.url || '',
-                                media: activity.media // Store full media object for future use
-                            };
-                        }
-                    });
+                    if (Array.isArray(data)) {
+                        data.forEach(activity => {
+                            if (activity.Activity_id) {
+                                window.vespaActivitiesData[activity.Activity_id] = {
+                                    videoUrl: activity.media?.video?.url || '',
+                                    slidesUrl: activity.media?.slides?.url || '',
+                                    media: activity.media // Store full media object for future use
+                                };
+                            }
+                        });
+                        log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities`);
+                    } else {
+                        console.error('activities1e.json did not return an array:', data);
+                    }
                     
                     log('activities1e.json loaded successfully', window.vespaActivitiesData);
                 } else {
-                    log('Failed to load activities1e.json', response.status);
+                    console.error('Failed to load activities1e.json - HTTP status:', response.status);
                     window.vespaActivitiesData = {};
                 }
             } catch (error) {
