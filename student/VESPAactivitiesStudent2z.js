@@ -2013,8 +2013,8 @@
                 // Wait for all required views to render
                 await this.waitForViews();
                 
-                // Don't load activities.json on startup - it will be loaded on demand
-                // await this.loadActivitiesJson();
+                // Load activities.json on startup to get media URLs
+                await this.loadActivitiesJson();
                 
                 // Load initial data with validation
                 await this.loadInitialData();
@@ -4094,13 +4094,13 @@
         
         async loadActivitiesJson() {
             try {
-                log('Loading activities1d.json for media content...');
+                log('Loading activities1e.json for media content...');
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1d.json`, {
+                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1e.json`, {
                     signal: controller.signal
                     
                 });
@@ -4122,13 +4122,13 @@
                         }
                     });
                     
-                    log('activities1d.json loaded successfully', window.vespaActivitiesData);
+                    log('activities1e.json loaded successfully', window.vespaActivitiesData);
                 } else {
-                    log('Failed to load activities1d.json', response.status);
+                    log('Failed to load activities1e.json', response.status);
                     window.vespaActivitiesData = {};
                 }
             } catch (error) {
-                console.error('Error loading activities1d.json:', error);
+                console.error('Error loading activities1e.json:', error);
                 // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }
