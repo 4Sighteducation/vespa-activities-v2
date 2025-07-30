@@ -1531,11 +1531,12 @@ body {
         padding: 0.5rem;
         gap: 0.25rem;
         display: flex;
-        flex-wrap: nowrap;
-        justify-content: space-between;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start;
         overflow-x: auto;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        -webkit-overflow-scrolling: touch;
     }
     
     .vespa-nav::-webkit-scrollbar {
@@ -1547,6 +1548,7 @@ body {
         font-size: 0.9rem;
         flex: 0 0 auto;
         min-width: fit-content;
+        white-space: nowrap;
     }
     
     .nav-label {
@@ -1590,6 +1592,24 @@ body {
     
     .step {
         padding: 0.75rem;
+    }
+}
+
+/* Galaxy Fold and very small screens (360px and below) */
+@media (max-width: 360px) {
+    /* Even more aggressive navbar styling */
+    .vespa-nav {
+        padding: 0.3rem !important;
+        gap: 0.1rem !important;
+    }
+    
+    .nav-item {
+        padding: 0.3rem 0.4rem !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .nav-icon {
+        font-size: 1.1rem !important;
     }
 }
 
@@ -1863,8 +1883,8 @@ body {
     }
 }
 
-/* ===== Mobile breakpoint at 485px ===== */
-@media (max-width: 485px) {
+/* ===== Small screens - iPhone 14 (430px) and smaller ===== */
+@media (max-width: 430px) {
     /* Main container adjustments */
     .vespa-student-activities {
         padding: 1rem;
@@ -1899,14 +1919,19 @@ body {
         padding: 1.5rem;
     }
     
-    /* Navigation adjustments */
+    /* Navigation adjustments - Keep single row */
     .vespa-nav {
-        flex-wrap: wrap;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        padding: 0.4rem;
+        gap: 0.2rem;
     }
     
     .nav-item {
-        flex: 0 1 calc(33.333% - 0.5rem);
-        min-width: 80px;
+        flex: 0 0 auto !important;
+        min-width: fit-content !important;
+        padding: 0.4rem;
+        font-size: 0.85rem;
     }
 }
 
