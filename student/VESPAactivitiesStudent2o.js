@@ -105,6 +105,7 @@
                     id: 'first_activity',
                     name: 'First Steps! 🎯',
                     description: 'Complete your first activity',
+                    type: 'activity_completion',
                     icon: '🌟',
                     points: 5,
                     criteria: { activitiesCompleted: 1 }
@@ -113,6 +114,7 @@
                     id: 'five_activities',
                     name: 'Getting Going! 🚀',
                     description: 'Complete 5 activities',
+                    type: 'activity_completion',
                     icon: '🔥',
                     points: 25,
                     criteria: { activitiesCompleted: 5 }
@@ -171,23 +173,37 @@
         async saveAchievementToKnack(achievement, studentId) {
             try {
                 const achievementData = {
-                    field_3550: studentId, // Student connection (Object_6)
-                    field_3551: achievement.id, // Achievement Type/ID
-                    field_3552: achievement.name, // Achievement Name
-                    field_3553: achievement.description, // Achievement Description
-                    field_3554: achievement.points || 0, // Points Earned
-                    field_3555: new Date().toISOString(), // Date Earned
-                    field_3556: 'Active', // Status
-                    field_3557: achievement.icon || '🏆', // Icon/Emoji
-                    field_3558: JSON.stringify(achievement.criteria), // Criteria (as JSON string)
-                    field_3559: achievement.category || 'general' // Category
+                    field_3551: achievement.id, // achievement_id
+                    field_3552: studentId, // Student Connection Field
+                    field_3553: achievement.type || 'activity_completion', // multiple choice achievement type
+                    field_3554: achievement.name, // achievement_name
+                    field_3555: achievement.description, // achievement_description
+                    field_3556: new Date().toISOString(), // date_earned
+                    field_3557: achievement.points || 0, // points_value
+                    field_3558: achievement.icon || '🏆', // icon_emoji
+                    field_3560: `Unlocked: ${achievement.name}`, // criteria_met
+                    field_3559: '' // issued_by_staff (empty = gained independently)
                 };
+                
+                // Debug logging for field mappings
+                console.log('🏆 ACHIEVEMENT FIELD MAPPINGS FOR OBJECT_127:');
+                console.log('field_3551 (achievement_id):', achievementData.field_3551);
+                console.log('field_3552 (Student Connection):', achievementData.field_3552);
+                console.log('field_3553 (achievement type - multiple choice):', achievementData.field_3553);
+                console.log('field_3554 (achievement_name):', achievementData.field_3554);
+                console.log('field_3555 (achievement_description):', achievementData.field_3555);
+                console.log('field_3556 (date_earned):', achievementData.field_3556);
+                console.log('field_3557 (points_value):', achievementData.field_3557);
+                console.log('field_3558 (icon_emoji):', achievementData.field_3558);
+                console.log('field_3559 (issued_by_staff):', achievementData.field_3559);
+                console.log('field_3560 (criteria_met):', achievementData.field_3560);
+                console.log('Full achievement data:', achievementData);
                 
                 // Use the response handler to make the API call
                 const responseHandler = new window.ResponseHandler(this.config);
                 const result = await responseHandler.knackAPI('POST', 'objects/object_127/records', achievementData);
                 
-                log('Achievement saved to Object_127:', result);
+                console.log('Achievement saved to Object_127:', result);
                 
                 // Store in localStorage for quick access
                 const savedAchievements = JSON.parse(localStorage.getItem('vespa-achievements') || '[]');
@@ -743,16 +759,16 @@
                 console.warn('createAchievementRecord is deprecated. Use AchievementSystem.saveAchievementToKnack instead.');
                 
                 const achievementData = {
-                    field_3550: studentId, // Student connection
-                    field_3551: 'first_activity', // Achievement ID
-                    field_3552: 'First Steps! 🎯', // Achievement name
-                    field_3553: 'Complete your first activity', // Description
-                    field_3554: 5, // Points
-                    field_3555: new Date().toISOString(), // Date earned
-                    field_3556: 'Active', // Status
-                    field_3557: '🌟', // Icon
-                    field_3558: JSON.stringify({ activitiesCompleted: 1 }), // Criteria
-                    field_3559: 'general' // Category
+                    field_3551: 'first_activity', // achievement_id
+                    field_3552: studentId, // Student Connection Field
+                    field_3553: 'activity_completion', // achievement type (multiple choice)
+                    field_3554: 'First Steps! 🎯', // achievement_name
+                    field_3555: 'Complete your first activity', // achievement_description
+                    field_3556: new Date().toISOString(), // date_earned
+                    field_3557: 5, // points_value
+                    field_3558: '🌟', // icon_emoji
+                    field_3560: 'Unlocked: First Steps! 🎯', // criteria_met
+                    field_3559: '' // issued_by_staff (empty = gained independently)
                 };
                 
                 await this.knackAPI('POST', `objects/${this.config.objects.achievements}/records`, achievementData);
@@ -875,13 +891,7 @@
             
             this.attachEventListeners();
             
-            // Clone pre-loaded iframes immediately if on learn stage
-            if (this.currentStage === 'learn') {
-                // Use requestAnimationFrame to ensure DOM is ready
-                requestAnimationFrame(() => {
-                    this.clonePreloadedIframes();
-                });
-            }
+            // Iframes are now directly inserted in getLearnContent()
             
             // Delay auto-save start to prevent immediate save of existing data
             setTimeout(() => {
@@ -894,13 +904,6 @@
             setTimeout(() => {
                 this.isRendering = false;
             }, 100);
-            
-            // Clone pre-loaded iframes if we're on the learn stage
-            if (this.currentStage === 'learn') {
-                setTimeout(() => {
-                    this.clonePreloadedIframes();
-                }, 100); // Small delay to ensure DOM is ready
-            }
         }
         
         getHeaderHTML() {
@@ -1007,42 +1010,20 @@
         }
         
         getLearnContent() {
-            // Parse video and slides from field_1288 (which contains both under WATCH and THINK)
-            const mediaContent = this.activity.video || '';
+            // Get clean URLs from loaded JSON data
+            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
+            const videoSrc = activityData?.videoUrl || '';
+            const slidesSrc = activityData?.slidesUrl || '';
             const backgroundInfo = this.activity.slideshow || '';
             
-            // Store iframe data for later use
-            this._mediaIframes = { video: null, slides: null };
+            // Use clean URLs directly - no parameters!
+            this._mediaIframes = { 
+                video: videoSrc,
+                slides: slidesSrc
+            };
             
-            // Extract video content (usually under WATCH heading)
-            let videoContent = '';
-            let videoSrc = '';
-            const videoMatch = mediaContent.match(/<h2[^>]*>.*?WATCH.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>[\s\S]*?<\/iframe>/i);
-            if (videoMatch) {
-                videoSrc = videoMatch[1];
-                // Only consider it a video if it's YouTube or similar video platform
-                if (videoSrc.includes('youtube.com') || videoSrc.includes('youtu.be') || 
-                    videoSrc.includes('vimeo.com') || videoSrc.includes('wistia.com')) {
-                    videoContent = videoMatch[0].match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i)?.[0] || '';
-                    this._mediaIframes.video = videoSrc;
-                }
-            }
-            
-            // Extract slides content (usually under THINK heading)
-            let slidesContent = '';
-            let slidesSrc = '';
-            const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>[\s\S]*?<\/iframe>/i);
-            if (slidesMatch) {
-                slidesSrc = slidesMatch[1];
-                // Only include if it's actually slides
-                if (slidesSrc.includes('docs.google.com/presentation') || slidesSrc.includes('slides.com')) {
-                    slidesContent = slidesMatch[0].match(/<iframe[^>]*>[\s\S]*?<\/iframe>/i)?.[0] || '';
-                    this._mediaIframes.slides = slidesSrc;
-                }
-            }
-            
-            const hasVideo = !!videoContent;
-            const hasSlides = !!slidesContent;
+            const hasVideo = !!videoSrc;
+            const hasSlides = !!slidesSrc;
             const hasBackgroundInfo = backgroundInfo && backgroundInfo.trim() !== '';
             
             return `
@@ -1063,10 +1044,14 @@
                             ${hasSlides ? `
                                 <div class="media-panel active" id="slides-panel">
                                     <div class="responsive-embed" data-iframe-src="${slidesSrc}">
-                                        <div class="iframe-placeholder" style="width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
-                                            <div style="text-align: center;">
-                                                <div class="loading-spinner"></div>
-                                                <p style="margin-top: 10px;">Loading slides...</p>
+                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('slides', '${slidesSrc}')">
+                                            <div class="placeholder-content">
+                                                <div class="placeholder-icon">📊</div>
+                                                <h3>Google Slides Presentation</h3>
+                                                <p>Click to load presentation</p>
+                                                <button class="load-media-btn">
+                                                    <span class="play-icon">▶</span> Load Slides
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -1075,11 +1060,18 @@
                             ${hasVideo ? `
                                 <div class="media-panel ${!hasSlides ? 'active' : ''}" id="video-panel">
                                     <div class="responsive-embed" data-iframe-src="${videoSrc}">
-                                        <div class="iframe-placeholder" style="width: 100%; height: 400px; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
-                                            <div style="text-align: center;">
-                                                <div class="loading-spinner"></div>
-                                                <p style="margin-top: 10px;">Loading video...</p>
+                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('video', '${videoSrc}')">
+                                            <div class="placeholder-content">
+                                                <div class="placeholder-icon">📺</div>
+                                                <h3>Video Content</h3>
+                                                <p>Click to load video</p>
+                                                <button class="load-media-btn">
+                                                    <span class="play-icon">▶</span> Play Video
+                                                </button>
                                             </div>
+                                            ${videoSrc.includes('youtube') ? `
+                                                <img class="video-thumbnail" src="https://img.youtube.com/vi/${videoSrc.match(/embed\/([^?]+)/)?.[1] || ''}/mqdefault.jpg" alt="Video thumbnail" onerror="this.style.display='none'">
+                                            ` : ''}
                                         </div>
                                     </div>
                                 </div>
@@ -1432,65 +1424,18 @@
                 });
             });
             
-            // Clone pre-loaded iframes for instant display
-            this.clonePreloadedIframes();
+            // Iframes are now directly inserted in getLearnContent()
             
             window.vespaActivityRenderer = this;
         }
         
-        clonePreloadedIframes() {
-            // Find all embed containers with data-iframe-src
-            const embedContainers = document.querySelectorAll('.responsive-embed[data-iframe-src]');
-            
-            embedContainers.forEach((container, index) => {
-                const src = container.getAttribute('data-iframe-src');
-                if (!src) return;
-                
-                // Find matching iframe in hidden table
-                const hiddenIframes = document.querySelectorAll('#view_3166 iframe');
-                const matchingIframe = Array.from(hiddenIframes).find(iframe => iframe.src === src);
-                
-                if (matchingIframe) {
-                    // Try moving the actual iframe first (preserves loaded state)
-                    // We'll put it back when the modal closes
-                    const originalParent = matchingIframe.parentElement;
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'iframe-moved-placeholder';
-                    placeholder.dataset.src = src;
-                    
-                    // Mark the placeholder location
-                    originalParent.insertBefore(placeholder, matchingIframe);
-                    
-                    // Move the actual iframe
-                    matchingIframe.style.display = 'block';
-                    matchingIframe.style.width = '100%';
-                    matchingIframe.style.height = '100%';
-                    matchingIframe.style.border = 'none';
-                    
-                    // Clear container and add the actual iframe
-                    container.innerHTML = '';
-                    container.appendChild(matchingIframe);
-                    
-                    // Store reference to restore later
-                    if (!this._movedIframes) this._movedIframes = [];
-                    this._movedIframes.push({ iframe: matchingIframe, placeholder, src });
-                } else {
-                    // Fallback to creating new iframe
-                    container.innerHTML = `<iframe src="${src}" allowfullscreen style="width: 100%; height: 100%; border: none;"></iframe>`;
-                }
-            });
-        }
+        // Method removed - iframes are now directly inserted in getLearnContent()
         
         handleStageNavigation(newStage) {
             this.currentStage = newStage;
             this.render();
             
-            // Clone pre-loaded iframes when navigating to learn stage
-            if (newStage === 'learn') {
-                setTimeout(() => {
-                    this.clonePreloadedIframes();
-                }, 50); // Small delay to ensure DOM is ready
-            }
+            // Iframes are now directly inserted in getLearnContent()
         }
         
         handleInputChange(e) {
@@ -1578,20 +1523,14 @@
             
             await this.handleSave();
             
-            // Restore moved iframes back to hidden table
-            if (this._movedIframes && this._movedIframes.length > 0) {
-                this._movedIframes.forEach(({ iframe, placeholder }) => {
-                    if (placeholder && placeholder.parentElement) {
-                        // Move iframe back to its original location
-                        placeholder.parentElement.replaceChild(iframe, placeholder);
-                        // Reset styles
-                        iframe.style.display = '';
-                        iframe.style.width = '';
-                        iframe.style.height = '';
-                        iframe.style.border = '';
-                    }
+            // Clean up any loaded iframes to free memory
+            if (this._loadedIframes && this._loadedIframes.length > 0) {
+                log('[ActivityRenderer] Cleaning up loaded iframes');
+                this._loadedIframes.forEach(({ iframe }) => {
+                    // Stop iframe content to free resources
+                    iframe.src = 'about:blank';
                 });
-                this._movedIframes = [];
+                this._loadedIframes = [];
             }
             
             this.stopAutoSave();
@@ -1627,6 +1566,80 @@
             document.querySelectorAll('.media-panel').forEach(panel => {
                 panel.classList.toggle('active', panel.id === `${mediaType}-panel`);
             });
+        }
+        
+        loadIframe(type, src) {
+            log(`Loading ${type} iframe: ${src}`);
+            const panel = document.getElementById(`${type}-panel`);
+            if (!panel) return;
+            
+            const embedContainer = panel.querySelector('.responsive-embed');
+            if (!embedContainer) return;
+            
+            // Check if already loaded
+            if (embedContainer.querySelector('iframe')) {
+                log(`${type} iframe already loaded`);
+                return;
+            }
+            
+            // Add preconnect hints before loading iframe
+            if (!this._preconnected) {
+                this.addPreconnectLinks();
+                this._preconnected = true;
+            }
+            
+            // Show loading state
+            embedContainer.innerHTML = `
+                <div class="iframe-loading-overlay">
+                    <div class="loading-spinner"></div>
+                    <p>Loading ${type === 'slides' ? 'presentation' : 'video'}...</p>
+                </div>
+            `;
+            
+            // Create and insert iframe with trust signals
+            const iframe = document.createElement('iframe');
+            iframe.src = src; // Clean URL, no parameters
+            iframe.loading = 'eager'; // Load immediately
+            iframe.importance = 'high'; // High priority
+            iframe.referrerPolicy = 'no-referrer-when-downgrade';
+            iframe.allowFullscreen = true;
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            iframe.style.cssText = 'width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0;';
+            
+            // Add load event listener
+            iframe.onload = () => {
+                log(`${type} iframe loaded successfully`);
+                // Remove loading overlay
+                const overlay = embedContainer.querySelector('.iframe-loading-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            };
+            
+            // Add error handler
+            iframe.onerror = () => {
+                log(`${type} iframe failed to load`);
+                embedContainer.innerHTML = `
+                    <div class="media-placeholder">
+                        <div class="placeholder-content">
+                            <div class="placeholder-icon">⚠️</div>
+                            <h3>Failed to load ${type}</h3>
+                            <p>Please check your internet connection and try again.</p>
+                            <button class="load-media-btn" onclick="window.vespaActivityRenderer.loadIframe('${type}', '${src}')">
+                                <span class="play-icon">🔄</span> Retry
+                            </button>
+                        </div>
+                    </div>
+                `;
+            };
+            
+            // Make embed container relative for absolute positioning
+            embedContainer.style.position = 'relative';
+            embedContainer.appendChild(iframe);
+            
+            // Track loaded iframes for cleanup
+            if (!this._loadedIframes) this._loadedIframes = [];
+            this._loadedIframes.push({ type, iframe, src });
         }
         
         async loadMediaForCurrentActivity() {
@@ -1895,6 +1908,28 @@
                 return response && response.trim().length > 0;
             });
         }
+        
+        addPreconnectLinks() {
+            // Add preconnect for common domains
+            const domains = [
+                'https://docs.google.com',
+                'https://www.youtube.com',
+                'https://www.youtube-nocookie.com',
+                'https://img.youtube.com',
+                'https://slides.com'
+            ];
+            
+            domains.forEach(domain => {
+                // Check if preconnect already exists
+                if (!document.querySelector(`link[rel="preconnect"][href="${domain}"]`)) {
+                    const link = document.createElement('link');
+                    link.rel = 'preconnect';
+                    link.href = domain;
+                    link.crossOrigin = 'anonymous';
+                    document.head.appendChild(link);
+                }
+            });
+        }
     }
     
     // ========================================
@@ -2006,6 +2041,11 @@
                 // Enable lazy loading for images
                 this.enableLazyLoading();
                 
+                // Prefetch first activity resources to prevent slow first load
+                setTimeout(() => {
+                    this.prefetchFirstActivity();
+                }, 2000);
+                
                 // Hide loading overlay
                 this.hideLoadingOverlay();
                 
@@ -2014,6 +2054,51 @@
                 console.error('[VESPA Activities v2.0] Failed to initialize VESPA Activities:', error);
                 this.hideLoadingOverlay();
                 this.showError('Failed to initialize. Please refresh the page.');
+            }
+        }
+        
+        prefetchFirstActivity() {
+            // Find first recommended or prescribed activity
+            const firstActivity = this.state.activities.all.find(activity => 
+                (activity.recommended || activity.prescribed) && 
+                !this.state.activities.progress.some(p => p.activityId === activity.id && p.status === 'completed')
+            );
+            
+            if (!firstActivity) return;
+            
+            log('[App] Prefetching resources for:', firstActivity.name);
+            
+            // Extract media URLs from the activity
+            const mediaContent = firstActivity.video || '';
+            
+            // Prefetch Google Slides to trigger their resource loading
+            const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>/i);
+            if (slidesMatch && slidesMatch[1].includes('docs.google.com/presentation')) {
+                log('[App] Prefetching Google Slides resources');
+                
+                // Create hidden iframe to start loading Google's resources
+                const iframe = document.createElement('iframe');
+                iframe.src = slidesMatch[1];
+                iframe.style.cssText = 'position: absolute; width: 1px; height: 1px; left: -9999px; visibility: hidden;';
+                iframe.setAttribute('loading', 'eager');
+                iframe.setAttribute('aria-hidden', 'true');
+                document.body.appendChild(iframe);
+                
+                // Remove after 30 seconds (enough time to load and cache resources)
+                setTimeout(() => {
+                    iframe.remove();
+                    log('[App] Removed prefetch iframe');
+                }, 30000);
+            }
+            
+            // Prefetch YouTube thumbnail
+            const videoMatch = mediaContent.match(/<iframe[^>]*src=['"](.*?)['"][^>]*>/i);
+            if (videoMatch && videoMatch[1].includes('youtube')) {
+                const videoId = videoMatch[1].match(/embed\/([^?]+)/)?.[1];
+                if (videoId) {
+                    const img = new Image();
+                    img.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                }
             }
         }
         
@@ -2932,6 +3017,9 @@
         }
         
         render() {
+            // Add preconnect links for faster loading when user clicks
+            this.addPreconnectLinks();
+            
             const html = `
                 <div class="vespa-student-activities" data-view="${this.state.view}">
                     ${this.getHeaderHTML()}
@@ -2944,6 +3032,31 @@
             `;
             
             this.container.innerHTML = html;
+            
+            // Attach event listeners after rendering
+            this.attachEventListeners();
+        }
+        
+        addPreconnectLinks() {
+            // Remove any existing preconnect links
+            document.querySelectorAll('link[rel="preconnect"]').forEach(link => link.remove());
+            
+            // Add preconnect for common domains
+            const domains = [
+                'https://docs.google.com',
+                'https://www.youtube.com',
+                'https://www.youtube-nocookie.com',
+                'https://img.youtube.com',
+                'https://slides.com'
+            ];
+            
+            domains.forEach(domain => {
+                const link = document.createElement('link');
+                link.rel = 'preconnect';
+                link.href = domain;
+                link.crossOrigin = 'anonymous';
+                document.head.appendChild(link);
+            });
         }
         
         getLoadingHTML() {
@@ -3981,7 +4094,7 @@
         
         async loadActivitiesJson() {
             try {
-                log('Loading activities.json for media content...');
+                log('Loading activities1d.json for media content...');
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
@@ -3989,7 +4102,7 @@
                 
                 // Add cache buster to force fresh load
                 const cacheBuster = new Date().getTime();
-                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1c.json?v=${cacheBuster}`, {
+                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1d.json?v=${cacheBuster}`, {
                     signal: controller.signal,
                     cache: 'no-cache' // Force fresh load
                 });
@@ -4000,23 +4113,24 @@
                     const data = await response.json();
                     // Store globally for activity renderer to access
                     window.vespaActivitiesData = {};
-                    // Fix: data is directly an array, not data.activities
+                    
                     data.forEach(activity => {
-                        // Fix: use the correct field name
-                        const activityId = activity['Activity ID'];
-                        if (activityId) {
-                            window.vespaActivitiesData[activityId] = {
-                                videoUrl: activity['Activity Video Link'] || '',
-                                slidesUrl: activity['Activity Slides Link'] || ''
+                        if (activity.Activity_id) {
+                            window.vespaActivitiesData[activity.Activity_id] = {
+                                videoUrl: activity.media?.video?.url || '',
+                                slidesUrl: activity.media?.slides?.url || '',
+                                media: activity.media // Store full media object for future use
                             };
                         }
                     });
-                    log('Activities.json loaded successfully', window.vespaActivitiesData);
+                    
+                    log('activities1d.json loaded successfully', window.vespaActivitiesData);
                 } else {
-                    log('Failed to load activities.json', response.status);
+                    log('Failed to load activities1d.json', response.status);
+                    window.vespaActivitiesData = {};
                 }
             } catch (error) {
-                console.error('Error loading activities.json:', error);
+                console.error('Error loading activities1d.json:', error);
                 // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }
