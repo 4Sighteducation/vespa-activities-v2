@@ -2013,8 +2013,8 @@
                 // Wait for all required views to render
                 await this.waitForViews();
                 
-                // Load activities.json on startup to get media URLs
-                await this.loadActivitiesJson();
+                // Don't load activities.json on startup - it will be loaded on demand
+                // await this.loadActivitiesJson();
                 
                 // Load initial data with validation
                 await this.loadInitialData();
@@ -4100,8 +4100,11 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1d.json`, {
-                    signal: controller.signal
+                // Add cache buster to force fresh load
+                const cacheBuster = new Date().getTime();
+                const response = await fetch(`https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1d.json?v=${cacheBuster}`, {
+                    signal: controller.signal,
+                    cache: 'no-cache' // Force fresh load
                 });
                 
                 clearTimeout(timeoutId);

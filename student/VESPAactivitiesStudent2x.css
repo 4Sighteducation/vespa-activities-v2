@@ -224,7 +224,7 @@ body {
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: float 20s ease-in-out infinite;
+    /* animation: float 20s ease-in-out infinite; - Removed for better performance */
 }
 
 .header-content {
@@ -247,7 +247,8 @@ body {
 
 .wave {
     display: inline-block;
-    animation: wave 2s ease-in-out infinite;
+    /* animation: wave 2s ease-in-out infinite; - Removed for better performance */
+    animation: none !important;
     transform-origin: 70% 70%;
 }
 
@@ -282,6 +283,7 @@ body {
 
 .stat-emoji {
     font-size: 1.5rem;
+    animation: none !important; /* Remove all animations */
 }
 
 .stat-content {
@@ -611,7 +613,7 @@ body {
     box-shadow: var(--shadow-md);
     transition: var(--transition-normal);
     cursor: pointer;
-    animation: cardEntry 0.6s ease both;
+    /* animation: cardEntry 0.6s ease both; - Removed to prevent flickering */
     border: 2px solid transparent;
 }
 
@@ -1267,7 +1269,7 @@ body {
     padding: 1rem;
     transition: var(--transition-normal);
     cursor: pointer;
-    animation: cardEntry 0.6s ease both;
+    /* animation: cardEntry 0.6s ease both; - Removed to prevent flickering */
 }
 
 .compact-activity-card:hover {
@@ -1512,7 +1514,8 @@ body {
     }
     
     .header-stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr; /* Stack vertically on mobile */
+        gap: 0.75rem;
     }
     
     .stat-card {
@@ -1526,12 +1529,24 @@ body {
     
     .vespa-nav {
         padding: 0.5rem;
-        gap: 0.5rem;
+        gap: 0.25rem;
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    
+    .vespa-nav::-webkit-scrollbar {
+        display: none;
     }
     
     .nav-item {
         padding: 0.5rem;
         font-size: 0.9rem;
+        flex: 0 0 auto;
+        min-width: fit-content;
     }
     
     .nav-label {
@@ -1961,21 +1976,25 @@ body {
     }
 }
 
-/* ===== Remove Emoji Animations on Mobile ===== */
-@media (max-width: 768px) {
-    /* Remove all emoji animations except wave */
-    .stat-icon:not(.wave-emoji),
-    .score-emoji,
-    .category-icon,
-    .empty-icon,
-    .title-icon {
-        animation: none !important;
-    }
-    
-    /* Keep only the wave animation */
-    .wave-emoji {
-        animation: wave 0.6s ease-in-out;
-    }
+/* ===== Remove All Emoji Animations ===== */
+.stat-icon,
+.wave-emoji,
+.score-emoji,
+.category-icon,
+.empty-icon,
+.title-icon,
+.stat-emoji,
+.loading-icon {
+    animation: none !important;
+}
+
+/* Also remove header decorative animations */
+.vespa-header::before {
+    animation: none !important;
+}
+
+.vespa-loading-overlay .loading-content {
+    animation: none !important;
 }
 
 /* ===== Utility Classes ===== */
@@ -2053,7 +2072,7 @@ body {
     width: 200%;
     height: 200%;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-    animation: float 20s ease-in-out infinite;
+    /* animation: float 20s ease-in-out infinite; - Removed for better performance */
 }
 
 .activity-header-content {
