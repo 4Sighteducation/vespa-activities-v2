@@ -351,6 +351,8 @@ body {
     border-bottom: 1px solid var(--gray-200);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    justify-content: center;
+    align-items: center;
 }
 
 .nav-item {
@@ -367,6 +369,7 @@ body {
     cursor: pointer;
     transition: var(--transition-normal);
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .nav-item:hover {
@@ -453,15 +456,34 @@ body {
 }
 
 .score-card {
-    background: var(--gray-50);
-    border-radius: 15px;
+    background: var(--white);
+    border-radius: 16px;
     overflow: hidden;
     transition: var(--transition-normal);
+    border: 2px solid var(--gray-100);
+    position: relative;
 }
 
 .score-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
+}
+
+/* Add special effects for high scores */
+.score-card[data-score="9"],
+.score-card[data-score="10"] {
+    border-color: rgba(23, 189, 194, 0.3);
+    background: linear-gradient(135deg, var(--white) 0%, rgba(23, 189, 194, 0.02) 100%);
+}
+
+.score-card[data-score="9"]:hover,
+.score-card[data-score="10"]:hover {
+    box-shadow: 0 10px 30px rgba(23, 189, 194, 0.15);
+}
+
+.score-card[data-score="7"],
+.score-card[data-score="8"] {
+    border-color: rgba(23, 189, 194, 0.2);
 }
 
 .score-header {
@@ -479,17 +501,18 @@ body {
 }
 
 .score-body {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 .score-circle {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     position: relative;
+    margin: 0 auto 1rem;
 }
 
 .score-circle svg {
@@ -501,15 +524,22 @@ body {
 .circle-bg {
     fill: none;
     stroke: var(--gray-200);
-    stroke-width: 3;
+    stroke-width: 4;
 }
 
 .circle-fill {
     fill: none;
-    stroke-width: 3;
+    stroke-width: 4;
     stroke-linecap: round;
-    stroke-dasharray: calc(var(--score) * 1), 100;
+    stroke-dasharray: calc(var(--score) * 10), 100;
     transition: stroke-dasharray 1s ease;
+    animation: fillAnimation 1.5s ease-out;
+}
+
+@keyframes fillAnimation {
+    from {
+        stroke-dasharray: 0, 100;
+    }
 }
 
 .score-value {
@@ -517,14 +547,52 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 700;
+    color: var(--gray-800);
+}
+
+.score-value::after {
+    content: '/10';
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    font-weight: 400;
+}
+
+/* Score dots indicator */
+.score-dots {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.score-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gray-300);
+    transition: all 0.3s ease;
+}
+
+.score-dot.filled {
+    background: currentColor;
+    transform: scale(1.2);
+}
+
+/* Score rating text */
+.score-rating {
+    font-size: 0.875rem;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-weight: 500;
+    opacity: 0.8;
 }
 
 .improve-btn {
-    background: transparent;
+    background: var(--white);
     border: 2px solid currentColor;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.25rem;
     border-radius: 8px;
     font-size: 0.875rem;
     font-weight: 600;
@@ -1491,6 +1559,67 @@ body {
 }
 
 /* ===== Mobile Responsive ===== */
+/* VESPA Scores mobile adjustments */
+@media (max-width: 768px) {
+    .scores-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .score-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .score-value {
+        font-size: 1.5rem;
+    }
+    
+    .score-body {
+        padding: 1rem 0.75rem;
+    }
+    
+    .score-dots {
+        gap: 0.2rem;
+    }
+    
+    .score-dot {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .improve-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Achievements mobile adjustments */
+@media (max-width: 768px) {
+    .achievements-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    
+    .achievement-card {
+        padding: 1rem;
+    }
+    
+    .achievement-icon {
+        font-size: 2rem;
+    }
+    
+    .achievements-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .achievements-header h2 {
+        font-size: 1.5rem;
+    }
+}
+
 /* Mobile Styles */
 @media (max-width: 768px) {
     /* Prevent horizontal overflow on mobile */
@@ -1529,7 +1658,7 @@ body {
     
     .vespa-nav {
         padding: 0.5rem;
-        gap: 0.25rem;
+        gap: 0.4rem;
         display: flex;
         flex-wrap: nowrap !important;
         justify-content: flex-start;
@@ -1537,6 +1666,9 @@ body {
         scrollbar-width: none;
         -ms-overflow-style: none;
         -webkit-overflow-scrolling: touch;
+        /* Ensure full width */
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .vespa-nav::-webkit-scrollbar {
@@ -1544,7 +1676,7 @@ body {
     }
     
     .nav-item {
-        padding: 0.5rem;
+        padding: 0.6rem 0.8rem;
         font-size: 0.9rem;
         flex: 0 0 auto;
         min-width: fit-content;
@@ -2020,6 +2152,121 @@ body {
 
 .vespa-loading-overlay .loading-content {
     animation: none !important;
+}
+
+/* ===== Achievements ===== */
+.achievements-container {
+    padding: 2rem;
+}
+
+.achievements-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.achievements-header h2 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.achievements-summary {
+    font-size: 1.1rem;
+    color: var(--gray-600);
+}
+
+.earned-count {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.achievement-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    border: 2px solid var(--gray-200);
+    transition: var(--transition-normal);
+}
+
+.achievement-card.earned {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(23, 189, 194, 0.05) 0%, rgba(23, 189, 194, 0.1) 100%);
+}
+
+.achievement-card.locked {
+    opacity: 0.7;
+    filter: grayscale(0.5);
+}
+
+.achievement-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.achievement-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.achievement-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: var(--gray-800);
+}
+
+.achievement-description {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0 0 1rem 0;
+}
+
+.achievement-progress {
+    margin-top: 1rem;
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.achievement-progress .progress-bar {
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.achievement-progress .progress-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+}
+
+.achievement-status {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.achievements-motivational {
+    text-align: center;
+    padding: 2rem;
+    background: var(--gray-50);
+    border-radius: 16px;
+    font-size: 1.1rem;
+    color: var(--gray-700);
 }
 
 /* ===== Utility Classes ===== */

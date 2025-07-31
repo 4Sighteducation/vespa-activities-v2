@@ -1596,15 +1596,38 @@
                 </div>
             `;
             
+            // Optimize Google Slides URLs for faster loading
+            let optimizedSrc = src;
+            if (type === 'slides' && src.includes('docs.google.com/presentation')) {
+                // Parse the URL
+                const url = new URL(src);
+                
+                // Add performance-optimizing parameters
+                url.searchParams.set('rm', 'minimal'); // Remove UI for faster load
+                url.searchParams.set('start', 'false'); // Don't auto-start
+                url.searchParams.set('loop', 'false'); // Don't loop
+                url.searchParams.set('delayms', '60000'); // 60 second delay between slides
+                
+                optimizedSrc = url.toString();
+                log(`Optimized slides URL: ${optimizedSrc}`);
+            }
+            
             // Create and insert iframe with trust signals
             const iframe = document.createElement('iframe');
-            iframe.src = src; // Clean URL, no parameters
+            iframe.src = optimizedSrc;
             iframe.loading = 'eager'; // Load immediately
             iframe.importance = 'high'; // High priority
             iframe.referrerPolicy = 'no-referrer-when-downgrade';
             iframe.allowFullscreen = true;
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             iframe.style.cssText = 'width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0;';
+            
+            // Additional performance attributes for Google Slides
+            if (type === 'slides') {
+                iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+                iframe.setAttribute('frameborder', '0');
+                iframe.setAttribute('allowtransparency', 'true');
+            }
             
             // Add load event listener
             iframe.onload = () => {
@@ -1780,8 +1803,20 @@
                     });
                 }
                 
+                // Update the completed activities in the app state
+                if (!window.vespaApp.state.activities.completed.find(a => a.id === this.activity.id)) {
+                    window.vespaApp.state.activities.completed.push({
+                        ...this.activity,
+                        dateCompleted: new Date()
+                    });
+                }
+                
                 // Recalculate stats
                 window.vespaApp.calculateStats();
+                // Update UI immediately
+                window.vespaApp.updateHeaderStats();
+                // Update all activity cards to show completion
+                window.vespaApp.render();
             }
         }
         
@@ -2071,14 +2106,23 @@
             // Extract media URLs from the activity
             const mediaContent = firstActivity.video || '';
             
-            // Prefetch Google Slides to trigger their resource loading
-            const slidesMatch = mediaContent.match(/<h2[^>]*>.*?THINK.*?<\/h2>[\s\S]*?<iframe[^>]*src=['"](.*?)['"][^>]*>/i);
-            if (slidesMatch && slidesMatch[1].includes('docs.google.com/presentation')) {
-                log('[App] Prefetching Google Slides resources');
+            // Also check activities1e.json data for slides URL
+            const activityData = window.vespaActivitiesData?.[firstActivity.id];
+            const slidesUrl = activityData?.slidesUrl;
+            
+            if (slidesUrl && slidesUrl.includes('docs.google.com/presentation')) {
+                log('[App] Prefetching Google Slides resources from activities data');
+                
+                // Optimize the URL for prefetch
+                const url = new URL(slidesUrl);
+                url.searchParams.set('rm', 'minimal');
+                url.searchParams.set('start', 'false');
+                url.searchParams.set('loop', 'false');
+                url.searchParams.set('delayms', '60000');
                 
                 // Create hidden iframe to start loading Google's resources
                 const iframe = document.createElement('iframe');
-                iframe.src = slidesMatch[1];
+                iframe.src = url.toString();
                 iframe.style.cssText = 'position: absolute; width: 1px; height: 1px; left: -9999px; visibility: hidden;';
                 iframe.setAttribute('loading', 'eager');
                 iframe.setAttribute('aria-hidden', 'true');
@@ -2981,8 +3025,41 @@
                 nextMilestone
             };
             
+            // Save stats to localStorage for immediate UI updates
+            localStorage.setItem('vespa-stats', JSON.stringify(this.state.stats));
+            
             log('Calculated stats:', this.state.stats);
             log('Completed activities for points:', this.state.activities.completed);
+        }
+        
+        updateHeaderStats() {
+            // Update the header stats display immediately
+            const headerStatsContainer = document.querySelector('.header-stats');
+            if (headerStatsContainer && this.state.stats) {
+                const pointsElement = headerStatsContainer.querySelector('.stat-value');
+                const streakElement = headerStatsContainer.querySelectorAll('.stat-value')[1];
+                const completedElement = headerStatsContainer.querySelectorAll('.stat-value')[2];
+                
+                if (pointsElement) pointsElement.textContent = this.state.stats.totalPoints;
+                if (streakElement) streakElement.textContent = this.state.stats.currentStreak;
+                if (completedElement) completedElement.textContent = this.state.stats.activitiesCompleted;
+                
+                // Update progress bar
+                const progressFill = document.querySelector('.progress-bar-fill');
+                if (progressFill && this.state.stats.nextMilestone) {
+                    const progressPercent = (this.state.stats.totalPoints / this.state.stats.nextMilestone.points) * 100;
+                    progressFill.style.width = `${Math.min(progressPercent, 100)}%`;
+                }
+                
+                // Update progress text
+                const progressInfo = document.querySelector('.progress-info');
+                if (progressInfo && this.state.stats.nextMilestone) {
+                    progressInfo.innerHTML = `
+                        <span>Progress to ${this.state.stats.nextMilestone.name}</span>
+                        <span>${this.state.stats.totalPoints} / ${this.state.stats.nextMilestone.points}</span>
+                    `;
+                }
+            }
         }
         
         calculateStreak() {
@@ -3035,6 +3112,9 @@
             
             // Attach event listeners after rendering
             this.attachEventListeners();
+            
+            // Update header stats after render
+            this.updateHeaderStats();
         }
         
         addPreconnectLinks() {
@@ -3169,6 +3249,18 @@
             `;
         }
         
+        getScoreRating(score) {
+            if (score >= 9) return 'Excellent! 🌟';
+            if (score >= 8) return 'Very Good! ✨';
+            if (score >= 7) return 'Great! 🎯';
+            if (score >= 6) return 'Good Progress 👍';
+            if (score >= 5) return 'Solid Foundation 💪';
+            if (score >= 4) return 'Developing 📈';
+            if (score >= 3) return 'Building Skills 🔨';
+            if (score >= 2) return 'Getting Started 🌱';
+            return 'Just Beginning 🌰';
+        }
+        
         getVESPAScoresHTML() {
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             const emojis = {
@@ -3190,7 +3282,7 @@
                             const score = this.state.vespaScores[cat] || 0;
                             const color = this.colors[cat];
                             return `
-                                <div class="score-card" data-category="${cat}">
+                                <div class="score-card" data-category="${cat}" data-score="${score}">
                                     <div class="score-header" style="background: ${color.primary}">
                                         <span class="score-emoji">${emojis[cat]}</span>
                                         <span class="score-label">${cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
@@ -3202,6 +3294,14 @@
                                                 <path class="circle-fill" stroke="${color.primary}" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                                             </svg>
                                             <span class="score-value">${score}</span>
+                                        </div>
+                                        <div class="score-dots" style="color: ${color.primary}">
+                                            ${Array.from({length: 10}, (_, i) => 
+                                                `<span class="score-dot ${i < score ? 'filled' : ''}"></span>`
+                                            ).join('')}
+                                        </div>
+                                        <div class="score-rating" style="color: ${color.primary}">
+                                            ${this.getScoreRating(score)}
                                         </div>
                                         <button class="improve-btn" data-category="${cat}">
                                             Improve ${emojis[cat]}
@@ -3520,26 +3620,97 @@
         }
         
         getAchievementsHTML() {
-            // Achievements view with recommendation to remove
+            // Get saved achievements from localStorage
+            const savedAchievements = JSON.parse(localStorage.getItem('vespa-achievements') || '[]');
+            const completedCount = this.state.activities.completed.length;
+            
+            // Define all possible achievements
+            const allAchievements = [
+                {
+                    id: 'first-steps',
+                    title: 'First Steps',
+                    description: 'Complete your first activity',
+                    icon: '🎯',
+                    requirement: 1,
+                    type: 'activities'
+                },
+                {
+                    id: 'getting-going',
+                    title: 'Getting Going',
+                    description: 'Complete 5 activities',
+                    icon: '🚀',
+                    requirement: 5,
+                    type: 'activities'
+                },
+                {
+                    id: 'on-a-roll',
+                    title: 'On a Roll',
+                    description: 'Complete 10 activities',
+                    icon: '🔥',
+                    requirement: 10,
+                    type: 'activities'
+                },
+                {
+                    id: 'unstoppable',
+                    title: 'Unstoppable',
+                    description: 'Complete 25 activities',
+                    icon: '⭐',
+                    requirement: 25,
+                    type: 'activities'
+                },
+                {
+                    id: 'vespa-champion',
+                    title: 'VESPA Champion',
+                    description: 'Complete 50 activities',
+                    icon: '🏆',
+                    requirement: 50,
+                    type: 'activities'
+                }
+            ];
+            
+            // Check which achievements are earned
+            const earnedAchievements = allAchievements.map(achievement => {
+                const isEarned = achievement.type === 'activities' ? 
+                    completedCount >= achievement.requirement :
+                    savedAchievements.some(saved => saved.type === achievement.id);
+                return { ...achievement, earned: isEarned };
+            });
+            
+            const totalEarned = earnedAchievements.filter(a => a.earned).length;
+            
             return `
                 <div class="achievements-container">
-                    <h2>🏆 Achievements System</h2>
-                    <div class="achievement-notice">
-                        <p><strong>Status:</strong> The achievements system has been partially implemented but requires:</p>
-                        <ul>
-                            <li>Backend integration with Knack Object_127</li>
-                            <li>Achievement persistence across sessions</li>
-                            <li>UI implementation for badge display</li>
-                            <li>Testing and refinement</li>
-                        </ul>
-                        <p><strong>Recommendation:</strong> Either complete the implementation or remove this section to avoid confusion.</p>
-                        <p><em>The system is designed to award badges for:</em></p>
-                        <ul>
-                            <li>Completing activities (First Steps, Getting Going, etc.)</li>
-                            <li>Quality achievements (high word counts)</li>
-                            <li>Streak achievements (consecutive days)</li>
-                            <li>Level achievements (completing all Level 2/3 activities)</li>
-                        </ul>
+                    <div class="achievements-header">
+                        <h2>🏆 Your Achievements</h2>
+                        <div class="achievements-summary">
+                            <span class="earned-count">${totalEarned}/${allAchievements.length}</span> achievements unlocked
+                        </div>
+                    </div>
+                    
+                    <div class="achievements-grid">
+                        ${earnedAchievements.map(achievement => `
+                            <div class="achievement-card ${achievement.earned ? 'earned' : 'locked'}">
+                                <div class="achievement-icon">${achievement.icon}</div>
+                                <h3 class="achievement-title">${achievement.title}</h3>
+                                <p class="achievement-description">${achievement.description}</p>
+                                ${!achievement.earned && achievement.type === 'activities' ? 
+                                    `<div class="achievement-progress">
+                                        <div class="progress-text">${completedCount}/${achievement.requirement}</div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${(completedCount / achievement.requirement) * 100}%"></div>
+                                        </div>
+                                    </div>` : 
+                                    (achievement.earned ? '<div class="achievement-status">✓ Unlocked</div>' : '')
+                                }
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="achievements-motivational">
+                        <p>${completedCount < 5 ? '🌱 Keep going! Your first achievement is just around the corner!' :
+                             completedCount < 10 ? '🚀 Great progress! You\'re building momentum!' :
+                             completedCount < 25 ? '🔥 You\'re on fire! Keep up the amazing work!' :
+                             '⭐ You\'re a VESPA superstar! Incredible dedication!'}</p>
                     </div>
                 </div>
             `;
