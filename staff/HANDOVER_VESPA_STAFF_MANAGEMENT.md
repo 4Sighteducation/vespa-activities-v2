@@ -1,15 +1,27 @@
 # VESPA Activities Staff Management System - Handover Document
 **Date:** January 2025
-**Current Version:** VESPAactivitiesStaff1l.js / VESPAactivitiesStaff1l.css
-**Last Updated:** January 2025 - Fixed critical filtering bug, added pagination
+**Current Version:** VESPAactivitiesStaff1m.js / VESPAactivitiesStaff1m.css
+**Last Updated:** January 2025 - Fixed staff admin filtering, VESPA scores connection, activity rendering
 
 ## 🎯 Project Overview
 The VESPA Activities Staff Management System is a Knack-based interface for staff members (Tutors, Head of Years, Subject Teachers, Staff Admins) to manage student activities, track progress, and provide feedback.
 
-## ⚠️ CRITICAL BUG FIX (January 2025)
+## ⚠️ CRITICAL BUG FIXES (January 2025)
+
+### 1. Staff Admin Filtering
 **Issue:** Staff admins were seeing ALL students in the system instead of just their assigned students
 **Fix:** Added proper filtering using field_190 (studentStaffAdmins) for staff admin role
 **Impact:** Staff admins now correctly see only their assigned students
+
+### 2. VESPA Scores Connection
+**Issue:** VESPA scores were not loading due to incorrect field mapping
+**Fix:** Updated to use field_182 (studentVESPAConnection) which holds the ID/email of connected Object_10 record
+**Impact:** VESPA scores now load correctly using the proper connection field
+
+### 3. Activities Not Showing
+**Issue:** Activities were not rendering in the student details modal
+**Fix:** Updated activity parsing to handle HTML connection spans and improved activity card rendering
+**Impact:** Activities now display as interactive cards with questions and student responses
 
 ## 📁 Current File Structure
 ```
@@ -90,8 +102,9 @@ vespa-activities-v2/
 // Student fields (Object_6)
 studentName: 'field_90',        // Returns {first, last, full}
 studentEmail: 'field_91',       // Returns {email, label}
-prescribedActivities: 'field_1683',
-finishedActivities: 'field_1380',
+prescribedActivities: 'field_1683',  // HTML spans with activity names
+finishedActivities: 'field_1380',    // HTML spans with activity names
+studentVESPAConnection: 'field_182',  // ID/email of connected Object_10 record
 
 // Staff connection fields (many-to-many)
 studentTutors: 'field_1682',    // Contains Tutor IDs
@@ -104,8 +117,7 @@ visionScore: 'field_147',
 effortScore: 'field_148',
 systemsScore: 'field_149',
 practiceScore: 'field_150',
-attitudeScore: 'field_151',
-studentConnection: 'field_163'  // Links to Student
+attitudeScore: 'field_151'
 
 // Activity fields (Object_44)
 activityName: 'field_1278',

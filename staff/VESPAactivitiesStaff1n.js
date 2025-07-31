@@ -54,6 +54,7 @@
             studentEmail: 'field_91',
             prescribedActivities: 'field_1683',
             finishedActivities: 'field_1380',
+            studentVESPAConnection: 'field_182', // Connection to Object_10 VESPA record
             
             // VESPA scores (Object_10)
             visionScore: 'field_147',
@@ -716,17 +717,47 @@
                 const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
                 const email = this.getFieldValue(record, fields.studentEmail, '');
                 
-                // Extract prescribed activities (it's a text field with activity names)
+                // Extract prescribed activities (may contain HTML with connection spans)
                 const prescribedText = this.getFieldValue(record, fields.prescribedActivities, '');
-                const prescribedActivities = prescribedText ? 
-                    prescribedText.split(',').map(a => a.trim()).filter(a => a) : [];
+                let prescribedActivities = [];
+                
+                if (prescribedText) {
+                    // Check if it's HTML with connection spans
+                    if (prescribedText.includes('<span')) {
+                        // Extract text from spans
+                        const matches = prescribedText.match(/>([^<]+)</g);
+                        if (matches) {
+                            prescribedActivities = matches.map(match => match.replace(/[><]/g, '').trim()).filter(a => a);
+                        }
+                    } else {
+                        // Plain text, split by comma or newline
+                        prescribedActivities = prescribedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
+                    }
+                }
+                
                 const prescribedCount = prescribedActivities.length;
+                log(`Student ${name} prescribed activities:`, prescribedActivities);
                 
                 // Extract finished activities
                 const finishedText = this.getFieldValue(record, fields.finishedActivities, '');
-                const finishedActivities = finishedText ? 
-                    finishedText.split(',').map(a => a.trim()).filter(a => a) : [];
+                let finishedActivities = [];
+                
+                if (finishedText) {
+                    // Check if it's HTML with connection spans
+                    if (finishedText.includes('<span')) {
+                        // Extract text from spans
+                        const matches = finishedText.match(/>([^<]+)</g);
+                        if (matches) {
+                            finishedActivities = matches.map(match => match.replace(/[><]/g, '').trim()).filter(a => a);
+                        }
+                    } else {
+                        // Plain text, split by comma or newline
+                        finishedActivities = finishedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
+                    }
+                }
+                
                 const completedCount = finishedActivities.length;
+                log(`Student ${name} finished activities:`, finishedActivities);
                 
                 // Use 40 as the baseline for all activities at student level
                 const totalActivitiesBaseline = 40;
@@ -749,6 +780,10 @@
                     vespaScores.attitude = parseFloat(record[fields.attitudeScore]) || 0;
                 }
                 
+                // Get VESPA connection (field_182)
+                const vespaConnection = this.getFieldValue(record, fields.studentVESPAConnection, '');
+                log(`Student ${name} VESPA connection (field_182):`, vespaConnection);
+                
                 const student = {
                     id: record.id,
                     name: name,
@@ -758,7 +793,8 @@
                     prescribedCount: prescribedCount,
                     completedCount: completedCount,
                     progress: Math.round((completedCount / totalActivitiesBaseline) * 100),
-                    vespaScores: vespaScores
+                    vespaScores: vespaScores,
+                    vespaConnectionId: vespaConnection // Store the connection ID/email
                 };
                 
                 return student;
@@ -781,26 +817,46 @@
             const fields = this.config.fields;
             
             try {
-                // Get all student IDs
-                const studentIds = this.state.students.map(s => s.id);
+                // Get all VESPA connection IDs from students
+                const vespaConnectionIds = this.state.students
+                    .map(s => s.vespaConnectionId)
+                    .filter(id => id); // Remove empty values
                 
-                // Build OR conditions for multiple student IDs
-                // Knack doesn't support "is any" with arrays, so we need OR conditions
-                const orConditions = studentIds.map((id, index) => ({
-                    field: 'field_163', // Student connection field in VESPA Results
+                if (vespaConnectionIds.length === 0) {
+                    log('No VESPA connection IDs found in student records');
+                    return;
+                }
+                
+                log('VESPA connection IDs from field_182:', vespaConnectionIds);
+                
+                // Build OR conditions for the VESPA connection IDs
+                // These might be emails or record IDs - we'll search by ID first
+                const orConditions = vespaConnectionIds.map(connectionId => ({
+                    field: 'id',
                     operator: 'is',
-                    value: id
+                    value: connectionId
                 }));
                 
-                // Create the filter with match: "or" for multiple conditions
-                const filters = [{
+                // If connection IDs look like emails, also search by email field
+                const emailConditions = vespaConnectionIds
+                    .filter(id => id.includes('@'))
+                    .map(email => ({
+                        field: 'field_192', // Email field in Object_10 (adjust if needed)
+                        operator: 'is',
+                        value: email
+                    }));
+                
+                // Combine all conditions
+                const allConditions = [...orConditions, ...emailConditions];
+                
+                const filters = allConditions.length > 0 ? [{
                     match: 'or',
-                    rules: orConditions
-                }];
+                    rules: allConditions
+                }] : [];
                 
                 log('VESPA scores filter:', filters);
                 
-                // Load VESPA results for these students
+                // Load VESPA results
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
                     type: 'GET',
@@ -809,7 +865,7 @@
                         'X-Knack-REST-API-Key': this.config.knackApiKey
                     },
                     data: {
-                        filters: JSON.stringify(filters),
+                        filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
                         page: 1,
                         rows_per_page: 1000
                     }
@@ -818,49 +874,53 @@
                 log('VESPA scores response:', response);
                 
                 if (response.records && response.records.length > 0) {
-                    // Create a map of student ID to VESPA scores
-                    const vespaMap = new Map();
+                    // Create maps for both ID and email lookups
+                    const vespaMapById = new Map();
+                    const vespaMapByEmail = new Map();
                     
                     response.records.forEach(record => {
+                        log('VESPA record:', record);
+                        log('VESPA record ID:', record.id);
                         log('VESPA record fields:', Object.keys(record));
-                        log('Sample VESPA record:', record);
                         
-                        // Get the connected student ID
-                        const studentConnection = record.field_163_raw || record.field_163;
-                        const studentId = Array.isArray(studentConnection) ? studentConnection[0]?.id : studentConnection?.id;
+                        const scores = {
+                            vision: parseFloat(record[fields.visionScore] || record.field_147) || 0,
+                            effort: parseFloat(record[fields.effortScore] || record.field_148) || 0,
+                            systems: parseFloat(record[fields.systemsScore] || record.field_149) || 0,
+                            practice: parseFloat(record[fields.practiceScore] || record.field_150) || 0,
+                            attitude: parseFloat(record[fields.attitudeScore] || record.field_151) || 0
+                        };
                         
-                        if (studentId) {
-                            // Log the actual field values to debug
-                            log(`VESPA scores for student ${studentId}:`, {
-                                vision: record[fields.visionScore],
-                                effort: record[fields.effortScore],
-                                systems: record[fields.systemsScore],
-                                practice: record[fields.practiceScore],
-                                attitude: record[fields.attitudeScore]
-                            });
-                            
-                            vespaMap.set(studentId, {
-                                vision: parseFloat(record[fields.visionScore] || record.field_147) || 0,
-                                effort: parseFloat(record[fields.effortScore] || record.field_148) || 0,
-                                systems: parseFloat(record[fields.systemsScore] || record.field_149) || 0,
-                                practice: parseFloat(record[fields.practiceScore] || record.field_150) || 0,
-                                attitude: parseFloat(record[fields.attitudeScore] || record.field_151) || 0
-                            });
+                        // Map by record ID
+                        vespaMapById.set(record.id, scores);
+                        
+                        // Map by email if available
+                        const email = record.field_192 || record.field_192_raw?.email;
+                        if (email) {
+                            vespaMapByEmail.set(email, scores);
                         }
+                        
+                        log(`VESPA scores for record ${record.id}:`, scores);
                     });
                     
-                    log(`Loaded VESPA scores for ${vespaMap.size} students`);
+                    log(`Loaded VESPA scores for ${response.records.length} records`);
                     
                     // Update student records with VESPA scores
                     this.state.students.forEach(student => {
-                        const scores = vespaMap.get(student.id);
+                        // Try to find scores by connection ID (could be record ID or email)
+                        const scores = vespaMapById.get(student.vespaConnectionId) || 
+                                      vespaMapByEmail.get(student.vespaConnectionId) ||
+                                      vespaMapByEmail.get(student.email);
+                        
                         if (scores) {
                             student.vespaScores = scores;
                             log(`Updated VESPA scores for ${student.name}:`, scores);
+                        } else {
+                            log(`No VESPA scores found for ${student.name} (connection: ${student.vespaConnectionId})`);
                         }
                     });
                 } else {
-                    log('No VESPA scores found');
+                    log('No VESPA scores found in Object_10');
                 }
                 
             } catch (err) {
@@ -1675,71 +1735,64 @@
         
         // Render individual activity card
         renderActivityCard(activity, isCompleted) {
-            const categoryClass = activity.category ? activity.category.toLowerCase().replace(' ', '-') : 'general';
+            const categoryClass = activity.category ? activity.category.toLowerCase().replace(/\s+/g, '-') : 'general';
             
-            // Render questions if available
-            let questionsHtml = '';
-            if (activity.questions && activity.questions.length > 0) {
-                questionsHtml = `
-                    <div class="activity-questions">
-                        <h5>Activity Questions:</h5>
-                        <ol class="questions-list">
-                            ${activity.questions.map(q => `
-                                <li class="question-item">
-                                    <div class="question-text">${q.question}</div>
-                                    ${q.type === 'multiple_choice' && q.options ? 
-                                        `<div class="question-options">
-                                            <small>Options: ${q.options}</small>
-                                        </div>` : ''}
-                                    ${activity.response && activity.response.activityJSON ? 
-                                        this.renderStudentAnswer(q, activity.response) : ''}
-                                </li>
-                            `).join('')}
-                        </ol>
-                    </div>
-                `;
+            // Get a preview of student response if available
+            let responseSummary = '';
+            if (isCompleted && activity.response && activity.response.activityJSON) {
+                try {
+                    const responses = JSON.parse(activity.response.activityJSON);
+                    const firstResponse = Object.values(responses)[0];
+                    if (firstResponse) {
+                        responseSummary = `
+                            <div class="response-summary">
+                                <div class="summary-label">Student Response Preview:</div>
+                                <div class="summary-text">"${firstResponse.substring(0, 150)}${firstResponse.length > 150 ? '...' : ''}"</div>
+                            </div>
+                        `;
+                    }
+                } catch (e) {
+                    log('Error parsing response for preview:', e);
+                }
             }
             
-            // Add activity description if available
-            const description = activity.description ? 
-                `<div class="activity-description">${activity.description}</div>` : '';
+            // Format completion date
+            const completionDate = isCompleted && activity.response?.completionDate ? 
+                new Date(activity.response.completionDate).toLocaleDateString('en-GB') : '';
             
             return `
-                <div class="activity-card ${isCompleted ? 'completed' : ''}" data-activity-id="${activity.id}">
-                    <div class="activity-header">
-                        <h4 class="activity-name">${activity.name}</h4>
-                        <span class="vespa-pill ${categoryClass}">${activity.category || 'General'}</span>
+                <div class="activity-card ${categoryClass} ${isCompleted ? 'completed' : ''}" 
+                     data-activity-id="${activity.id}"
+                     onclick="VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
+                    
+                    <div class="activity-badges">
+                        <span class="category-badge ${categoryClass}">${activity.category || 'General'}</span>
+                        <span class="level-badge">Level ${activity.level || '1'}</span>
+                        ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
                     </div>
+                    
+                    <div class="activity-card-content">
+                        <h4 class="activity-name">${activity.name}</h4>
+                        ${activity.description ? `<p class="activity-description">${activity.description}</p>` : ''}
+                        ${responseSummary}
+                    </div>
+                    
                     <div class="activity-info">
-                        <span class="activity-level">Level ${activity.level || 'N/A'}</span>
-                        ${activity.duration ? `<span class="activity-duration">Duration: ${activity.duration}</span>` : ''}
                         ${isCompleted ? 
-                            `<span class="completion-date">Completed: ${activity.response?.completionDate || 'N/A'}</span>` :
-                            `<span class="status-badge">Not Started</span>`
+                            `<span class="completion-date">✓ Completed on ${completionDate}</span>` :
+                            `<span class="status-badge pending">⏳ Not Started</span>`
                         }
                     </div>
-                    ${description}
-                    ${questionsHtml}
-                    <div class="activity-actions">
+                    
+                    <div class="card-actions">
+                        <button class="btn-view-activity" onclick="event.stopPropagation(); VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
+                            ${isCompleted ? 'View Response & Questions' : 'Preview Activity'}
+                        </button>
                         ${isCompleted ? `
-                            <button class="btn btn-secondary btn-sm" 
-                                    onclick="VESPAStaff.viewActivityResponse('${activity.id}')">
-                                View Response
+                            <button class="btn-provide-feedback" onclick="event.stopPropagation(); VESPAStaff.provideFeedback('${activity.id}', '${activity.studentId}')">
+                                Feedback
                             </button>
-                            <button class="btn btn-warning btn-sm" 
-                                    onclick="VESPAStaff.uncompleteActivity('${activity.studentId}', '${activity.name}')">
-                                Re-assign
-                            </button>
-                        ` : `
-                            <button class="btn btn-primary btn-sm" 
-                                    onclick="VESPAStaff.viewActivityPreview('${activity.id}')">
-                                Preview Activity
-                            </button>
-                            <button class="btn btn-warning btn-sm" 
-                                    onclick="VESPAStaff.sendReminder('${activity.studentId}', '${activity.name}')">
-                                Send Reminder
-                            </button>
-                        `}
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -2180,44 +2233,105 @@
             });
         }
         
-        // View activity response
-        async viewActivityResponse(activityId) {
+        // View activity details with questions and responses
+        async viewActivityDetails(activityId, studentId) {
+            // Find the activity in the current student's activities
             const activity = this.currentStudentActivities?.find(a => a.id === activityId);
-            if (!activity || !activity.response) {
-                alert('No response found for this activity');
+            if (!activity) {
+                // Try to load it fresh
+                log('Activity not found in current list, loading fresh...');
                 return;
             }
             
+            this.showLoading();
+            
             try {
-                const responseData = JSON.parse(activity.response.activityJSON);
+                // Load questions if not already loaded
+                if (!activity.questions || activity.questions.length === 0) {
+                    activity.questions = await this.loadActivityQuestions(activityId);
+                }
                 
+                // Parse student responses if available
+                let studentResponses = {};
+                if (activity.response && activity.response.activityJSON) {
+                    try {
+                        studentResponses = JSON.parse(activity.response.activityJSON);
+                    } catch (e) {
+                        log('Error parsing student responses:', e);
+                    }
+                }
+                
+                // Create the detailed view modal
                 const modalHtml = `
-                    <div id="response-modal" class="modal-overlay" style="display: flex;">
-                        <div class="modal">
+                    <div id="activity-detail-modal" class="modal-overlay" style="display: flex;">
+                        <div class="modal large-modal">
                             <div class="modal-header">
-                                <h2 class="modal-title">Student Response: ${activity.name}</h2>
-                                <button class="modal-close" onclick="VESPAStaff.closeModal('response-modal')">×</button>
+                                <h2 class="modal-title">${activity.name}</h2>
+                                <button class="modal-close" onclick="VESPAStaff.closeModal('activity-detail-modal')">×</button>
                             </div>
                             <div class="modal-body">
-                                <div class="response-details">
-                                    <p><strong>Completed:</strong> ${new Date(activity.response.completionDate).toLocaleDateString()}</p>
-                                    ${activity.questions && activity.questions.length > 0 ? `
-                                        <h4>Responses:</h4>
-                                        <ol>
-                                            ${activity.questions.map(q => `
-                                                <li>
-                                                    <div class="question-text">${q.question}</div>
-                                                    <div class="student-answer">
-                                                        <strong>Answer:</strong> ${responseData[q.id] || responseData[q.question] || 'No answer provided'}
+                                <div class="activity-detail-container">
+                                    <!-- Activity Info -->
+                                    <div class="activity-detail-info">
+                                        <div class="activity-badges">
+                                            <span class="category-badge ${activity.category.toLowerCase()}">${activity.category}</span>
+                                            <span class="level-badge">Level ${activity.level || '1'}</span>
+                                            ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
+                                            ${activity.isCompleted ? 
+                                                `<span class="status-badge active">✓ Completed</span>` :
+                                                `<span class="status-badge pending">Not Started</span>`
+                                            }
+                                        </div>
+                                        ${activity.description ? `<p class="activity-detail-description">${activity.description}</p>` : ''}
+                                    </div>
+                                    
+                                    <!-- Questions and Responses -->
+                                    <div class="questions-responses-section">
+                                        <h3>Activity Questions & Student Responses</h3>
+                                        ${activity.questions && activity.questions.length > 0 ? `
+                                            <div class="questions-list-detailed">
+                                                ${activity.questions.map((q, index) => `
+                                                    <div class="question-response-block">
+                                                        <div class="question-header">
+                                                            <span class="question-number">Question ${index + 1}</span>
+                                                            ${q.type ? `<span class="question-type">${q.type}</span>` : ''}
+                                                        </div>
+                                                        <div class="question-text-detailed">${q.question}</div>
+                                                        ${q.options ? `
+                                                            <div class="question-options-detailed">
+                                                                <strong>Options:</strong> ${q.options}
+                                                            </div>
+                                                        ` : ''}
+                                                        <div class="student-response-block ${studentResponses[q.id] || studentResponses[q.question] ? 'has-response' : 'no-response'}">
+                                                            <div class="response-label">Student Response:</div>
+                                                            <div class="response-text">
+                                                                ${studentResponses[q.id] || studentResponses[q.question] || 
+                                                                  (activity.isCompleted ? 'No response provided' : 'Activity not started')}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </li>
-                                            `).join('')}
-                                        </ol>
-                                    ` : '<p>Response details not available</p>'}
+                                                `).join('')}
+                                            </div>
+                                        ` : '<p class="no-questions">No questions available for this activity.</p>'}
+                                    </div>
+                                    
+                                    <!-- Feedback Section (if completed) -->
+                                    ${activity.isCompleted ? `
+                                        <div class="feedback-section">
+                                            <h3>Staff Feedback</h3>
+                                            <textarea class="feedback-textarea" id="feedback-text" 
+                                                      placeholder="Enter your feedback for the student here..."></textarea>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             </div>
                             <div class="modal-footer">
-                                <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('response-modal')">Close</button>
+                                ${activity.isCompleted ? `
+                                    <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}')">
+                                        Save Feedback
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('activity-detail-modal')">Close</button>
                             </div>
                         </div>
                     </div>
@@ -2226,9 +2340,33 @@
                 $('body').append(modalHtml);
                 
             } catch (err) {
-                error('Failed to parse activity response:', err);
-                alert('Error displaying response details');
+                error('Failed to load activity details:', err);
+                alert('Error loading activity details');
+            } finally {
+                this.hideLoading();
             }
+        }
+        
+        // Provide feedback for an activity
+        async provideFeedback(activityId, studentId) {
+            await this.viewActivityDetails(activityId, studentId);
+            // Focus on feedback textarea
+            setTimeout(() => {
+                $('#feedback-text').focus();
+            }, 300);
+        }
+        
+        // Save feedback
+        async saveFeedback(activityId, studentId) {
+            const feedbackText = $('#feedback-text').val();
+            if (!feedbackText.trim()) {
+                alert('Please enter feedback before saving');
+                return;
+            }
+            
+            // TODO: Implement actual feedback saving via API
+            alert('Feedback saved successfully!');
+            this.closeModal('activity-detail-modal');
         }
         
         async confirmAssignment() {
