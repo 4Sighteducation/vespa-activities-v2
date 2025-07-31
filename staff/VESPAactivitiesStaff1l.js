@@ -383,6 +383,9 @@
                 // Load students based on role
                 await this.loadStudents();
                 
+                // Load VESPA scores for students
+                await this.loadVESPAScores();
+                
                 // Load all activities
                 await this.loadActivities();
                 
@@ -733,6 +736,83 @@
             } catch (err) {
                 error('Error parsing student record:', err, record);
                 return null;
+            }
+        }
+        
+        // Load VESPA scores from Object_10 for all loaded students
+        async loadVESPAScores() {
+            log('Loading VESPA scores for students...');
+            
+            if (!this.state.students || this.state.students.length === 0) {
+                log('No students to load VESPA scores for');
+                return;
+            }
+            
+            const objects = this.config.objects;
+            const fields = this.config.fields;
+            
+            try {
+                // Get all student IDs
+                const studentIds = this.state.students.map(s => s.id);
+                
+                // Load VESPA results for these students
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([{
+                            field: 'field_163', // Student connection field in VESPA Results
+                            operator: 'is any',
+                            value: studentIds
+                        }]),
+                        page: 1,
+                        rows_per_page: 1000
+                    }
+                });
+                
+                log('VESPA scores response:', response);
+                
+                if (response.records && response.records.length > 0) {
+                    // Create a map of student ID to VESPA scores
+                    const vespaMap = new Map();
+                    
+                    response.records.forEach(record => {
+                        // Get the connected student ID
+                        const studentConnection = record.field_163_raw || record.field_163;
+                        const studentId = Array.isArray(studentConnection) ? studentConnection[0]?.id : studentConnection?.id;
+                        
+                        if (studentId) {
+                            vespaMap.set(studentId, {
+                                vision: parseFloat(record[fields.visionScore]) || 0,
+                                effort: parseFloat(record[fields.effortScore]) || 0,
+                                systems: parseFloat(record[fields.systemsScore]) || 0,
+                                practice: parseFloat(record[fields.practiceScore]) || 0,
+                                attitude: parseFloat(record[fields.attitudeScore]) || 0
+                            });
+                        }
+                    });
+                    
+                    log(`Loaded VESPA scores for ${vespaMap.size} students`);
+                    
+                    // Update student records with VESPA scores
+                    this.state.students.forEach(student => {
+                        const scores = vespaMap.get(student.id);
+                        if (scores) {
+                            student.vespaScores = scores;
+                            log(`Updated VESPA scores for ${student.name}:`, scores);
+                        }
+                    });
+                } else {
+                    log('No VESPA scores found');
+                }
+                
+            } catch (err) {
+                error('Failed to load VESPA scores:', err);
+                // Don't throw - continue without VESPA scores
             }
         }
         
@@ -1342,20 +1422,40 @@
         }
         
         // Show student details modal
-        showStudentDetailsModal(student, responses) {
+        async showStudentDetailsModal(student, responses) {
             // Remove existing modal if any
             $('#student-details-modal').remove();
             
+            // Load all prescribed activities data for the student
+            const prescribedActivityData = [];
+            for (const activityName of student.prescribedActivities) {
+                const activity = this.state.activities.find(a => a.name === activityName);
+                if (activity) {
+                    // Check if this activity is completed
+                    const isCompleted = student.finishedActivities.includes(activityName);
+                    const response = responses.find(r => r.activityId === activity.id);
+                    
+                    prescribedActivityData.push({
+                        ...activity,
+                        isCompleted,
+                        response,
+                        studentId: student.id
+                    });
+                }
+            }
+            
             // Create modal HTML
             const modalHtml = `
-                <div id="student-details-modal" class="modal" style="display: flex;">
-                    <div class="modal-content large-modal">
+                <div id="student-details-modal" class="modal-overlay" style="display: flex;">
+                    <div class="modal">
                         <div class="modal-header">
-                            <h2>${student.name}</h2>
-                            <button class="modal-close" onclick="$('#student-details-modal').remove()">×</button>
+                            <h2 class="modal-title">${student.name} - Activities Overview</h2>
+                            <button class="modal-close" onclick="VESPAStaff.closeModal('student-details-modal')">
+                                ×
+                            </button>
                         </div>
                         <div class="modal-body">
-                            ${this.renderStudentDetails(student, responses)}
+                            ${this.renderStudentDetails(student, prescribedActivityData)}
                         </div>
                     </div>
                 </div>
@@ -1363,10 +1463,16 @@
             
             // Add to body
             $('body').append(modalHtml);
+            
+            // Store activity data for event handlers
+            this.currentStudentActivities = prescribedActivityData;
         }
         
         // Render student details content
-        renderStudentDetails(student, responses) {
+        renderStudentDetails(student, activities) {
+            const completedActivities = activities.filter(a => a.isCompleted);
+            const incompleteActivities = activities.filter(a => !a.isCompleted);
+            
             return `
                 <div class="student-details-container">
                     <!-- Student Overview -->
@@ -1380,11 +1486,11 @@
                                 </div>
                                 <div class="stat-item">
                                     <span class="stat-label">Activities Completed</span>
-                                    <span class="stat-value">${student.completedCount} / 40</span>
+                                    <span class="stat-value">${student.completedCount} / ${student.prescribedCount}</span>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-label">Activities Prescribed</span>
-                                    <span class="stat-value">${student.prescribedCount}</span>
+                                    <span class="stat-label">Activities Remaining</span>
+                                    <span class="stat-value">${student.prescribedCount - student.completedCount}</span>
                                 </div>
                             </div>
                         </div>
@@ -1397,16 +1503,75 @@
                         </div>
                     </div>
                     
-                    <!-- Activity Responses (if permitted) -->
-                    ${this.state.currentRole.canViewAnswers ? `
-                        <div class="student-responses">
-                            <h3>Activity Responses</h3>
-                            ${responses.length > 0 ? 
-                                this.renderActivityResponses(responses) : 
-                                '<p class="no-responses">No completed activities found.</p>'
-                            }
+                    <!-- Activity Tabs -->
+                    <div class="activity-tabs">
+                        <div class="tab-buttons">
+                            <button class="tab-button active" onclick="VESPAStaff.switchTab('incomplete')">
+                                Incomplete (${incompleteActivities.length})
+                            </button>
+                            <button class="tab-button" onclick="VESPAStaff.switchTab('completed')">
+                                Completed (${completedActivities.length})
+                            </button>
                         </div>
-                    ` : ''}
+                        
+                        <!-- Incomplete Activities Tab -->
+                        <div id="incomplete-tab" class="tab-content active">
+                            <div class="activities-grid">
+                                ${incompleteActivities.length > 0 ? 
+                                    incompleteActivities.map(activity => this.renderActivityCard(activity, false)).join('') :
+                                    '<p class="no-activities">No incomplete activities</p>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Completed Activities Tab -->
+                        <div id="completed-tab" class="tab-content" style="display: none;">
+                            <div class="activities-grid">
+                                ${completedActivities.length > 0 ? 
+                                    completedActivities.map(activity => this.renderActivityCard(activity, true)).join('') :
+                                    '<p class="no-activities">No completed activities</p>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render individual activity card
+        renderActivityCard(activity, isCompleted) {
+            const categoryClass = activity.category.toLowerCase().replace(' ', '-');
+            
+            return `
+                <div class="activity-card ${isCompleted ? 'completed' : ''}" data-activity-id="${activity.id}">
+                    <div class="activity-header">
+                        <h4 class="activity-name">${activity.name}</h4>
+                        <span class="vespa-pill ${categoryClass}">${activity.category}</span>
+                    </div>
+                    <div class="activity-info">
+                        <span class="activity-level">Level ${activity.level}</span>
+                        ${isCompleted ? 
+                            `<span class="completion-date">Completed: ${activity.response?.completionDate || 'N/A'}</span>` :
+                            `<span class="status-badge">Not Started</span>`
+                        }
+                    </div>
+                    <div class="activity-actions">
+                        ${isCompleted ? `
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="VESPAStaff.viewActivityResponse('${activity.id}')">
+                                View Response
+                            </button>
+                            <button class="btn btn-warning btn-sm" 
+                                    onclick="VESPAStaff.uncompleteActivity('${activity.studentId}', '${activity.name}')">
+                                Re-assign
+                            </button>
+                        ` : `
+                            <button class="btn btn-primary btn-sm" 
+                                    onclick="VESPAStaff.addFeedback('${activity.id}')">
+                                Add Feedback
+                            </button>
+                        `}
+                    </div>
                 </div>
             `;
         }
@@ -1539,6 +1704,123 @@
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'none';
+                if (modalId === 'student-details-modal') {
+                    modal.remove();
+                }
+            }
+        }
+        
+        // Switch tabs in student details modal
+        switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const tabElement = document.getElementById(`${tabName}-tab`);
+            if (tabElement) {
+                tabElement.style.display = 'block';
+                tabElement.classList.add('active');
+            }
+            
+            // Update button state
+            event.target.classList.add('active');
+        }
+        
+        // Uncomplete (re-assign) an activity
+        async uncompleteActivity(studentId, activityName) {
+            if (!confirm(`Are you sure you want to re-assign "${activityName}"? This will mark it as incomplete.`)) {
+                return;
+            }
+            
+            try {
+                // Find the student
+                const student = this.state.students.find(s => s.id === studentId);
+                if (!student) return;
+                
+                // Remove from finished activities
+                const updatedFinished = student.finishedActivities.filter(a => a !== activityName);
+                
+                // Update in database
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify({
+                        [this.config.fields.finishedActivities]: updatedFinished.join(', ')
+                    })
+                });
+                
+                alert('Activity re-assigned successfully');
+                
+                // Reload the modal
+                this.viewStudent(studentId);
+                
+            } catch (err) {
+                error('Failed to re-assign activity:', err);
+                alert('Error re-assigning activity. Please try again.');
+            }
+        }
+        
+        // Add feedback for an activity
+        async addFeedback(activityId) {
+            const feedback = prompt('Enter feedback for this activity:');
+            if (!feedback) return;
+            
+            try {
+                // Get the activity details
+                const activity = this.currentStudentActivities.find(a => a.id === activityId);
+                if (!activity) return;
+                
+                const fields = this.config.fields;
+                const objects = this.config.objects;
+                
+                // Create feedback record in Object_128
+                const feedbackData = {
+                    [fields.feedbackName]: `Feedback for ${activity.name}`,
+                    [fields.feedbackActivityProgress]: activityId, // This should be the progress ID, not activity ID
+                    [fields.feedbackStaffMember]: Knack.session.user.id,
+                    [fields.feedbackText]: feedback,
+                    [fields.feedbackDate]: new Date().toISOString().split('T')[0],
+                    [fields.feedbackType]: 'encouragement'
+                };
+                
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.activityFeedback}/records`,
+                    type: 'POST',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(feedbackData)
+                });
+                
+                alert('Feedback added successfully!');
+                
+                // Refresh the view
+                this.viewStudent(activity.studentId);
+                
+            } catch (err) {
+                error('Failed to add feedback:', err);
+                alert('Error adding feedback. Please try again.');
+            }
+        }
+        
+        // Hide loading state
+        hideLoading() {
+            const loadingOverlay = document.querySelector('.loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.remove();
             }
         }
         
