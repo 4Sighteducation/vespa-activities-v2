@@ -194,47 +194,43 @@
             log('Detecting user roles...');
             
             const user = Knack.session.user;
-            const userEmail = user.email;
+            // Extract email - it can be in different places
+            const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
             const fields = this.config.fields;
             
-            // Debug user object
-            log('Full user object:', JSON.stringify(user, null, 2));
-            log('User attributes:', user.attributes);
-            log('User values:', user.values);
-            log('Looking for field:', fields.userRoles);
+            log('Extracted user email:', userEmail);
             
             this.state.allRoles = [];
             
-            // Get user roles from field_73 - try different ways
-            let userRoles = [];
+            // Get profile keys from user object
+            const profileKeys = user.profile_keys || [];
+            log('User profile keys:', profileKeys);
             
-            // Try 1: Standard values access
-            if (user.values && user.values[fields.userRoles]) {
-                userRoles = user.values[fields.userRoles];
-                log('Found roles in user.values[fields.userRoles]:', userRoles);
-            }
-            // Try 2: Without field_ prefix
-            else if (user.values && user.values['73']) {
-                userRoles = user.values['73'];
-                log('Found roles using key "73":', userRoles);
-            }
-            // Try 3: Direct attribute
-            else if (user[fields.userRoles]) {
-                userRoles = user[fields.userRoles];
-                log('Found roles in user[fields.userRoles]:', userRoles);
-            }
-            // Try 4: Attributes object
-            else if (user.attributes && user.attributes[fields.userRoles]) {
-                userRoles = user.attributes[fields.userRoles];
-                log('Found roles in user.attributes[fields.userRoles]:', userRoles);
+            // Also check field_73 for role names
+            let roleNames = [];
+            if (user.values && user.values.field_73) {
+                // field_73 contains profile keys, not role names
+                // We'll use profile_objects to determine actual roles
+                log('field_73 values:', user.values.field_73);
             }
             
-            log('Final user roles:', userRoles);
+            // Map profile keys to roles based on objects
+            // profile_6 = object_6 = Student
+            // profile_7 = object_7 = Tutor
+            // profile_5 = object_5 = Staff Admin
+            // profile_18 = object_18 = Head of Year
+            // profile_78 = object_78 = Subject Teacher
             
-            // Ensure userRoles is an array
-            if (!Array.isArray(userRoles)) {
-                userRoles = userRoles ? [userRoles] : [];
-            }
+            const profileToRoleMap = {
+                'profile_5': 'Staff Admin',
+                'profile_7': 'Tutor',
+                'profile_18': 'Head of Year',
+                'profile_78': 'Subject Teacher'
+            };
+            
+            // Convert profile keys to role names
+            const userRoles = profileKeys.map(key => profileToRoleMap[key]).filter(role => role);
+            log('Mapped user roles:', userRoles);
             
             // Check each role type
             const roleMap = {
@@ -348,7 +344,8 @@
                     
                     // Build filters based on role
                     let filters = [];
-                    const userEmail = Knack.session.user.email;
+                    const user = Knack.session.user;
+                    const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
                     
                     log('Building filters for role:', this.state.currentRole.type);
                     log('User email:', userEmail);
@@ -359,28 +356,40 @@
                             log('Staff admin - no filters, seeing all students');
                             break;
                         case 'tutor':
-                            filters.push({
-                                field: fields.studentTutors,
-                                operator: 'contains',
-                                value: userEmail
-                            });
-                            log('Tutor filter:', { field: fields.studentTutors, value: userEmail });
+                            if (userEmail) {
+                                filters.push({
+                                    field: fields.studentTutors,
+                                    operator: 'contains',
+                                    value: userEmail
+                                });
+                                log('Tutor filter:', { field: fields.studentTutors, value: userEmail });
+                            } else {
+                                log('WARNING: No user email found for tutor filter');
+                            }
                             break;
                         case 'headOfYear':
-                            filters.push({
-                                field: fields.studentHeadsOfYear,
-                                operator: 'contains',
-                                value: userEmail
-                            });
-                            log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: userEmail });
+                            if (userEmail) {
+                                filters.push({
+                                    field: fields.studentHeadsOfYear,
+                                    operator: 'contains',
+                                    value: userEmail
+                                });
+                                log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: userEmail });
+                            } else {
+                                log('WARNING: No user email found for head of year filter');
+                            }
                             break;
                         case 'subjectTeacher':
-                            filters.push({
-                                field: fields.studentSubjectTeachers,
-                                operator: 'contains',
-                                value: userEmail
-                            });
-                            log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: userEmail });
+                            if (userEmail) {
+                                filters.push({
+                                    field: fields.studentSubjectTeachers,
+                                    operator: 'contains',
+                                    value: userEmail
+                                });
+                                log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: userEmail });
+                            } else {
+                                log('WARNING: No user email found for subject teacher filter');
+                            }
                             break;
                     }
                     
