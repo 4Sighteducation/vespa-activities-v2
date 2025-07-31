@@ -59,9 +59,9 @@
         
         // View IDs (to be updated based on actual scene)
         views: {
-            container: 'view_1574', // Rich text view for UI injection
-            students: 'view_1615',
-            activities: 'view_XXXX'
+            container: 'view_3179', // Rich text view for UI injection
+            students: 'view_3178', // Activity assignments view
+            activities: 'view_3177'  // Student responses view
         }
     };
     
@@ -156,7 +156,7 @@
             const selectors = [
                 `#${CONFIG.views.container}`,
                 `.kn-view[data-view-key="${CONFIG.views.container}"]`,
-                '#view_1574',
+                '#view_3179',
                 '.kn-details',
                 '.kn-text'
             ];
