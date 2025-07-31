@@ -504,6 +504,17 @@
                         response.records.forEach((record, index) => {
                             if (index === 0) {
                                 log('Sample student record:', record);
+                                // Log all field keys to debug
+                                log('Student record fields:', Object.keys(record).filter(key => key.startsWith('field_')));
+                                // Log specific fields we're looking for
+                                const fields = this.config.fields;
+                                log(`${fields.studentName} (name):`, record[fields.studentName]);
+                                log(`${fields.studentEmail} (email):`, record[fields.studentEmail]); 
+                                log(`${fields.prescribedActivities} (prescribed):`, record[fields.prescribedActivities]);
+                                log(`${fields.finishedActivities} (finished):`, record[fields.finishedActivities]);
+                                // Also check for raw values
+                                log('field_90_raw:', record.field_90_raw);
+                                log('field_91_raw:', record.field_91_raw);
                             }
                             const student = this.parseStudentFromRecord(record);
                             if (student) {
@@ -632,19 +643,48 @@
             }
         }
         
+        // Helper to get field value (handles both direct and _raw fields)
+        getFieldValue(record, fieldKey, defaultValue = '') {
+            // Try direct field
+            if (record[fieldKey] !== undefined && record[fieldKey] !== null) {
+                return record[fieldKey];
+            }
+            // Try _raw field
+            const rawKey = fieldKey + '_raw';
+            if (record[rawKey] !== undefined && record[rawKey] !== null) {
+                return record[rawKey];
+            }
+            // Check if it's an object with nested value
+            if (typeof record[fieldKey] === 'object' && record[fieldKey]) {
+                // Handle email objects
+                if (record[fieldKey].email) return record[fieldKey].email;
+                // Handle name objects  
+                if (record[fieldKey].first || record[fieldKey].last) {
+                    return `${record[fieldKey].first || ''} ${record[fieldKey].last || ''}`.trim();
+                }
+                // Handle other objects
+                if (record[fieldKey].identifier) return record[fieldKey].identifier;
+            }
+            return defaultValue;
+        }
+
         // Parse student data from API record
         parseStudentFromRecord(record) {
             try {
                 const fields = this.config.fields;
                 
+                // Get student name and email
+                const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
+                const email = this.getFieldValue(record, fields.studentEmail, '');
+                
                 // Extract prescribed activities (it's a text field with activity names)
-                const prescribedText = record[fields.prescribedActivities] || '';
+                const prescribedText = this.getFieldValue(record, fields.prescribedActivities, '');
                 const prescribedActivities = prescribedText ? 
                     prescribedText.split(',').map(a => a.trim()).filter(a => a) : [];
                 const prescribedCount = prescribedActivities.length;
                 
                 // Extract finished activities
-                const finishedText = record[fields.finishedActivities] || '';
+                const finishedText = this.getFieldValue(record, fields.finishedActivities, '');
                 const finishedActivities = finishedText ? 
                     finishedText.split(',').map(a => a.trim()).filter(a => a) : [];
                 const completedCount = finishedActivities.length;
@@ -652,22 +692,34 @@
                 // Use 40 as the baseline for all activities at student level
                 const totalActivitiesBaseline = 40;
                 
+                // For VESPA scores, check if they're in the record or need to be loaded separately
+                const vespaScores = {
+                    vision: 0,
+                    effort: 0,
+                    systems: 0,
+                    practice: 0,
+                    attitude: 0
+                };
+                
+                // Try to get VESPA scores from record
+                if (fields.visionScore && record[fields.visionScore] !== undefined) {
+                    vespaScores.vision = parseFloat(record[fields.visionScore]) || 0;
+                    vespaScores.effort = parseFloat(record[fields.effortScore]) || 0;
+                    vespaScores.systems = parseFloat(record[fields.systemsScore]) || 0;
+                    vespaScores.practice = parseFloat(record[fields.practiceScore]) || 0;
+                    vespaScores.attitude = parseFloat(record[fields.attitudeScore]) || 0;
+                }
+                
                 const student = {
                     id: record.id,
-                    name: record[fields.studentName] || 'Unknown Student',
-                    email: record[fields.studentEmail] || '',
+                    name: name,
+                    email: email,
                     prescribedActivities: prescribedActivities,
                     finishedActivities: finishedActivities,
                     prescribedCount: prescribedCount,
                     completedCount: completedCount,
                     progress: Math.round((completedCount / totalActivitiesBaseline) * 100),
-                    vespaScores: {
-                        vision: parseFloat(record[fields.visionScore]) || 0,  // Out of 10
-                        effort: parseFloat(record[fields.effortScore]) || 0,
-                        systems: parseFloat(record[fields.systemsScore]) || 0,
-                        practice: parseFloat(record[fields.practiceScore]) || 0,
-                        attitude: parseFloat(record[fields.attitudeScore]) || 0
-                    }
+                    vespaScores: vespaScores
                 };
                 
                 return student;
@@ -814,13 +866,16 @@
             try {
                 const fields = this.config.fields;
                 
-                // Category should already be the full name from field_1285
+                // Use helper to get field values
+                const name = this.getFieldValue(record, fields.activityName, 'Unnamed Activity');
+                const category = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
+                const levelValue = this.getFieldValue(record, fields.activityLevel, '1');
                 
                 const activity = {
                     id: record.id,
-                    name: record[fields.activityName] || 'Unnamed Activity',
-                    category: record[fields.activityVESPACategory] || 'Unknown',
-                    level: parseInt(record[fields.activityLevel]) || 1
+                    name: name,
+                    category: category,
+                    level: parseInt(levelValue) || 1
                 };
                 
                 return activity;
