@@ -162,9 +162,16 @@
             // Get config from global variable
             this.config = window.VESPA_ACTIVITIES_STAFF_CONFIG;
             if (!this.config) {
-                errorLog('Config not found in init');
+                error('Config not found in init');
                 return;
             }
+            
+            // Merge configs - combine KnackAppLoader config with local CONFIG
+            this.config = {
+                ...this.config,
+                fields: CONFIG.fields,
+                objects: CONFIG.objects
+            };
             
             // Update CONFIG to use the values from KnackAppLoader
             if (this.config.views) {
@@ -1704,7 +1711,7 @@
     window.initializeVESPAActivitiesStaff = function() {
         const config = window.VESPA_ACTIVITIES_STAFF_CONFIG;
         if (!config) {
-            errorLog('VESPA Activities Staff config not found');
+            error('VESPA Activities Staff config not found');
             return;
         }
         
@@ -1724,8 +1731,8 @@
             // Initialize immediately like the student version
             staffManager.init();
             log('VESPA Staff Activities initialized successfully');
-        } catch (error) {
-            errorLog('Failed to initialize VESPA Staff Activities:', error);
+        } catch (err) {
+            error('Failed to initialize VESPA Staff Activities:', err);
         }
     };
     
