@@ -498,6 +498,184 @@
     to { transform: rotate(360deg); }
 }
 
+/* Student Details Modal */
+.large-modal {
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.student-details-container {
+    padding: 20px;
+}
+
+.student-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.overview-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.overview-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #23356f;
+}
+
+.progress-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 14px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #23356f;
+}
+
+/* VESPA Scores Detail */
+.vespa-scores-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vespa-score-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 60px;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-label {
+    font-size: 14px;
+    color: #666;
+}
+
+.score-bar {
+    height: 20px;
+    background: #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.score-fill.vision { background: #079baa; }
+.score-fill.effort { background: #7bd8d0; }
+.score-fill.systems { background: #62d1d2; }
+.score-fill.practice { background: #00e5db; }
+.score-fill.attitude { background: #5899a8; }
+
+.score-value {
+    font-weight: bold;
+    color: #23356f;
+    text-align: right;
+}
+
+/* Student Responses */
+.student-responses {
+    margin-top: 30px;
+}
+
+.student-responses h3 {
+    margin-bottom: 20px;
+    color: #23356f;
+}
+
+.responses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.response-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.response-header h4 {
+    margin: 0;
+    color: #23356f;
+    font-size: 16px;
+}
+
+.response-date {
+    color: #666;
+    font-size: 14px;
+}
+
+.response-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.question-answer {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.question {
+    margin-bottom: 10px;
+    color: #444;
+    line-height: 1.5;
+}
+
+.answer {
+    color: #23356f;
+    line-height: 1.5;
+}
+
+.no-responses {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+    font-style: italic;
+}
+
+.response-card.error {
+    background: #fee;
+    color: #c00;
+    text-align: center;
+    padding: 20px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .vespa-staff-container {
@@ -535,6 +713,15 @@
     .modal {
         width: 95%;
         margin: 10px;
+    }
+    
+    /* Student details modal adjustments */
+    .student-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .vespa-score-item {
+        grid-template-columns: 70px 1fr 50px;
     }
 }
 

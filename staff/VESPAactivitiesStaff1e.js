@@ -195,42 +195,66 @@
             
             const user = Knack.session.user;
             const userEmail = user.email;
+            const fields = this.config.fields;
             
             this.state.allRoles = [];
             
+            // Get user roles from field_73
+            const userRoles = user.values?.[fields.userRoles] || [];
+            log('User roles from field_73:', userRoles);
+            
             // Check each role type
-            // Note: In production, these would be API calls
-            // For now, we'll simulate based on logged-in user
-            
-            // Check if Staff Admin
-            if (user.profile_keys && user.profile_keys.includes(CONFIG.objects.staffAdmin)) {
-                this.state.allRoles.push({
+            const roleMap = {
+                'Staff Admin': {
                     type: 'staffAdmin',
-                    label: 'Staff Admin (All Students)',
-                    data: { id: user.id, email: userEmail }
-                });
-            }
-            
-            // Check if Tutor
-            if (user.profile_keys && user.profile_keys.includes(CONFIG.objects.tutor)) {
-                this.state.allRoles.push({
+                    label: 'View All Students',
+                    canAssign: true,
+                    canViewAnswers: true
+                },
+                'Tutor': {
                     type: 'tutor',
-                    label: 'Tutor',
-                    data: { id: user.id, email: userEmail }
-                });
-            }
+                    label: 'View Tutor Group',
+                    canAssign: true,
+                    canViewAnswers: true
+                },
+                'Head of Year': {
+                    type: 'headOfYear',
+                    label: 'View Year Group',
+                    canAssign: false,
+                    canViewAnswers: false
+                },
+                'Subject Teacher': {
+                    type: 'subjectTeacher',
+                    label: 'View Subject Groups',
+                    canAssign: false,
+                    canViewAnswers: false
+                }
+            };
+            
+            // Process each user role
+            userRoles.forEach(role => {
+                if (roleMap[role]) {
+                    this.state.allRoles.push({
+                        ...roleMap[role],
+                        data: { id: user.id, email: userEmail }
+                    });
+                }
+            });
             
             // For testing, always add at least one role
             if (this.state.allRoles.length === 0) {
+                log('No roles detected, adding test role for development');
                 this.state.allRoles.push({
                     type: 'tutor',
                     label: 'Tutor (Test Mode)',
+                    canAssign: true,
+                    canViewAnswers: true,
                     data: { id: user.id, email: userEmail }
                 });
             }
             
-            // Set default role
-            this.state.currentRole = this.state.allRoles[0];
+            // Set default role (prefer Staff Admin if available)
+            this.state.currentRole = this.state.allRoles.find(r => r.type === 'staffAdmin') || this.state.allRoles[0];
             
             log('Detected roles:', this.state.allRoles);
         }
@@ -261,54 +285,130 @@
         
         // Load students based on current role
         async loadStudents() {
-            // In production, this would make API calls based on role
-            // For now, we'll parse from existing views if available
+            log('Loading students from Knack API...');
             
             const studentData = [];
+            const fields = this.config.fields;
+            const objects = this.config.objects;
             
-            // Try to find student data in existing views
-            $('.kn-list-table tbody tr').each((index, row) => {
-                const $row = $(row);
-                const student = {
-                    id: $row.data('record-id') || `student_${index}`,
-                    name: $row.find('.field_12').text() || `Student ${index + 1}`,
-                    email: $row.find('.field_11').text() || `student${index + 1}@example.com`,
-                    prescribedCount: parseInt($row.find('.field_1683').text()) || 5,
-                    completedCount: parseInt($row.find('.field_1380').text()) || 0,
-                    vespaScores: {
-                        vision: Math.floor(Math.random() * 100),
-                        effort: Math.floor(Math.random() * 100),
-                        systems: Math.floor(Math.random() * 100),
-                        practice: Math.floor(Math.random() * 100),
-                        attitude: Math.floor(Math.random() * 100)
+            try {
+                // First try to get data from the hidden view if it exists
+                const viewId = this.config.views.activityAssignments;
+                const viewData = $(`#${viewId}`).find('.kn-list-table tbody tr');
+                
+                if (viewData.length > 0) {
+                    log('Found student data in view, parsing...');
+                    viewData.each((index, row) => {
+                        const $row = $(row);
+                        const recordId = $row.data('record-id');
+                        if (recordId) {
+                            // Parse student data from the row
+                            const student = this.parseStudentFromRow($row);
+                            if (student) {
+                                studentData.push(student);
+                            }
+                        }
+                    });
+                } else {
+                    // Fall back to API call
+                    log('No view data found, making API call...');
+                    
+                    // Build filters based on role
+                    let filters = [];
+                    const userEmail = Knack.session.user.email;
+                    
+                    switch (this.state.currentRole.type) {
+                        case 'staffAdmin':
+                            // Staff admins see all students
+                            break;
+                        case 'tutor':
+                            filters.push({
+                                field: fields.studentTutors,
+                                operator: 'contains',
+                                value: userEmail
+                            });
+                            break;
+                        case 'headOfYear':
+                            filters.push({
+                                field: fields.studentHeadsOfYear,
+                                operator: 'contains',
+                                value: userEmail
+                            });
+                            break;
+                        case 'subjectTeacher':
+                            filters.push({
+                                field: fields.studentSubjectTeachers,
+                                operator: 'contains',
+                                value: userEmail
+                            });
+                            break;
                     }
-                };
+                    
+                    // Make API call to get students
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.student}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey
+                        },
+                        data: {
+                            filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
+                            page: 1,
+                            rows_per_page: 1000
+                        }
+                    });
+                    
+                    // Process each student record
+                    response.records.forEach(record => {
+                        const student = this.parseStudentFromRecord(record);
+                        if (student) {
+                            studentData.push(student);
+                        }
+                    });
+                }
                 
-                student.progress = student.prescribedCount > 0 
-                    ? Math.round((student.completedCount / student.prescribedCount) * 100)
-                    : 0;
+                // If still no data, create minimal test data
+                if (studentData.length === 0) {
+                    log('No students found, creating test data...');
+                    for (let i = 0; i < 5; i++) {
+                        studentData.push({
+                            id: `test_${i}`,
+                            name: `Test Student ${i + 1}`,
+                            email: `test${i + 1}@school.edu`,
+                            prescribedActivities: ['Activity 1', 'Activity 2', 'Activity 3', 'Activity 4', 'Activity 5'],
+                            finishedActivities: ['Activity 1', 'Activity 2'],
+                            prescribedCount: 5,
+                            completedCount: 2,
+                            progress: 5,  // 2/40 * 100
+                            vespaScores: {
+                                vision: 7.5,
+                                effort: 8.0,
+                                systems: 7.0,
+                                practice: 8.5,
+                                attitude: 7.8
+                            }
+                        });
+                    }
+                }
                 
-                studentData.push(student);
-            });
-            
-            // If no data found, create test data
-            if (studentData.length === 0) {
-                for (let i = 0; i < 25; i++) {
-                    const prescribed = Math.floor(Math.random() * 8) + 3;
-                    const completed = Math.floor(Math.random() * prescribed);
+            } catch (err) {
+                error('Failed to load students:', err);
+                // Create fallback data on error
+                for (let i = 0; i < 3; i++) {
                     studentData.push({
-                        id: `student_${i}`,
-                        name: `Test Student ${i + 1}`,
+                        id: `error_${i}`,
+                        name: `Student ${i + 1} (Error Loading)`,
                         email: `student${i + 1}@school.edu`,
-                        prescribedCount: prescribed,
-                        completedCount: completed,
-                        progress: Math.round((completed / prescribed) * 100),
+                        prescribedCount: 0,
+                        completedCount: 0,
+                        progress: 0,
                         vespaScores: {
-                            vision: Math.floor(Math.random() * 40) + 60,
-                            effort: Math.floor(Math.random() * 40) + 60,
-                            systems: Math.floor(Math.random() * 40) + 60,
-                            practice: Math.floor(Math.random() * 40) + 60,
-                            attitude: Math.floor(Math.random() * 40) + 60
+                            vision: 0,
+                            effort: 0,
+                            systems: 0,
+                            practice: 0,
+                            attitude: 0
                         }
                     });
                 }
@@ -318,22 +418,173 @@
             log(`Loaded ${studentData.length} students`);
         }
         
+        // Parse student data from table row
+        parseStudentFromRow($row) {
+            try {
+                const fields = this.config.fields;
+                
+                // Extract data from row cells
+                const cells = $row.find('td');
+                let student = {
+                    id: $row.data('record-id') || $row.attr('id'),
+                    name: '',
+                    email: '',
+                    prescribedCount: 0,
+                    completedCount: 0,
+                    vespaScores: {
+                        vision: 0,
+                        effort: 0,
+                        systems: 0,
+                        practice: 0,
+                        attitude: 0
+                    }
+                };
+                
+                // Try to find fields in cells
+                cells.each((index, cell) => {
+                    const $cell = $(cell);
+                    const text = $cell.text().trim();
+                    
+                    // Look for student name (usually first cell)
+                    if (index === 0 && text) {
+                        student.name = text;
+                    }
+                    
+                    // Look for email
+                    if (text.includes('@')) {
+                        student.email = text;
+                    }
+                });
+                
+                // Calculate progress based on 40 activities baseline
+                const totalActivitiesBaseline = 40;
+                student.progress = Math.round((student.completedCount / totalActivitiesBaseline) * 100);
+                
+                return student;
+            } catch (err) {
+                error('Error parsing student from row:', err);
+                return null;
+            }
+        }
+        
+        // Parse student data from API record
+        parseStudentFromRecord(record) {
+            try {
+                const fields = this.config.fields;
+                
+                // Extract prescribed activities (it's a text field with activity names)
+                const prescribedText = record[fields.prescribedActivities] || '';
+                const prescribedActivities = prescribedText ? 
+                    prescribedText.split(',').map(a => a.trim()).filter(a => a) : [];
+                const prescribedCount = prescribedActivities.length;
+                
+                // Extract finished activities
+                const finishedText = record[fields.finishedActivities] || '';
+                const finishedActivities = finishedText ? 
+                    finishedText.split(',').map(a => a.trim()).filter(a => a) : [];
+                const completedCount = finishedActivities.length;
+                
+                // Use 40 as the baseline for all activities at student level
+                const totalActivitiesBaseline = 40;
+                
+                const student = {
+                    id: record.id,
+                    name: record[fields.studentName] || 'Unknown Student',
+                    email: record[fields.studentEmail] || '',
+                    prescribedActivities: prescribedActivities,
+                    finishedActivities: finishedActivities,
+                    prescribedCount: prescribedCount,
+                    completedCount: completedCount,
+                    progress: Math.round((completedCount / totalActivitiesBaseline) * 100),
+                    vespaScores: {
+                        vision: parseFloat(record[fields.visionScore]) || 0,  // Out of 10
+                        effort: parseFloat(record[fields.effortScore]) || 0,
+                        systems: parseFloat(record[fields.systemsScore]) || 0,
+                        practice: parseFloat(record[fields.practiceScore]) || 0,
+                        attitude: parseFloat(record[fields.attitudeScore]) || 0
+                    }
+                };
+                
+                return student;
+            } catch (err) {
+                error('Error parsing student record:', err, record);
+                return null;
+            }
+        }
+        
         // Load all activities
         async loadActivities() {
-            // In production, this would load from API
-            // For now, create sample data
+            log('Loading activities from Knack API...');
             
-            const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
             const activities = [];
+            const objects = this.config.objects;
             
-            for (let i = 0; i < 50; i++) {
+            try {
+                // First try to get data from the hidden view if it exists
+                const viewId = this.config.views.studentResponses;
+                const viewData = $(`#${viewId}`).find('.kn-list-table tbody tr');
+                
+                if (viewData.length > 0) {
+                    log('Found activity data in view, parsing...');
+                    viewData.each((index, row) => {
+                        const $row = $(row);
+                        const activity = this.parseActivityFromRow($row);
+                        if (activity) {
+                            activities.push(activity);
+                        }
+                    });
+                } else {
+                    // Fall back to API call
+                    log('No view data found, making API call for activities...');
+                    
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.activities}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey
+                        },
+                        data: {
+                            page: 1,
+                            rows_per_page: 1000
+                        }
+                    });
+                    
+                    // Process each activity record
+                    response.records.forEach(record => {
+                        const activity = this.parseActivityFromRecord(record);
+                        if (activity) {
+                            activities.push(activity);
+                        }
+                    });
+                }
+                
+                // If still no data, create minimal test data
+                if (activities.length === 0) {
+                    log('No activities found, creating test data...');
+                    const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+                    for (let i = 0; i < 10; i++) {
+                        activities.push({
+                            id: `test_activity_${i}`,
+                            name: `Test Activity ${i + 1}`,
+                            category: categories[i % 5],
+                            level: (i % 3) + 1,
+                            duration: '20 mins',
+                            type: 'Interactive'
+                        });
+                    }
+                }
+                
+            } catch (err) {
+                error('Failed to load activities:', err);
+                // Create fallback data on error
                 activities.push({
-                    id: `activity_${i}`,
-                    name: `Activity ${i + 1}: ${this.generateActivityName()}`,
-                    category: categories[Math.floor(Math.random() * categories.length)],
-                    level: Math.floor(Math.random() * 3) + 1,
-                    duration: `${Math.floor(Math.random() * 30) + 10} mins`,
-                    type: ['Video', 'Reading', 'Interactive', 'Exercise'][Math.floor(Math.random() * 4)]
+                    id: 'error_1',
+                    name: 'Error Loading Activities',
+                    category: 'Unknown',
+                    level: 1,
+                    duration: 'N/A',
+                    type: 'Error'
                 });
             }
             
@@ -341,11 +592,67 @@
             log(`Loaded ${activities.length} activities`);
         }
         
-        // Generate random activity name for testing
-        generateActivityName() {
-            const topics = ['Goal Setting', 'Time Management', 'Study Skills', 'Motivation', 
-                          'Memory Techniques', 'Note Taking', 'Exam Preparation', 'Focus'];
-            return topics[Math.floor(Math.random() * topics.length)];
+        // Parse activity data from table row
+        parseActivityFromRow($row) {
+            try {
+                const cells = $row.find('td');
+                const activity = {
+                    id: $row.data('record-id') || $row.attr('id'),
+                    name: '',
+                    category: 'Unknown',
+                    level: 1,
+                    duration: 'N/A',
+                    type: 'Activity'
+                };
+                
+                // Try to extract activity name from first cell
+                if (cells.length > 0) {
+                    activity.name = cells.eq(0).text().trim();
+                }
+                
+                // Try to detect category from name or other cells
+                const nameUpper = activity.name.toUpperCase();
+                if (nameUpper.includes('VISION')) activity.category = 'Vision';
+                else if (nameUpper.includes('EFFORT')) activity.category = 'Effort';
+                else if (nameUpper.includes('SYSTEM')) activity.category = 'Systems';
+                else if (nameUpper.includes('PRACTICE')) activity.category = 'Practice';
+                else if (nameUpper.includes('ATTITUDE')) activity.category = 'Attitude';
+                
+                return activity;
+            } catch (err) {
+                error('Error parsing activity from row:', err);
+                return null;
+            }
+        }
+        
+        // Parse activity data from API record
+        parseActivityFromRecord(record) {
+            try {
+                const fields = this.config.fields;
+                
+                // Map VESPA category to display name
+                const categoryMap = {
+                    'V': 'Vision',
+                    'E': 'Effort', 
+                    'S': 'Systems',
+                    'P': 'Practice',
+                    'A': 'Attitude'
+                };
+                
+                const activity = {
+                    id: record.id,
+                    name: record[fields.activityName] || 'Unnamed Activity',
+                    category: categoryMap[record[fields.activityCategory]] || 'Unknown',
+                    level: parseInt(record[fields.activityLevel]) || 1,
+                    duration: record[fields.activityDuration] || 'N/A',
+                    type: record[fields.activityType] || 'Activity'
+                };
+                
+                return activity;
+            } catch (err) {
+                error('Error parsing activity record:', err, record);
+                return null;
+            }
         }
         
         // Apply filters to student list
@@ -450,9 +757,11 @@
                             <button class="btn btn-secondary" onclick="VESPAStaff.exportReport()">
                                 📊 Export Report
                             </button>
-                            <button class="btn btn-primary" onclick="VESPAStaff.showAssignModal()">
-                                ➕ Assign Activities
-                            </button>
+                            ${this.state.currentRole.canAssign ? `
+                                <button class="btn btn-primary" onclick="VESPAStaff.showAssignModal()">
+                                    ➕ Assign Activities
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="role-info">
@@ -573,13 +882,16 @@
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-action btn-secondary" 
-                                    onclick="VESPAStaff.viewStudent('${student.id}')">
+                                    onclick="VESPAStaff.viewStudent('${student.id}')"
+                                    title="View student progress and ${this.state.currentRole.canViewAnswers ? 'responses' : 'activities'}">
                                 View
                             </button>
-                            <button class="btn btn-action btn-primary" 
-                                    onclick="VESPAStaff.assignToStudent('${student.id}')">
-                                Assign
-                            </button>
+                            ${this.state.currentRole.canAssign ? `
+                                <button class="btn btn-action btn-primary" 
+                                        onclick="VESPAStaff.assignToStudent('${student.id}')">
+                                    Assign
+                                </button>
+                            ` : ''}
                         </div>
                     </td>
                 </tr>
@@ -589,8 +901,8 @@
         // Render VESPA score pills
         renderVESPAScores(scores) {
             return Object.entries(scores).map(([key, value]) => `
-                <span class="vespa-pill ${key}" title="${key}: ${value}%">
-                    ${value}
+                <span class="vespa-pill ${key}" title="${key}: ${value}/10">
+                    ${value.toFixed(1)}
                 </span>
             `).join('');
         }
@@ -725,12 +1037,212 @@
             this.loadData().then(() => this.render());
         }
         
-        viewStudent(studentId) {
+        async viewStudent(studentId) {
             const student = this.state.students.find(s => s.id === studentId);
-            if (student) {
-                alert(`View details for ${student.name}`);
-                // In production, this would open a detailed view
+            if (!student) return;
+            
+            // Show loading state
+            this.showLoading();
+            
+            try {
+                // Load student's activity responses if role has permission
+                let responses = [];
+                if (this.state.currentRole.canViewAnswers) {
+                    responses = await this.loadStudentResponses(studentId);
+                }
+                
+                // Create and show student details modal
+                this.showStudentDetailsModal(student, responses);
+                
+            } catch (err) {
+                error('Failed to load student details:', err);
+                alert('Error loading student details. Please try again.');
+            } finally {
+                this.hideLoading();
             }
+        }
+        
+        // Load student's activity responses
+        async loadStudentResponses(studentId) {
+            const fields = this.config.fields;
+            const objects = this.config.objects;
+            
+            try {
+                // API call to get activity answers for this student
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([{
+                            field: fields.answerStudentConnection,
+                            operator: 'is',
+                            value: studentId
+                        }]),
+                        page: 1,
+                        rows_per_page: 1000
+                    }
+                });
+                
+                // Parse and return responses
+                return response.records.map(record => ({
+                    id: record.id,
+                    activityId: record[fields.answerResponsesPerActivity],
+                    activityJSON: record[fields.answerActivityJSON],
+                    completionDate: record[fields.answerCompletionDate],
+                    yearGroup: record[fields.answerYearGroup],
+                    group: record[fields.answerGroup],
+                    faculty: record[fields.answerFaculty]
+                }));
+                
+            } catch (err) {
+                error('Failed to load student responses:', err);
+                return [];
+            }
+        }
+        
+        // Show student details modal
+        showStudentDetailsModal(student, responses) {
+            // Remove existing modal if any
+            $('#student-details-modal').remove();
+            
+            // Create modal HTML
+            const modalHtml = `
+                <div id="student-details-modal" class="modal" style="display: flex;">
+                    <div class="modal-content large-modal">
+                        <div class="modal-header">
+                            <h2>${student.name}</h2>
+                            <button class="modal-close" onclick="$('#student-details-modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            ${this.renderStudentDetails(student, responses)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to body
+            $('body').append(modalHtml);
+        }
+        
+        // Render student details content
+        renderStudentDetails(student, responses) {
+            return `
+                <div class="student-details-container">
+                    <!-- Student Overview -->
+                    <div class="student-overview">
+                        <div class="overview-card">
+                            <h3>Progress Overview</h3>
+                            <div class="progress-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Total Progress</span>
+                                    <span class="stat-value">${student.progress}%</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Activities Completed</span>
+                                    <span class="stat-value">${student.completedCount} / 40</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Activities Prescribed</span>
+                                    <span class="stat-value">${student.prescribedCount}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="overview-card">
+                            <h3>VESPA Scores</h3>
+                            <div class="vespa-scores-detail">
+                                ${this.renderDetailedVESPAScores(student.vespaScores)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Responses (if permitted) -->
+                    ${this.state.currentRole.canViewAnswers ? `
+                        <div class="student-responses">
+                            <h3>Activity Responses</h3>
+                            ${responses.length > 0 ? 
+                                this.renderActivityResponses(responses) : 
+                                '<p class="no-responses">No completed activities found.</p>'
+                            }
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        // Render detailed VESPA scores
+        renderDetailedVESPAScores(scores) {
+            const categories = {
+                vision: 'Vision',
+                effort: 'Effort',
+                systems: 'Systems',
+                practice: 'Practice',
+                attitude: 'Attitude'
+            };
+            
+            return Object.entries(categories).map(([key, label]) => `
+                <div class="vespa-score-item">
+                    <span class="score-label">${label}</span>
+                    <div class="score-bar">
+                        <div class="score-fill ${key}" style="width: ${(scores[key] / 10) * 100}%"></div>
+                    </div>
+                    <span class="score-value">${scores[key].toFixed(1)}/10</span>
+                </div>
+            `).join('');
+        }
+        
+        // Render activity responses
+        renderActivityResponses(responses) {
+            return `
+                <div class="responses-list">
+                    ${responses.map(response => this.renderSingleResponse(response)).join('')}
+                </div>
+            `;
+        }
+        
+        // Render single activity response
+        renderSingleResponse(response) {
+            try {
+                const data = JSON.parse(response.activityJSON || '{}');
+                const activity = this.state.activities.find(a => a.id === response.activityId);
+                
+                return `
+                    <div class="response-card">
+                        <div class="response-header">
+                            <h4>${activity ? activity.name : 'Unknown Activity'}</h4>
+                            <span class="response-date">${response.completionDate || 'No date'}</span>
+                        </div>
+                        <div class="response-content">
+                            ${this.renderResponseQuestions(data)}
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                error('Error rendering response:', err);
+                return '<div class="response-card error">Error loading response</div>';
+            }
+        }
+        
+        // Render response questions and answers
+        renderResponseQuestions(data) {
+            if (!data.questions || !Array.isArray(data.questions)) {
+                return '<p>No questions found in this response.</p>';
+            }
+            
+            return data.questions.map((q, index) => `
+                <div class="question-answer">
+                    <div class="question">
+                        <strong>Q${index + 1}:</strong> ${q.question || 'No question text'}
+                    </div>
+                    <div class="answer">
+                        <strong>A:</strong> ${q.answer || '<em>No answer provided</em>'}
+                    </div>
+                </div>
+            `).join('');
         }
         
         assignToStudent(studentId) {
@@ -800,21 +1312,88 @@
             });
         }
         
-        confirmAssignment() {
-            // In production, this would make API calls to assign activities
-            const selectedCount = this.state.selectedActivities.size;
-            const studentCount = this.state.selectedStudents.size;
+        async confirmAssignment() {
+            const selectedActivities = Array.from(this.state.selectedActivities);
+            const selectedStudents = Array.from(this.state.selectedStudents);
             
-            if (selectedCount === 0) {
+            if (selectedActivities.length === 0) {
                 alert('Please select at least one activity');
                 return;
             }
             
-            alert(`Assigning ${selectedCount} activities to ${studentCount} student(s)`);
+            if (selectedStudents.length === 0) {
+                alert('Please select at least one student');
+                return;
+            }
+            
+            // Show loading
+            this.showLoading();
             this.closeModal('assign-modal');
             
-            // Refresh data
-            this.loadData().then(() => this.render());
+            try {
+                // Get activity names for selected activities
+                const activityNames = selectedActivities.map(activityId => {
+                    const activity = this.state.activities.find(a => a.id === activityId);
+                    return activity ? activity.name : '';
+                }).filter(name => name);
+                
+                // Update each student's prescribed activities
+                const updatePromises = selectedStudents.map(studentId => 
+                    this.updateStudentPrescribedActivities(studentId, activityNames)
+                );
+                
+                await Promise.all(updatePromises);
+                
+                alert(`Successfully assigned ${activityNames.length} activities to ${selectedStudents.length} student(s)`);
+                
+                // Refresh data
+                await this.loadData();
+                this.render();
+                
+            } catch (err) {
+                error('Failed to assign activities:', err);
+                alert('Error assigning activities. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
+        }
+        
+        // Update student's prescribed activities (field_1683)
+        async updateStudentPrescribedActivities(studentId, newActivityNames) {
+            const fields = this.config.fields;
+            const objects = this.config.objects;
+            
+            try {
+                // Get current student data
+                const student = this.state.students.find(s => s.id === studentId);
+                if (!student) return;
+                
+                // Get current prescribed activities
+                const currentPrescribed = student.prescribedActivities || [];
+                
+                // Combine with new activities (avoid duplicates)
+                const allActivities = [...new Set([...currentPrescribed, ...newActivityNames])];
+                
+                // Update the student record
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.student}/records/${studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify({
+                        [fields.prescribedActivities]: allActivities.join(', ')
+                    })
+                });
+                
+                log(`Updated prescribed activities for student ${student.name}`);
+                
+            } catch (err) {
+                error(`Failed to update student ${studentId}:`, err);
+                throw err;
+            }
         }
         
         exportReport() {
