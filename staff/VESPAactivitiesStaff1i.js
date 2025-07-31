@@ -250,6 +250,7 @@
             // Extract email - it can be in different places
             const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
             const fields = this.config.fields;
+            const objects = this.config.objects;
             
             log('Extracted user email:', userEmail);
             
@@ -259,34 +260,16 @@
             const profileKeys = user.profile_keys || [];
             log('User profile keys:', profileKeys);
             
-            // Also check field_73 for role names
-            let roleNames = [];
-            if (user.values && user.values.field_73) {
-                // field_73 contains profile keys, not role names
-                // We'll use profile_objects to determine actual roles
-                log('field_73 values:', user.values.field_73);
-            }
-            
             // Map profile keys to roles based on objects
-            // profile_6 = object_6 = Student
-            // profile_7 = object_7 = Tutor
-            // profile_5 = object_5 = Staff Admin
-            // profile_18 = object_18 = Head of Year
-            // profile_78 = object_78 = Subject Teacher
-            
             const profileToRoleMap = {
-                'profile_5': 'Staff Admin',
-                'profile_7': 'Tutor',
-                'profile_18': 'Head of Year',
-                'profile_78': 'Subject Teacher'
+                'profile_5': { role: 'Staff Admin', object: 'object_5', emailField: 'field_86' },
+                'profile_7': { role: 'Tutor', object: 'object_7', emailField: 'field_96' },
+                'profile_18': { role: 'Head of Year', object: 'object_18', emailField: 'field_417' },
+                'profile_78': { role: 'Subject Teacher', object: 'object_78', emailField: 'field_1879' }
             };
             
-            // Convert profile keys to role names
-            const userRoles = profileKeys.map(key => profileToRoleMap[key]).filter(role => role);
-            log('Mapped user roles:', userRoles);
-            
-            // Check each role type
-            const roleMap = {
+            // Role configurations
+            const roleConfigs = {
                 'Staff Admin': {
                     type: 'staffAdmin',
                     label: 'View All Students',
@@ -313,17 +296,59 @@
                 }
             };
             
-            // Process each user role
-            userRoles.forEach(role => {
-                if (roleMap[role]) {
-                    this.state.allRoles.push({
-                        ...roleMap[role],
-                        data: { id: user.id, email: userEmail }
+            // For each profile key, get the actual role record
+            for (const profileKey of profileKeys) {
+                const roleInfo = profileToRoleMap[profileKey];
+                if (!roleInfo) continue;
+                
+                try {
+                    // Get the role record from the appropriate object
+                    log(`Fetching ${roleInfo.role} record for email: ${userEmail}`);
+                    
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${roleInfo.object}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey
+                        },
+                        data: {
+                            filters: JSON.stringify([{
+                                field: roleInfo.emailField,
+                                operator: 'is',
+                                value: userEmail
+                            }]),
+                            page: 1,
+                            rows_per_page: 1
+                        }
                     });
+                    
+                    if (response.records && response.records.length > 0) {
+                        const roleRecord = response.records[0];
+                        log(`Found ${roleInfo.role} record:`, roleRecord);
+                        log(`${roleInfo.role} record ID: ${roleRecord.id}`);
+                        
+                        const roleConfig = roleConfigs[roleInfo.role];
+                        if (roleConfig) {
+                            this.state.allRoles.push({
+                                ...roleConfig,
+                                data: { 
+                                    id: roleRecord.id,  // This is the role record ID we need for filtering
+                                    email: userEmail,
+                                    record: roleRecord
+                                }
+                            });
+                            log(`Added role with ID ${roleRecord.id} for filtering students`);
+                        }
+                    } else {
+                        log(`No ${roleInfo.role} record found for email ${userEmail}`);
+                    }
+                } catch (err) {
+                    log(`Error fetching ${roleInfo.role} record:`, err);
                 }
-            });
+            }
             
-            // For testing, always add at least one role
+            // For testing, if no roles found, add a test role
             if (this.state.allRoles.length === 0) {
                 log('No roles detected, adding test role for development');
                 this.state.allRoles.push({
@@ -331,14 +356,14 @@
                     label: 'Tutor (Test Mode)',
                     canAssign: true,
                     canViewAnswers: true,
-                    data: { id: user.id, email: userEmail }
+                    data: { id: 'test_id', email: userEmail }
                 });
             }
             
             // Set default role (prefer Staff Admin if available)
             this.state.currentRole = this.state.allRoles.find(r => r.type === 'staffAdmin') || this.state.allRoles[0];
             
-            log('Detected roles:', this.state.allRoles);
+            log('Detected roles with IDs:', this.state.allRoles);
         }
         
         // Load data based on current role
@@ -403,45 +428,48 @@
                     log('Building filters for role:', this.state.currentRole.type);
                     log('User email:', userEmail);
                     
+                    // Use role record ID for filtering, not email
+                    const roleId = this.state.currentRole.data?.id;
+                    
                     switch (this.state.currentRole.type) {
                         case 'staffAdmin':
                             // Staff admins see all students
                             log('Staff admin - no filters, seeing all students');
                             break;
                         case 'tutor':
-                            if (userEmail) {
+                            if (roleId && roleId !== 'test_id') {
                                 filters.push({
                                     field: fields.studentTutors,
                                     operator: 'contains',
-                                    value: userEmail
+                                    value: roleId  // Use role record ID, not email
                                 });
-                                log('Tutor filter:', { field: fields.studentTutors, value: userEmail });
+                                log('Tutor filter:', { field: fields.studentTutors, value: roleId });
                             } else {
-                                log('WARNING: No user email found for tutor filter');
+                                log('WARNING: No role ID found for tutor filter');
                             }
                             break;
                         case 'headOfYear':
-                            if (userEmail) {
+                            if (roleId && roleId !== 'test_id') {
                                 filters.push({
                                     field: fields.studentHeadsOfYear,
                                     operator: 'contains',
-                                    value: userEmail
+                                    value: roleId  // Use role record ID, not email
                                 });
-                                log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: userEmail });
+                                log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: roleId });
                             } else {
-                                log('WARNING: No user email found for head of year filter');
+                                log('WARNING: No role ID found for head of year filter');
                             }
                             break;
                         case 'subjectTeacher':
-                            if (userEmail) {
+                            if (roleId && roleId !== 'test_id') {
                                 filters.push({
                                     field: fields.studentSubjectTeachers,
                                     operator: 'contains',
-                                    value: userEmail
+                                    value: roleId  // Use role record ID, not email
                                 });
-                                log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: userEmail });
+                                log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: roleId });
                             } else {
-                                log('WARNING: No user email found for subject teacher filter');
+                                log('WARNING: No role ID found for subject teacher filter');
                             }
                             break;
                     }
@@ -485,27 +513,38 @@
                     }
                 }
                 
-                // If still no data, create minimal test data
+                // If still no data, optionally create test data
                 if (studentData.length === 0) {
-                    log('No students found, creating test data...');
-                    for (let i = 0; i < 5; i++) {
-                        studentData.push({
-                            id: `test_${i}`,
-                            name: `Test Student ${i + 1}`,
-                            email: `test${i + 1}@school.edu`,
-                            prescribedActivities: ['Activity 1', 'Activity 2', 'Activity 3', 'Activity 4', 'Activity 5'],
-                            finishedActivities: ['Activity 1', 'Activity 2'],
-                            prescribedCount: 5,
-                            completedCount: 2,
-                            progress: 5,  // 2/40 * 100
-                            vespaScores: {
-                                vision: 7.5,
-                                effort: 8.0,
-                                systems: 7.0,
-                                practice: 8.5,
-                                attitude: 7.8
-                            }
-                        });
+                    log('No students found via API');
+                    
+                    // Only create test data if explicitly enabled
+                    if (this.config.enableTestData) {
+                        log('Creating test data (enableTestData is true)...');
+                        for (let i = 0; i < 5; i++) {
+                            studentData.push({
+                                id: `test_${i}`,
+                                name: `Test Student ${i + 1}`,
+                                email: `test${i + 1}@school.edu`,
+                                prescribedActivities: ['Activity 1', 'Activity 2', 'Activity 3', 'Activity 4', 'Activity 5'],
+                                finishedActivities: ['Activity 1', 'Activity 2'],
+                                prescribedCount: 5,
+                                completedCount: 2,
+                                progress: 5,  // 2/40 * 100
+                                vespaScores: {
+                                    vision: 7.5,
+                                    effort: 8.0,
+                                    systems: 7.0,
+                                    practice: 8.5,
+                                    attitude: 7.8
+                                }
+                            });
+                        }
+                    } else {
+                        log('No test data created (enableTestData is false or undefined)');
+                        // Show helpful debug info
+                        log('Current role:', this.state.currentRole);
+                        log('Role ID used for filtering:', this.state.currentRole.data?.id);
+                        log('Filter field used:', fields.studentTutors);
                     }
                 }
                 
@@ -695,19 +734,21 @@
                     }
                 }
                 
-                // If still no data, create minimal test data
+                // If still no data, optionally create test data
                 if (activities.length === 0) {
-                    log('No activities found, creating test data...');
-                    const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
-                    for (let i = 0; i < 10; i++) {
-                        activities.push({
-                            id: `test_activity_${i}`,
-                            name: `Test Activity ${i + 1}`,
-                            category: categories[i % 5],
-                            level: (i % 3) + 1,
-                            duration: '20 mins',
-                            type: 'Interactive'
-                        });
+                    log('No activities found via API');
+                    
+                    if (this.config.enableTestData) {
+                        log('Creating test activities (enableTestData is true)...');
+                        const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+                        for (let i = 0; i < 10; i++) {
+                            activities.push({
+                                id: `test_activity_${i}`,
+                                name: `Test Activity ${i + 1}`,
+                                category: categories[i % 5],
+                                level: (i % 3) + 1
+                            });
+                        }
                     }
                 }
                 
