@@ -79,6 +79,7 @@
     // Main Staff Manager Class
     class VESPAStaffManager {
         constructor() {
+            this.config = null;
             this.state = {
                 currentRole: null,
                 allRoles: [],
@@ -104,6 +105,22 @@
         // Initialize the manager
         async init() {
             log('Initializing VESPA Staff Manager...');
+            
+            // Get config from global variable
+            this.config = window.VESPA_ACTIVITIES_STAFF_CONFIG;
+            if (!this.config) {
+                errorLog('Config not found in init');
+                return;
+            }
+            
+            // Update CONFIG to use the values from KnackAppLoader
+            if (this.config.views) {
+                CONFIG.views.container = this.config.views.richText || CONFIG.views.container;
+                CONFIG.views.students = this.config.views.activityAssignments || CONFIG.views.students;
+                CONFIG.views.activities = this.config.views.studentResponses || CONFIG.views.activities;
+            }
+            
+            log('Using config:', this.config);
             
             try {
                 // Wait for Knack to be ready
@@ -877,17 +894,30 @@
     
     // Expose initializer function for KnackAppLoader
     window.initializeVESPAActivitiesStaff = function() {
-        log('initializeVESPAActivitiesStaff called by KnackAppLoader');
-        // Don't initialize immediately - wait for scene render
-        $(document).on('knack-scene-render.scene_1256', function() {
-            log('Scene 1256 rendered, initializing staff manager...');
-            setTimeout(() => staffManager.init(), 100);
+        const config = window.VESPA_ACTIVITIES_STAFF_CONFIG;
+        if (!config) {
+            errorLog('VESPA Activities Staff config not found');
+            return;
+        }
+        
+        log('Initializing VESPA Activities Staff Management', config);
+        
+        // Hide data views immediately
+        const viewsToHide = ['view_3177', 'view_3178'];
+        viewsToHide.forEach(viewId => {
+            const viewElement = document.querySelector(`#${viewId}`);
+            if (viewElement) {
+                viewElement.style.display = 'none';
+                log('Immediately hid view:', viewId);
+            }
         });
         
-        // Also try to initialize if scene is already rendered
-        if (Knack && Knack.scene && Knack.scene.key === 'scene_1256') {
-            log('Scene already rendered, initializing immediately');
-            setTimeout(() => staffManager.init(), 100);
+        try {
+            // Initialize immediately like the student version
+            staffManager.init();
+            log('VESPA Staff Activities initialized successfully');
+        } catch (error) {
+            errorLog('Failed to initialize VESPA Staff Activities:', error);
         }
     };
     
