@@ -1,0 +1,561 @@
+/* VESPA Staff Activities Management - Clean Professional UI */
+
+/* CSS Variables */
+:root {
+    /* VESPA Theme Colors */
+    --primary: #079baa;
+    --primary-light: #7bd8d0;
+    --primary-dark: #23356f;
+    --accent: #00e5db;
+    
+    /* VESPA Category Colors */
+    --vision: #ff8f00;
+    --effort: #86b4f0;
+    --systems: #72cb44;
+    --practice: #7f31a4;
+    --attitude: #f032e6;
+    
+    /* Neutral Colors */
+    --text-primary: #1a1a1a;
+    --text-secondary: #666666;
+    --border: #e0e0e0;
+    --background: #f5f5f5;
+    --white: #ffffff;
+    --success: #4caf50;
+    --warning: #ff9800;
+    --error: #f44336;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Reset and Base Styles */
+.vespa-staff-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-primary);
+    line-height: 1.6;
+    background: var(--background);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.vespa-staff-container * {
+    box-sizing: border-box;
+}
+
+/* Header Section */
+.staff-header {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    border-left: 4px solid var(--primary);
+}
+
+.staff-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.staff-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin: 0;
+}
+
+.staff-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background: #057a87;
+}
+
+.btn-secondary {
+    background: var(--white);
+    color: var(--primary);
+    border: 1px solid var(--primary);
+}
+
+.btn-secondary:hover {
+    background: var(--primary-light);
+}
+
+/* Role Selector */
+.role-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.role-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.role-selector label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.role-selector select {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    background: var(--white);
+}
+
+.student-count {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Filter Bar */
+.filter-bar {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    background: var(--white);
+}
+
+/* Student Table */
+.student-table-container {
+    background: var(--white);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.student-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.student-table th,
+.student-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.student-table th {
+    background: var(--background);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.student-table th:hover {
+    background: #e8e8e8;
+}
+
+.student-table th.sortable::after {
+    content: '↕';
+    margin-left: 8px;
+    opacity: 0.3;
+}
+
+.student-table th.sorted-asc::after {
+    content: '↑';
+    opacity: 1;
+}
+
+.student-table th.sorted-desc::after {
+    content: '↓';
+    opacity: 1;
+}
+
+.student-table tbody tr {
+    transition: background 0.1s;
+}
+
+.student-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.student-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Student Row Elements */
+.student-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.student-email {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Progress Bar */
+.progress-cell {
+    width: 150px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 20px;
+}
+
+/* VESPA Score Pills */
+.vespa-scores {
+    display: flex;
+    gap: 4px;
+}
+
+.vespa-pill {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--white);
+}
+
+.vespa-pill.vision { background: var(--vision); }
+.vespa-pill.effort { background: var(--effort); }
+.vespa-pill.systems { background: var(--systems); }
+.vespa-pill.practice { background: var(--practice); }
+.vespa-pill.attitude { background: var(--attitude); }
+
+/* Status Badge */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-badge.inactive {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.status-badge.pending {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-action {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 3px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--white);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background: var(--background);
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Activity Assignment Panel */
+.activity-list {
+    display: grid;
+    gap: 12px;
+}
+
+.activity-item {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.activity-item:hover {
+    border-color: var(--primary);
+    background: #f9f9f9;
+}
+
+.activity-item.selected {
+    border-color: var(--primary);
+    background: rgba(7, 155, 170, 0.05);
+}
+
+.activity-checkbox {
+    width: 18px;
+    height: 18px;
+}
+
+.activity-info {
+    flex: 1;
+}
+
+.activity-name {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.activity-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.empty-state-text {
+    font-size: 16px;
+}
+
+/* Loading State */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .vespa-staff-container {
+        padding: 12px;
+    }
+    
+    .staff-header {
+        padding: 16px;
+    }
+    
+    .staff-header-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .filter-bar {
+        padding: 12px;
+    }
+    
+    .student-table {
+        font-size: 14px;
+    }
+    
+    .student-table th,
+    .student-table td {
+        padding: 8px;
+    }
+    
+    /* Hide less important columns on mobile */
+    .hide-mobile {
+        display: none;
+    }
+    
+    .modal {
+        width: 95%;
+        margin: 10px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .vespa-staff-container {
+        background: white;
+    }
+    
+    .staff-actions,
+    .filter-bar,
+    .btn-action,
+    .modal {
+        display: none !important;
+    }
+    
+    .student-table-container {
+        box-shadow: none;
+    }
+    
+    .student-table tbody tr:hover {
+        background: transparent;
+    }
+}
