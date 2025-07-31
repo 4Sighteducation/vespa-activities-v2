@@ -16,45 +16,98 @@
         
         // Object IDs
         objects: {
+            accounts: 'object_3',
             staffAdmin: 'object_5',
             tutor: 'object_7',
             headOfYear: 'object_18',
             subjectTeacher: 'object_78',
             student: 'object_6',
+            customer: 'object_2',
             activities: 'object_44',
+            activityAnswers: 'object_46',
             vespaResults: 'object_10',
             activityProgress: 'object_126',
-            studentAchievements: 'object_127'
+            studentAchievements: 'object_127',
+            activityFeedback: 'object_128'
         },
         
         // Field mappings
         fields: {
-            // Staff role fields
+            // User fields (Object_3)
+            userRoles: 'field_73',
+            userAccountID: 'field_70',
+            
+            // Staff role email fields
             staffAdminEmail: 'field_86',
             tutorEmail: 'field_96',
+            headOfYearEmail: 'field_417',
+            subjectTeacherEmail: 'field_1879',
             
-            // Student fields
+            // Student connection fields (many-to-many, comma separated)
+            studentTutors: 'field_1682',
+            studentHeadsOfYear: 'field_547',
+            studentSubjectTeachers: 'field_2177',
+            studentStaffAdmins: 'field_190',
+            
+            // Student fields (Object_6)
+            studentName: 'field_90',
+            studentEmail: 'field_91',
             prescribedActivities: 'field_1683',
-            completedActivities: 'field_1380',
-            studentName: 'field_12',
-            studentEmail: 'field_11',
-            connectedTutors: 'field_1682',
-            connectedHeadsOfYear: 'field_547',
-            connectedSubjectTeachers: 'field_2177',
-            vespaCustomer: 'field_179',
+            finishedActivities: 'field_1380',
             
-            // VESPA scores
-            vision: 'field_147',
-            effort: 'field_148',
-            systems: 'field_149',
-            practice: 'field_150',
-            attitude: 'field_151',
+            // VESPA scores (Object_10)
+            visionScore: 'field_147',
+            effortScore: 'field_148',
+            systemsScore: 'field_149',
+            practiceScore: 'field_150',
+            attitudeScore: 'field_151',
             
-            // Activity fields
+            // Activity fields (Object_44)
             activityName: 'field_1278',
-            activityCategory: 'field_442',
-            activityLevel: 'field_1288',
-            activityScoreRange: 'field_1287'
+            activityVESPACategory: 'field_1285',
+            activityLevel: 'field_1295',
+            
+            // Activity Answers fields (Object_46)
+            answerStudentName: 'field_1875',
+            answerActivityJSON: 'field_1300',
+            answerResponsesPerActivity: 'field_2334',
+            answerCompletionDate: 'field_1870',
+            answerYearGroup: 'field_2331',
+            answerGroup: 'field_2332',
+            answerFaculty: 'field_2333',
+            answerStudentConnection: 'field_1301',
+            answerActivityConnection: 'field_1302',
+            answerStaffFeedback: 'field_1734',
+            answerCustomerConnection: 'field_1871',
+            answerTutorConnection: 'field_1872',
+            answerStaffAdminConnection: 'field_1873',
+            
+            // Activity Progress fields (Object_126)
+            progressId: 'field_3535',
+            progressName: 'field_3534',
+            progressStudent: 'field_3536',
+            progressActivity: 'field_3537',
+            progressCycle: 'field_3538',
+            progressDateAssigned: 'field_3539',
+            progressDateStarted: 'field_3540',
+            progressDateCompleted: 'field_3541',
+            progressTimeMinutes: 'field_3542',
+            progressStatus: 'field_3543',
+            progressVerified: 'field_3544',
+            progressPoints: 'field_3545',
+            progressSelectedVia: 'field_3546',
+            progressStaffNotes: 'field_3547',
+            progressReflection: 'field_3548',
+            progressWordCount: 'field_3549',
+            
+            // Activity Feedback fields (Object_128)
+            feedbackName: 'field_3561',
+            feedbackId: 'field_3562',
+            feedbackActivityProgress: 'field_3563',
+            feedbackStaffMember: 'field_3564',
+            feedbackText: 'field_3565',
+            feedbackDate: 'field_3566',
+            feedbackType: 'field_3567'
         },
         
         // View IDs (to be updated based on actual scene)
@@ -720,22 +773,13 @@
             try {
                 const fields = this.config.fields;
                 
-                // Map VESPA category to display name
-                const categoryMap = {
-                    'V': 'Vision',
-                    'E': 'Effort', 
-                    'S': 'Systems',
-                    'P': 'Practice',
-                    'A': 'Attitude'
-                };
+                // Category should already be the full name from field_1285
                 
                 const activity = {
                     id: record.id,
                     name: record[fields.activityName] || 'Unnamed Activity',
-                    category: categoryMap[record[fields.activityCategory]] || 'Unknown',
-                    level: parseInt(record[fields.activityLevel]) || 1,
-                    duration: record[fields.activityDuration] || 'N/A',
-                    type: record[fields.activityType] || 'Activity'
+                    category: record[fields.activityVESPACategory] || 'Unknown',
+                    level: parseInt(record[fields.activityLevel]) || 1
                 };
                 
                 return activity;
@@ -1379,8 +1423,7 @@
                                         ${activity.category}
                                     </span>
                                     <span>Level ${activity.level}</span>
-                                    <span>${activity.duration}</span>
-                                    <span>${activity.type}</span>
+
                                 </div>
                             </div>
                         </div>
