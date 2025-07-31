@@ -197,11 +197,44 @@
             const userEmail = user.email;
             const fields = this.config.fields;
             
+            // Debug user object
+            log('Full user object:', JSON.stringify(user, null, 2));
+            log('User attributes:', user.attributes);
+            log('User values:', user.values);
+            log('Looking for field:', fields.userRoles);
+            
             this.state.allRoles = [];
             
-            // Get user roles from field_73
-            const userRoles = user.values?.[fields.userRoles] || [];
-            log('User roles from field_73:', userRoles);
+            // Get user roles from field_73 - try different ways
+            let userRoles = [];
+            
+            // Try 1: Standard values access
+            if (user.values && user.values[fields.userRoles]) {
+                userRoles = user.values[fields.userRoles];
+                log('Found roles in user.values[fields.userRoles]:', userRoles);
+            }
+            // Try 2: Without field_ prefix
+            else if (user.values && user.values['73']) {
+                userRoles = user.values['73'];
+                log('Found roles using key "73":', userRoles);
+            }
+            // Try 3: Direct attribute
+            else if (user[fields.userRoles]) {
+                userRoles = user[fields.userRoles];
+                log('Found roles in user[fields.userRoles]:', userRoles);
+            }
+            // Try 4: Attributes object
+            else if (user.attributes && user.attributes[fields.userRoles]) {
+                userRoles = user.attributes[fields.userRoles];
+                log('Found roles in user.attributes[fields.userRoles]:', userRoles);
+            }
+            
+            log('Final user roles:', userRoles);
+            
+            // Ensure userRoles is an array
+            if (!Array.isArray(userRoles)) {
+                userRoles = userRoles ? [userRoles] : [];
+            }
             
             // Check each role type
             const roleMap = {
@@ -317,9 +350,13 @@
                     let filters = [];
                     const userEmail = Knack.session.user.email;
                     
+                    log('Building filters for role:', this.state.currentRole.type);
+                    log('User email:', userEmail);
+                    
                     switch (this.state.currentRole.type) {
                         case 'staffAdmin':
                             // Staff admins see all students
+                            log('Staff admin - no filters, seeing all students');
                             break;
                         case 'tutor':
                             filters.push({
@@ -327,6 +364,7 @@
                                 operator: 'contains',
                                 value: userEmail
                             });
+                            log('Tutor filter:', { field: fields.studentTutors, value: userEmail });
                             break;
                         case 'headOfYear':
                             filters.push({
@@ -334,6 +372,7 @@
                                 operator: 'contains',
                                 value: userEmail
                             });
+                            log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: userEmail });
                             break;
                         case 'subjectTeacher':
                             filters.push({
@@ -341,10 +380,22 @@
                                 operator: 'contains',
                                 value: userEmail
                             });
+                            log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: userEmail });
                             break;
                     }
                     
+                    log('Final filters:', filters);
+                    
                     // Make API call to get students
+                    const requestData = {
+                        filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
+                        page: 1,
+                        rows_per_page: 1000
+                    };
+                    
+                    log('API Request URL:', `https://api.knack.com/v1/objects/${objects.student}/records`);
+                    log('API Request data:', requestData);
+                    
                     const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.student}/records`,
                         type: 'GET',
@@ -352,20 +403,24 @@
                             'X-Knack-Application-Id': this.config.knackAppId,
                             'X-Knack-REST-API-Key': this.config.knackApiKey
                         },
-                        data: {
-                            filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
-                            page: 1,
-                            rows_per_page: 1000
-                        }
+                        data: requestData
                     });
                     
+                    log('API Response:', response);
+                    log('Number of records returned:', response.records ? response.records.length : 0);
+                    
                     // Process each student record
-                    response.records.forEach(record => {
-                        const student = this.parseStudentFromRecord(record);
-                        if (student) {
-                            studentData.push(student);
-                        }
-                    });
+                    if (response.records && response.records.length > 0) {
+                        response.records.forEach((record, index) => {
+                            if (index === 0) {
+                                log('Sample student record:', record);
+                            }
+                            const student = this.parseStudentFromRecord(record);
+                            if (student) {
+                                studentData.push(student);
+                            }
+                        });
+                    }
                 }
                 
                 // If still no data, create minimal test data
@@ -394,12 +449,21 @@
                 
             } catch (err) {
                 error('Failed to load students:', err);
+                log('Error details:', err.responseJSON || err.responseText || err);
+                
+                // Check if it's an API key/authentication issue
+                if (err.status === 401 || err.status === 403) {
+                    error('Authentication error - check API keys');
+                }
+                
                 // Create fallback data on error
                 for (let i = 0; i < 3; i++) {
                     studentData.push({
                         id: `error_${i}`,
                         name: `Student ${i + 1} (Error Loading)`,
                         email: `student${i + 1}@school.edu`,
+                        prescribedActivities: [],
+                        finishedActivities: [],
                         prescribedCount: 0,
                         completedCount: 0,
                         progress: 0,
@@ -537,6 +601,8 @@
                     // Fall back to API call
                     log('No view data found, making API call for activities...');
                     
+                    log('Activities API URL:', `https://api.knack.com/v1/objects/${objects.activities}/records`);
+                    
                     const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.activities}/records`,
                         type: 'GET',
@@ -550,13 +616,21 @@
                         }
                     });
                     
+                    log('Activities API Response:', response);
+                    log('Number of activities returned:', response.records ? response.records.length : 0);
+                    
                     // Process each activity record
-                    response.records.forEach(record => {
-                        const activity = this.parseActivityFromRecord(record);
-                        if (activity) {
-                            activities.push(activity);
-                        }
-                    });
+                    if (response.records && response.records.length > 0) {
+                        response.records.forEach((record, index) => {
+                            if (index === 0) {
+                                log('Sample activity record:', record);
+                            }
+                            const activity = this.parseActivityFromRecord(record);
+                            if (activity) {
+                                activities.push(activity);
+                            }
+                        });
+                    }
                 }
                 
                 // If still no data, create minimal test data
@@ -577,6 +651,13 @@
                 
             } catch (err) {
                 error('Failed to load activities:', err);
+                log('Activities error details:', err.responseJSON || err.responseText || err);
+                
+                // Check if it's an API key/authentication issue
+                if (err.status === 401 || err.status === 403) {
+                    error('Authentication error loading activities - check API keys');
+                }
+                
                 // Create fallback data on error
                 activities.push({
                     id: 'error_1',
