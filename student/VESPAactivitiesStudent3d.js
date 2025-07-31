@@ -3952,52 +3952,44 @@
                 recommendedActivityNames.includes(activity.name)
             );
             
-            // Create and display modal with recommendations
-            const modalHTML = `
-                <div class="activities-modal-overlay" id="problem-recommendations-modal">
-                    <div class="activities-modal">
-                        <div class="modal-header">
-                            <h2 class="modal-title">
-                                <span class="rec-icon">💡</span>
-                                Recommended Activities
-                            </h2>
-                            <button class="modal-close-btn" onclick="document.getElementById('problem-recommendations-modal').remove()">
-                                <span>×</span>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <p class="modal-subtitle">For: "${problem.text}"</p>
-                            <div class="modal-activities-grid">
-                                ${recommendedActivities.length > 0 ? 
-                                    recommendedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
-                                    '<p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities.</p>'
-                                }
-                            </div>
-                        </div>
+            // Use the centralized modal system
+            this.showModal({
+                title: '<span class="rec-icon">💡</span> Recommended Activities',
+                subtitle: `For: "${problem.text}"`,
+                content: `
+                    <div class="modal-activities-grid">
+                        ${recommendedActivities.length > 0 ? 
+                            recommendedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                            '<p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities.</p>'
+                        }
                     </div>
-                </div>
-            `;
-            
-            // Add modal to body
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-            
-            // Add event listener to close modal on overlay click
-            const modal = document.getElementById('problem-recommendations-modal');
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.remove();
-                }
+                `,
+                id: 'problem-recommendations-modal'
             });
         }
         
         showActivitiesForCategory(category) {
-            this.state.view = 'all-activities';
-            this.render();
-            // Auto-click the category button
-            setTimeout(() => {
-                const button = document.querySelector(`[data-category="${category}"]`);
-                if (button) button.click();
-            }, 100);
+            // Get activities for this category directly without changing view
+            const categoryActivities = this.state.activities.byCategory[category] || [];
+            
+            // Filter to show both prescribed and non-prescribed activities
+            const color = this.colors[category];
+            
+            // Use the centralized modal system
+            this.showModal({
+                title: `${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities`,
+                subtitle: `Improve your ${category} skills with these activities`,
+                content: `
+                    <div class="modal-activities-grid">
+                        ${categoryActivities.length > 0 ? 
+                            categoryActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                            '<p>No activities found in this category.</p>'
+                        }
+                    </div>
+                `,
+                headerColor: color.primary,
+                id: 'improve-activities-modal'
+            });
         }
         
         showCategoryActivities(category) {
@@ -4013,43 +4005,20 @@
             
             const color = this.colors[category];
             
-            // Create modal
-            const modal = document.createElement('div');
-            modal.className = 'activities-modal-overlay';
-            modal.innerHTML = `
-                <div class="activities-modal">
-                    <div class="modal-header" style="background: ${color.primary}">
-                        <h2 class="modal-title">
-                            ${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities
-                            <span style="font-size: 0.7em; font-weight: normal; margin-left: 10px;">
-                                (Additional activities not in your prescribed list)
-                            </span>
-                        </h2>
-                        <button class="modal-close-btn" onclick="this.closest('.activities-modal-overlay').remove()">✕</button>
+            // Use the centralized modal system
+            this.showModal({
+                title: `${this.getCategoryEmoji(category)} ${category.toUpperCase()} Activities <span style="font-size: 0.7em; font-weight: normal; margin-left: 10px;">(Additional activities not in your prescribed list)</span>`,
+                subtitle: `Explore ${nonPrescribedActivities.length} additional activities in this category`,
+                content: `
+                    <div class="modal-activities-grid">
+                        ${nonPrescribedActivities.length > 0 ? 
+                            nonPrescribedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
+                            '<p>No additional activities found in this category. All activities in this category are already in your prescribed list.</p>'
+                        }
                     </div>
-                    <div class="modal-body">
-                        <p class="modal-subtitle">Explore ${nonPrescribedActivities.length} additional activities in this category</p>
-                        <div class="modal-activities-grid">
-                            ${nonPrescribedActivities.length > 0 ? 
-                                nonPrescribedActivities.map((activity, index) => this.getCompactActivityCardHTML(activity, index)).join('') :
-                                '<p>No additional activities found in this category. All activities in this category are already in your prescribed list.</p>'
-                            }
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
-            
-            // Close on overlay click
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.remove();
-                    document.body.style.overflow = '';
-                }
+                `,
+                headerColor: color.primary,
+                id: 'category-activities-modal'
             });
         }
         
@@ -4129,6 +4098,81 @@
             if (hours < 24) return `${hours}h ago`;
             if (hours < 48) return 'Yesterday';
             return dateObj.toLocaleDateString();
+        }
+        
+        showModal(options) {
+            const {
+                title = 'Information',
+                subtitle = '',
+                content = '',
+                headerColor = '#17bdc2',
+                id = 'app-modal',
+                onClose = null
+            } = options;
+            
+            // Remove any existing modal with the same ID
+            const existingModal = document.getElementById(id);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create modal element
+            const modal = document.createElement('div');
+            modal.id = id;
+            modal.className = 'activities-modal-overlay';
+            modal.innerHTML = `
+                <div class="activities-modal">
+                    <div class="modal-header" style="background: ${headerColor}">
+                        <h2 class="modal-title">${title}</h2>
+                        <button class="modal-close-btn" data-action="close">
+                            <span>×</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        ${subtitle ? `<p class="modal-subtitle">${subtitle}</p>` : ''}
+                        ${content}
+                    </div>
+                </div>
+            `;
+            
+            // Add to body and prevent scroll
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+            
+            // Close function
+            const closeModal = () => {
+                if (modal && modal.parentNode) {
+                    modal.remove();
+                }
+                // Only restore body scroll if no other modals are open
+                const remainingModals = document.querySelectorAll('.activities-modal-overlay');
+                if (remainingModals.length === 0) {
+                    document.body.style.overflow = '';
+                }
+                if (onClose) onClose();
+            };
+            
+            // Event listeners
+            modal.addEventListener('click', (e) => {
+                // Close on overlay click or close button click
+                if (e.target === modal || e.target.closest('[data-action="close"]')) {
+                    closeModal();
+                }
+            });
+            
+            // Escape key handler
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closeModal();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+            // Ensure modal is centered
+            modal.querySelector('.activities-modal').scrollTop = 0;
+            
+            return { close: closeModal };
         }
         
         showMessage(text, type = 'info') {
