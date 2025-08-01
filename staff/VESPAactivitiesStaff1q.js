@@ -768,8 +768,7 @@
                 }
                 log(`Student ${name} finished activity IDs:`, finishedActivityIds);
                 
-                const completedCount = finishedActivities.length;
-                log(`Student ${name} finished activities:`, finishedActivities);
+                const completedCount = finishedActivityIds.length;
                 
                 // Use 40 as the baseline for all activities at student level
                 const totalActivitiesBaseline = 40;
