@@ -1627,3 +1627,174 @@
 .btn-danger:hover {
     background: #c82333;
 }
+
+/* Activity Preview Modal Styles */
+.activity-preview-modal .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.activity-overview-section {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.activity-overview-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.overview-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s;
+}
+
+.overview-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.overview-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.overview-card h4 {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.overview-card p {
+    font-size: 16px;
+    color: var(--primary-dark);
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Content Tabs */
+.activity-content-tabs {
+    margin-top: 20px;
+}
+
+.content-tab-buttons {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.content-tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.content-tab-btn:hover {
+    color: var(--primary-color);
+}
+
+.content-tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.content-tab-panel {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Background Info Styling */
+.background-info-content {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 8px;
+    line-height: 1.8;
+}
+
+.background-info-content h1,
+.background-info-content h2,
+.background-info-content h3 {
+    color: var(--primary-dark);
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.background-info-content p {
+    margin-bottom: 15px;
+}
+
+.background-info-content ul,
+.background-info-content ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.background-info-content li {
+    margin-bottom: 8px;
+}
+
+/* Questions Preview */
+.questions-list-preview {
+    display: grid;
+    gap: 15px;
+}
+
+.question-preview-block {
+    background: var(--bg-secondary);
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.question-text-preview {
+    font-size: 16px;
+    color: var(--primary-dark);
+    margin-top: 10px;
+}
+
+.question-options-preview {
+    margin-top: 10px;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* No Content Message */
+.no-content-message {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Feedback Section */
+.feedback-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.feedback-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(121, 189, 207, 0.1);
+}

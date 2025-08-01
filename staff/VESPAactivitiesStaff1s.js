@@ -396,14 +396,14 @@
             this.state.isLoading = true;
             
             try {
+                // Load all activities FIRST so they're available for student parsing
+                await this.loadActivities();
+                
                 // Load students based on role
                 await this.loadStudents();
                 
                 // Load VESPA scores for students
                 await this.loadVESPAScores();
-                
-                // Load all activities
-                await this.loadActivities();
                 
                 // Apply initial filters
                 this.applyFilters();
@@ -1824,10 +1824,10 @@
                     <!-- Activity Tabs -->
                     <div class="activity-tabs">
                         <div class="tab-buttons">
-                            <button class="tab-button active" onclick="VESPAStaff.switchTab('incomplete')">
+                            <button class="tab-button active" onclick="VESPAStaff.switchTab('incomplete', event)">
                                 Incomplete (${incompleteActivities.length})
                             </button>
-                            <button class="tab-button" onclick="VESPAStaff.switchTab('completed')">
+                            <button class="tab-button" onclick="VESPAStaff.switchTab('completed', event)">
                                 Completed (${completedActivities.length})
                             </button>
                         </div>
@@ -2070,7 +2070,10 @@
         }
         
         // Switch tabs in student details modal
-        switchTab(tabName) {
+        switchTab(tabName, event) {
+            // If event is not passed, try to get it from window.event
+            const e = event || window.event;
+            
             // Hide all tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.style.display = 'none';
@@ -2085,10 +2088,36 @@
             if (tabElement) {
                 tabElement.style.display = 'block';
                 tabElement.classList.add('active');
+                
+                // Re-render activities if needed (fixes the empty tab issue)
+                if (tabName === 'completed' && !tabElement.querySelector('.activity-card')) {
+                    // Tab might be empty due to rendering issue, force re-render
+                    const activities = this.currentStudentActivities || [];
+                    const completedActivities = activities.filter(a => a.isCompleted);
+                    if (completedActivities.length > 0) {
+                        tabElement.innerHTML = `
+                            <div class="activities-grid">
+                                ${completedActivities.map(activity => this.renderActivityCard(activity, true)).join('')}
+                            </div>
+                        `;
+                    }
+                } else if (tabName === 'incomplete' && !tabElement.querySelector('.activity-card')) {
+                    const activities = this.currentStudentActivities || [];
+                    const incompleteActivities = activities.filter(a => !a.isCompleted);
+                    if (incompleteActivities.length > 0) {
+                        tabElement.innerHTML = `
+                            <div class="activities-grid">
+                                ${incompleteActivities.map(activity => this.renderActivityCard(activity, false)).join('')}
+                            </div>
+                        `;
+                    }
+                }
             }
             
             // Update button state
-            event.target.classList.add('active');
+            if (e && e.target) {
+                e.target.classList.add('active');
+            }
         }
         
         // Uncomplete (re-assign) an activity
@@ -2277,6 +2306,64 @@
             });
         }
         
+        // Load additional activity data from Object_44
+        async loadActivityAdditionalData(activityId) {
+            try {
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${this.config.objects.activities}/records/${activityId}`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': Knack.application_id,
+                        'X-Knack-REST-API-Key': 'knack',
+                        'Authorization': Knack.getUserToken()
+                    }
+                });
+                
+                // Return relevant fields
+                return {
+                    backgroundInfo: response.field_1281 || '', // Background/context info
+                    objective: response.field_1282 || '', // Learning objective
+                    slideshow: response.field_1283 || '', // Additional content/slideshow
+                    timeMinutes: response.field_1284 || 30, // Estimated time
+                    // Add any other relevant fields from Object_44
+                };
+            } catch (err) {
+                log('Failed to load additional activity data:', err);
+                return {
+                    backgroundInfo: '',
+                    objective: '',
+                    slideshow: '',
+                    timeMinutes: 30
+                };
+            }
+        }
+        
+        // Switch tabs in activity detail modal
+        switchActivityTab(tabName, event) {
+            const e = event || window.event;
+            
+            // Hide all content panels
+            document.querySelectorAll('.content-tab-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.content-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected panel
+            const panel = document.getElementById(`${tabName}-content-tab`);
+            if (panel) {
+                panel.style.display = 'block';
+            }
+            
+            // Add active class to clicked button
+            if (e && e.target) {
+                e.target.classList.add('active');
+            }
+        }
+        
         // View activity preview
         async viewActivityPreview(activityId) {
             this.showLoading();
@@ -2374,6 +2461,9 @@
                     activity.questions = await this.loadActivityQuestions(activityId);
                 }
                 
+                // Load additional activity data (Object_44 fields) if available
+                const additionalData = await this.loadActivityAdditionalData(activityId);
+                
                 // Parse student responses if available
                 let studentResponses = {};
                 if (activity.response && activity.response.activityJSON) {
@@ -2387,15 +2477,15 @@
                 // Create the detailed view modal
                 const modalHtml = `
                     <div id="activity-detail-modal" class="modal-overlay" style="display: flex;">
-                        <div class="modal large-modal">
+                        <div class="modal large-modal activity-preview-modal">
                             <div class="modal-header">
-                                <h2 class="modal-title">${activity.name}</h2>
+                                <h2 class="modal-title">${this.escapeHtml(activity.name)}</h2>
                                 <button class="modal-close" onclick="VESPAStaff.closeModal('activity-detail-modal')">×</button>
                             </div>
                             <div class="modal-body">
                                 <div class="activity-detail-container">
-                                    <!-- Activity Info -->
-                                    <div class="activity-detail-info">
+                                    <!-- Activity Overview -->
+                                    <div class="activity-overview-section">
                                         <div class="activity-badges">
                                             <span class="category-badge ${activity.category.toLowerCase()}">${activity.category}</span>
                                             <span class="level-badge">Level ${activity.level || '1'}</span>
@@ -2405,47 +2495,115 @@
                                                 `<span class="status-badge pending">Not Started</span>`
                                             }
                                         </div>
-                                        ${activity.description ? `<p class="activity-detail-description">${activity.description}</p>` : ''}
+                                        
+                                        <div class="activity-overview-cards">
+                                            <div class="overview-card">
+                                                <span class="overview-icon">🎯</span>
+                                                <h4>Learning Objective</h4>
+                                                <p>${additionalData.objective || activity.description || 'Develop key skills'}</p>
+                                            </div>
+                                            <div class="overview-card">
+                                                <span class="overview-icon">⏱️</span>
+                                                <h4>Time Needed</h4>
+                                                <p>${activity.duration || 'Approximately 30 minutes'}</p>
+                                            </div>
+                                            <div class="overview-card">
+                                                <span class="overview-icon">⭐</span>
+                                                <h4>Points Available</h4>
+                                                <p>${activity.level === 3 ? 15 : 10} points</p>
+                                            </div>
+                                        </div>
                                     </div>
                                     
-                                    <!-- Questions and Responses -->
-                                    <div class="questions-responses-section">
-                                        <h3>Activity Questions & Student Responses</h3>
+                                    <!-- Background Info Tab -->
+                                    <div class="activity-content-tabs">
+                                        <div class="content-tab-buttons">
+                                            <button class="content-tab-btn active" onclick="VESPAStaff.switchActivityTab('background', event)">
+                                                📖 Background Info
+                                            </button>
+                                            <button class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('questions', event)">
+                                                ❓ Questions ${activity.questions ? `(${activity.questions.length})` : ''}
+                                            </button>
+                                            ${activity.isCompleted ? `
+                                                <button class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('responses', event)">
+                                                    📝 Student Responses
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                        
+                                        <!-- Background Content -->
+                                        <div id="background-content-tab" class="content-tab-panel active">
+                                            <div class="background-info-section">
+                                                ${additionalData.backgroundInfo ? `
+                                                    <div class="background-info-content">
+                                                        ${additionalData.backgroundInfo}
+                                                    </div>
+                                                ` : `
+                                                    <p class="no-content-message">No background information available for this activity.</p>
+                                                `}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Questions Content -->
+                                        <div id="questions-content-tab" class="content-tab-panel" style="display: none;">
+                                            <div class="questions-list-section">
+                                                <h3>Activity Questions</h3>
                                         ${activity.questions && activity.questions.length > 0 ? `
-                                            <div class="questions-list-detailed">
+                                                    <div class="questions-list-preview">
                                                 ${activity.questions.map((q, index) => `
-                                                    <div class="question-response-block">
+                                                            <div class="question-preview-block">
                                                         <div class="question-header">
                                                             <span class="question-number">Question ${index + 1}</span>
                                                             ${q.type ? `<span class="question-type">${q.type}</span>` : ''}
                                                         </div>
-                                                        <div class="question-text-detailed">${this.escapeHtml(q.question || '')}</div>
+                                                                <div class="question-text-preview">${this.escapeHtml(q.question || '')}</div>
                                                         ${q.options ? `
-                                                            <div class="question-options-detailed">
+                                                                    <div class="question-options-preview">
                                                                 <strong>Options:</strong> ${this.escapeHtml(q.options)}
                                                             </div>
                                                         ` : ''}
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                ` : '<p class="no-questions">No questions available for this activity.</p>'}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Student Responses Content (only if completed) -->
+                                        ${activity.isCompleted ? `
+                                        <div id="responses-content-tab" class="content-tab-panel" style="display: none;">
+                                            <div class="responses-section">
+                                                <h3>Student Responses</h3>
+                                                ${activity.questions && activity.questions.length > 0 ? `
+                                                    <div class="responses-list">
+                                                        ${activity.questions.map((q, index) => `
+                                                            <div class="question-response-block">
+                                                                <div class="question-header">
+                                                                    <span class="question-number">Question ${index + 1}</span>
+                                                                </div>
+                                                                <div class="question-text-for-response">${this.escapeHtml(q.question || '')}</div>
                                                         <div class="student-response-block ${studentResponses[q.id] || studentResponses[q.question] ? 'has-response' : 'no-response'}">
                                                             <div class="response-label">Student Response:</div>
                                                             <div class="response-text">
-                                                                ${studentResponses[q.id] || studentResponses[q.question] || 
-                                                                  (activity.isCompleted ? 'No response provided' : 'Activity not started')}
+                                                                        ${studentResponses[q.id] || studentResponses[q.question] || 'No response provided'}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 `).join('')}
-                                            </div>
-                                        ` : '<p class="no-questions">No questions available for this activity.</p>'}
                                     </div>
                                     
-                                    <!-- Feedback Section (if completed) -->
-                                    ${activity.isCompleted ? `
+                                                    <!-- Feedback Section -->
                                         <div class="feedback-section">
                                             <h3>Staff Feedback</h3>
                                             <textarea class="feedback-textarea" id="feedback-text" 
-                                                      placeholder="Enter your feedback for the student here..."></textarea>
+                                                                  placeholder="Enter your feedback for the student here..."
+                                                                  rows="5">${activity.response?.staffFeedback || ''}</textarea>
+                                                    </div>
+                                                ` : '<p class="no-questions">No questions available for this activity.</p>'}
+                                            </div>
                                         </div>
                                     ` : ''}
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
