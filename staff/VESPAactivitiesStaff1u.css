@@ -1869,52 +1869,101 @@
     margin-left: 8px;
 }
 
-/* Dual Progress Bars */
-.dual-progress-container {
+/* Progress Bar Container */
+.progress-container {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .progress-bar {
-    height: 20px;
-    position: relative;
-}
-
-.progress-prescribed {
+    height: 28px;
     background: rgba(123, 216, 208, 0.2);
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
 }
 
-.progress-general {
-    background: rgba(40, 167, 69, 0.2);
-}
-
-.prescribed-fill {
+.progress-fill {
+    height: 100%;
     background: var(--primary-color);
-}
-
-.general-fill {
-    background: #28a745;
+    border-radius: 14px;
+    transition: width 0.3s ease;
+    min-width: 0;
 }
 
 .progress-bar .progress-text {
-    font-size: 11px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
     font-weight: 600;
+    color: var(--text-primary);
     z-index: 1;
-    position: relative;
+    white-space: nowrap;
 }
 
-/* Completed Counts Display */
-.completed-counts {
+/* Additional Activities Indicator */
+.additional-activities-indicator {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
+    font-size: 12px;
+    color: #28a745;
+    padding-left: 4px;
 }
 
-.prescribed-completed {
+.additional-icon {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.additional-count {
+    color: var(--text-secondary);
+}
+
+/* Completed Info Display */
+.completed-info {
+    text-align: center;
+}
+
+.completed-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.completed-prescribed {
     color: var(--primary-color);
     font-weight: 600;
+    font-size: 16px;
+}
+
+.additional-badge {
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: help;
+}
+
+.completed-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Prescribed Count */
+.prescribed-count {
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .total-completed {
@@ -1929,63 +1978,18 @@
     margin-top: 2px;
 }
 
-/* Progress Legend */
-.progress-legend {
-    background: var(--bg-secondary);
-    padding: 12px 20px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 30px;
-    margin-top: 15px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-}
-
-.legend-color {
-    width: 20px;
-    height: 12px;
-    border-radius: 3px;
-}
-
-.legend-color.prescribed-color {
-    background: var(--primary-color);
-}
-
-.legend-color.general-color {
-    background: #28a745;
-}
-
-.legend-note {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #666;
-    font-size: 13px;
-    font-style: italic;
-    margin-left: auto;
-}
-
-.info-icon {
-    font-size: 16px;
-}
-
+/* Responsive adjustments for mobile */
 @media (max-width: 768px) {
-    .progress-legend {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+    .additional-activities-indicator {
+        font-size: 11px;
     }
     
-    .legend-note {
-        margin-left: 0;
-        margin-top: 5px;
+    .completed-info {
+        font-size: 13px;
+    }
+    
+    .additional-badge {
+        font-size: 10px;
+        padding: 1px 4px;
     }
 }

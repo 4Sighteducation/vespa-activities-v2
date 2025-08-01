@@ -1349,22 +1349,6 @@
                         <span class="student-count">Average Progress: ${avgProgress}%</span>
                     </div>
                 </div>
-                
-                <!-- Progress Legend -->
-                <div class="progress-legend">
-                    <div class="legend-item">
-                        <div class="legend-color prescribed-color"></div>
-                        <span>Prescribed Activities (Staff Assigned)</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color general-color"></div>
-                        <span>All Activities (Including Self-Selected)</span>
-                    </div>
-                    <div class="legend-note">
-                        <span class="info-icon">ℹ️</span>
-                        Students can now self-select activities in addition to prescribed ones
-                    </div>
-                </div>
             `;
         }
         
@@ -1466,6 +1450,10 @@
         
         // Render individual student row
         renderStudentRow(student) {
+            // Calculate if student has completed additional activities
+            const hasAdditionalActivities = student.totalCompletedCount > student.completedCount;
+            const additionalCount = student.totalCompletedCount - student.completedCount;
+            
             return `
                 <tr data-student-id="${student.id}">
                     <td>
@@ -1473,15 +1461,17 @@
                         <div class="student-email">${student.email}</div>
                     </td>
                     <td class="progress-cell">
-                        <div class="dual-progress-container">
-                            <div class="progress-bar progress-prescribed" title="Prescribed Activities Progress">
-                                <div class="progress-fill prescribed-fill" style="width: ${student.progress}%"></div>
+                        <div class="progress-container">
+                            <div class="progress-bar" title="Prescribed Activities Progress">
+                                <div class="progress-fill" style="width: ${student.progress}%"></div>
                                 <span class="progress-text">${student.completedCount}/${student.prescribedCount}</span>
                             </div>
-                            <div class="progress-bar progress-general" title="Total Activities (Self-selected + Prescribed)">
-                                <div class="progress-fill general-fill" style="width: ${Math.min((student.totalCompletedCount / 40) * 100, 100)}%"></div>
-                                <span class="progress-text">${student.totalCompletedCount} total</span>
-                            </div>
+                            ${hasAdditionalActivities ? `
+                                <div class="additional-activities-indicator" title="${additionalCount} self-selected activities completed">
+                                    <span class="additional-icon">+</span>
+                                    <span class="additional-count">${additionalCount} self-selected</span>
+                                </div>
+                            ` : ''}
                         </div>
                     </td>
                     <td class="hide-mobile">
@@ -1489,12 +1479,22 @@
                             ${student.vespaScores ? this.renderVESPAScores(student.vespaScores) : '<span class="no-scores">No scores</span>'}
                         </div>
                     </td>
-                    <td>${student.prescribedCount}</td>
                     <td>
-                        <div class="completed-counts">
-                            <span class="prescribed-completed">${student.completedCount}</span> / 
-                            <span class="total-completed">${student.totalCompletedCount}</span>
-                            <small class="count-label">prescribed / total</small>
+                        <div class="prescribed-count">
+                            ${student.prescribedCount}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="completed-info">
+                            <div class="completed-main">
+                                <span class="completed-prescribed">${student.completedCount}</span>
+                                ${hasAdditionalActivities ? `
+                                    <span class="additional-badge" title="${additionalCount} additional self-selected activities">
+                                        +${additionalCount}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div class="completed-label">prescribed${hasAdditionalActivities ? ' + self' : ''}</div>
                         </div>
                     </td>
                     <td>
