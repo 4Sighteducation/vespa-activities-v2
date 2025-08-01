@@ -2153,9 +2153,12 @@
                                         ${activity.category}
                                     </span>
                                     <span>Level ${activity.level}</span>
-
                                 </div>
                             </div>
+                            <button class="btn-review-activity" onclick="event.preventDefault(); VESPAStaff.viewEnhancedActivityPreview('${activity.id}')" title="Review activity content">
+                                <span class="review-icon">👁️</span>
+                                Review
+                            </button>
                         </div>
                     `).join('')}
                 </div>
@@ -2501,8 +2504,14 @@
             }
         }
         
-        // View activity preview
+        // View activity preview (legacy method - keep for backward compatibility)
         async viewActivityPreview(activityId) {
+            // Redirect to enhanced preview
+            return this.viewEnhancedActivityPreview(activityId);
+        }
+        
+        // Enhanced activity preview that loads full content from Object_44 and Object_45
+        async viewEnhancedActivityPreview(activityId) {
             this.showLoading();
             try {
                 const activity = this.state.activities.find(a => a.id === activityId);
@@ -2510,43 +2519,150 @@
                     throw new Error('Activity not found');
                 }
                 
-                // Load questions for preview
+                // Load questions from Object_45
                 const questions = await this.loadActivityQuestions(activityId);
                 
-                // Show preview modal
+                // Load additional data from Object_44
+                const additionalData = await this.loadActivityAdditionalData(activityId);
+                
+                // Store questions for time calculation
+                this.currentActivityQuestions = questions;
+                
+                // Calculate estimated completion time
+                const questionsWithContent = questions.filter(q => q.question && q.question.trim().length > 0);
+                const estimatedTime = additionalData.timeMinutes || (questionsWithContent.length * 3 + 10);
+                
+                // Show enhanced preview modal
                 const modalHtml = `
                     <div id="activity-preview-modal" class="modal-overlay" style="display: flex;">
-                        <div class="modal">
+                        <div class="modal large-modal activity-preview-modal">
                             <div class="modal-header">
-                                <h2 class="modal-title">Activity Preview: ${activity.name}</h2>
+                                <h2 class="modal-title">${this.escapeHtml(activity.name)}</h2>
                                 <button class="modal-close" onclick="VESPAStaff.closeModal('activity-preview-modal')">×</button>
                             </div>
                             <div class="modal-body">
-                                <div class="activity-preview">
-                                    <div class="preview-info">
-                                        <p><strong>Category:</strong> <span class="vespa-pill ${activity.category.toLowerCase()}">${activity.category}</span></p>
-                                        <p><strong>Level:</strong> ${activity.level}</p>
-                                        ${activity.duration ? `<p><strong>Duration:</strong> ${activity.duration}</p>` : ''}
-                                        ${activity.description ? `<p><strong>Description:</strong> ${activity.description}</p>` : ''}
+                                <div class="activity-preview-container">
+                                    <!-- Activity Overview Section -->
+                                    <div class="activity-overview-section">
+                                        <div class="activity-badges">
+                                            <span class="category-badge ${activity.category.toLowerCase()}">${activity.category}</span>
+                                            <span class="level-badge">Level ${activity.level || '1'}</span>
+                                            <span class="time-badge">⏱️ ${estimatedTime} mins</span>
                                     </div>
-                                    ${questions.length > 0 ? `
-                                        <div class="preview-questions">
-                                            <h4>Questions:</h4>
-                                            <ol>
-                                                ${questions.map(q => `
-                                                    <li>
-                                                        <div class="question-text">${q.question}</div>
-                                                        ${q.type === 'multiple_choice' && q.options ? 
-                                                            `<div class="question-options"><small>Options: ${q.options}</small></div>` : ''}
-                                                    </li>
-                                                `).join('')}
-                                            </ol>
+                                        
+                                        <div class="activity-overview-cards">
+                                            <div class="overview-card">
+                                                <span class="overview-icon">🎯</span>
+                                                <h4>Learning Objective</h4>
+                                                <p>${additionalData.objective || activity.description || 'Develop key skills through guided practice and reflection'}</p>
+                                            </div>
+                                            <div class="overview-card">
+                                                <span class="overview-icon">📊</span>
+                                                <h4>Activity Structure</h4>
+                                                <p>${questionsWithContent.length} reflection questions to guide learning</p>
+                                            </div>
+                                            <div class="overview-card">
+                                                <span class="overview-icon">⭐</span>
+                                                <h4>Points Available</h4>
+                                                <p>${activity.level === 3 ? 15 : 10} points upon completion</p>
+                                            </div>
                                         </div>
-                                    ` : '<p>No questions available for this activity.</p>'}
+                                    </div>
+                                    
+                                    <!-- Content Tabs -->
+                                    <div class="activity-content-tabs">
+                                        <div class="content-tab-buttons">
+                                            <button class="content-tab-btn active" onclick="VESPAStaff.switchPreviewTab('content', event)">
+                                                📖 Activity Content
+                                            </button>
+                                            <button class="content-tab-btn" onclick="VESPAStaff.switchPreviewTab('questions', event)">
+                                                ❓ Questions (${questionsWithContent.length})
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Content Tab -->
+                                        <div id="content-preview-tab" class="content-tab-panel active">
+                                            ${additionalData.backgroundInfo || additionalData.additionalInfo ? `
+                                                <div class="activity-content-section">
+                                                    ${additionalData.backgroundInfo ? `
+                                                        <div class="background-info-content">
+                                                            <h4>Background Information</h4>
+                                                            <div class="rich-text-content">
+                                                                ${additionalData.backgroundInfo}
+                                                            </div>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${additionalData.additionalInfo ? `
+                                                        <div class="additional-info-content">
+                                                            <h4>Additional Resources</h4>
+                                                            <div class="rich-text-content">
+                                                                ${additionalData.additionalInfo}
+                                                            </div>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${additionalData.pdfUrl ? `
+                                                        <div class="pdf-download-section">
+                                                            <a href="${additionalData.pdfUrl}" target="_blank" class="pdf-download-btn">
+                                                                <span class="pdf-icon">📄</span>
+                                                                Download Activity PDF
+                                                            </a>
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            ` : `
+                                                <div class="empty-content-message">
+                                                    <span class="empty-icon">📝</span>
+                                                    <p>No additional content available for this activity.</p>
+                                                    <p class="hint-text">The activity will guide students through reflection questions.</p>
+                                                </div>
+                                            `}
+                                        </div>
+                                        
+                                        <!-- Questions Tab -->
+                                        <div id="questions-preview-tab" class="content-tab-panel" style="display: none;">
+                                            ${questionsWithContent.length > 0 ? `
+                                                <div class="questions-preview-section">
+                                                    <div class="questions-intro">
+                                                        <p>These questions will guide students through the activity:</p>
+                                                    </div>
+                                                    <div class="questions-list">
+                                                        ${questionsWithContent.map((q, index) => `
+                                                            <div class="question-preview-item">
+                                                                <div class="question-number">Question ${index + 1}</div>
+                                                                <div class="question-content">
+                                                                    <p class="question-text">${this.escapeHtml(q.question)}</p>
+                                                                    ${q.type === 'multiple_choice' && q.options ? `
+                                                                        <div class="question-options">
+                                                                            <strong>Options:</strong> ${this.escapeHtml(q.options)}
+                                                                        </div>
+                                                                    ` : ''}
+                                                                    <div class="question-type">
+                                                                        <span class="type-badge">${q.type === 'multiple_choice' ? '🔘 Multiple Choice' : '📝 Open Response'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                `).join('')}
+                                        </div>
+                                                </div>
+                                            ` : `
+                                                <div class="empty-content-message">
+                                                    <span class="empty-icon">❓</span>
+                                                    <p>No questions configured for this activity.</p>
+                                                </div>
+                                            `}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="modal-footer">
                                 <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('activity-preview-modal')">Close</button>
+                                ${this.state.currentRole.canAssign ? `
+                                    <button class="btn btn-primary" onclick="VESPAStaff.assignActivityFromPreview('${activity.id}')">
+                                        Assign This Activity
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -2555,11 +2671,52 @@
                 $('body').append(modalHtml);
                 
             } catch (err) {
-                error('Failed to preview activity:', err);
-                alert('Error loading activity preview');
+                error('Failed to load activity preview:', err);
+                alert('Error loading activity preview. Please try again.');
             } finally {
                 this.hideLoading();
             }
+        }
+        
+        // Switch tabs in preview modal
+        switchPreviewTab(tabName, event) {
+            const e = event || window.event;
+            
+            // Hide all content panels
+            document.querySelectorAll('.content-tab-panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.content-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected panel
+            const panel = document.getElementById(`${tabName}-preview-tab`);
+            if (panel) {
+                panel.style.display = 'block';
+            }
+            
+            // Add active class to clicked button
+            if (e && e.target) {
+                e.target.classList.add('active');
+            }
+        }
+        
+        // Assign activity from preview modal
+        async assignActivityFromPreview(activityId) {
+            this.closeModal('activity-preview-modal');
+            // Show assign modal with this activity pre-selected
+            this.showAssignModal();
+            // Pre-select the activity
+            setTimeout(() => {
+                const checkbox = document.getElementById(`activity-${activityId}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    this.toggleActivity(activityId, true);
+                }
+            }, 100);
         }
         
         // Send reminder to student
@@ -2585,9 +2742,8 @@
             // Find the activity in the current student's activities
             const activity = this.currentStudentActivities?.find(a => a.id === activityId);
             if (!activity) {
-                // Try to load it fresh
-                log('Activity not found in current list, loading fresh...');
-                return;
+                // If not found in student activities, use the enhanced preview
+                return this.viewEnhancedActivityPreview(activityId);
             }
             
             this.showLoading();
