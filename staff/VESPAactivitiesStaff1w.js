@@ -1056,32 +1056,94 @@
             }
         }
         
+        // Load activities from JSON file
+        async loadActivitiesFromJSON() {
+            if (this.state.activitiesData) {
+                log('Activities already loaded from JSON');
+                return;
+            }
+            
+            try {
+                log('Loading activities from JSON file...');
+                
+                // Try multiple paths since we don't know the exact deployment structure
+                const paths = [
+                    './activities1e.json',
+                    '../shared/utils/activities1e.json',
+                    '../../shared/utils/activities1e.json',
+                    '/vespa-activities-v2/shared/utils/activities1e.json',
+                    'https://www.vespa.academy/vespa-activities-v2/shared/utils/activities1e.json'
+                ];
+                
+                let loaded = false;
+                for (const path of paths) {
+                    if (loaded) break;
+                    try {
+                        const response = await $.ajax({
+                            url: path,
+                            type: 'GET',
+                            dataType: 'json',
+                            timeout: 5000
+                        });
+                        
+                        if (Array.isArray(response)) {
+                            this.state.activitiesData = response;
+                            log(`Loaded ${response.length} activities from JSON (path: ${path})`);
+                            loaded = true;
+                        }
+                    } catch (err) {
+                        log(`Failed to load from ${path}:`, err.status || err.message);
+                    }
+                }
+                
+                if (!loaded) {
+                    error('Failed to load activities JSON from any path');
+                }
+            } catch (err) {
+                error('Error in loadActivitiesFromJSON:', err);
+            }
+        }
+        
         // Load all activities
         async loadActivities() {
-            log('Loading activities from Knack API...');
+            log('Loading activities...');
             
             const activities = [];
             const objects = this.config.objects;
             
             try {
-                // First try to get data from the hidden view if it exists
-                const viewId = this.config.views.studentResponses;
-                const viewData = $(`#${viewId}`).find('.kn-list-table tbody tr');
+                // First try to load from JSON for complete data
+                await this.loadActivitiesFromJSON();
+                
+                // Try to get data from the hidden view - view_3178 contains activities
+                const viewId = 'view_3178'; // Activities view, not student responses
+                const viewData = $(`#${viewId}`).find('.kn-list-table tbody tr, .kn-table tbody tr');
                 
                 if (viewData.length > 0) {
-                    log('Found activity data in view, parsing...');
+                    log(`Found ${viewData.length} activities in view_3178`);
                     viewData.each((index, row) => {
                         const $row = $(row);
                         const activity = this.parseActivityFromRow($row);
                         if (activity) {
+                            // Try to match with JSON data for complete information
+                            if (this.state.activitiesData) {
+                                const jsonActivity = this.state.activitiesData.find(
+                                    a => a.Activity_id === activity.id || 
+                                    a['Activities Name'] === activity.name
+                                );
+                                if (jsonActivity) {
+                                    // Enrich with JSON data
+                                    activity.hasBackgroundContent = !!jsonActivity.background_content;
+                                    activity.media = jsonActivity.media;
+                                    activity.level = parseInt(jsonActivity.Level?.replace('Level ', '')) || activity.level;
+                                }
+                            }
                             activities.push(activity);
                         }
                     });
                 } else {
                     // Fall back to API call
                     log('No view data found, making API call for activities...');
-                    
-                    log('Activities API URL:', `https://api.knack.com/v1/objects/${objects.activities}/records`);
                     
                     const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.activities}/records`,
@@ -1097,58 +1159,48 @@
                     });
                     
                     log('Activities API Response:', response);
-                    log('Number of activities returned:', response.records ? response.records.length : 0);
                     
                     // Process each activity record
                     if (response.records && response.records.length > 0) {
-                        response.records.forEach((record, index) => {
-                            if (index === 0) {
-                                log('Sample activity record:', record);
-                            }
+                        response.records.forEach((record) => {
                             const activity = this.parseActivityFromRecord(record);
                             if (activity) {
+                                // Try to match with JSON data
+                                if (this.state.activitiesData) {
+                                    const jsonActivity = this.state.activitiesData.find(
+                                        a => a.Activity_id === activity.id
+                                    );
+                                    if (jsonActivity) {
+                                        activity.hasBackgroundContent = !!jsonActivity.background_content;
+                                        activity.media = jsonActivity.media;
+                                    }
+                                }
                                 activities.push(activity);
                             }
                         });
                     }
                 }
                 
-                // If still no data, optionally create test data
-                if (activities.length === 0) {
-                    log('No activities found via API');
-                    
-                    if (this.config.enableTestData) {
-                        log('Creating test activities (enableTestData is true)...');
-                        const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
-                        for (let i = 0; i < 10; i++) {
+                // If still no activities but we have JSON data, use that
+                if (activities.length === 0 && this.state.activitiesData) {
+                    log('No activities from view/API, using JSON data...');
+                    this.state.activitiesData.forEach(jsonActivity => {
+                        if (jsonActivity.Active) {
                             activities.push({
-                                id: `test_activity_${i}`,
-                                name: `Test Activity ${i + 1}`,
-                                category: categories[i % 5],
-                                level: (i % 3) + 1
+                                id: jsonActivity.Activity_id,
+                                name: jsonActivity['Activities Name'],
+                                category: jsonActivity['VESPA Category'],
+                                level: parseInt(jsonActivity.Level?.replace('Level ', '')) || 1,
+                                hasBackgroundContent: !!jsonActivity.background_content,
+                                media: jsonActivity.media
                             });
                         }
-                    }
+                    });
                 }
                 
             } catch (err) {
                 error('Failed to load activities:', err);
                 log('Activities error details:', err.responseJSON || err.responseText || err);
-                
-                // Check if it's an API key/authentication issue
-                if (err.status === 401 || err.status === 403) {
-                    error('Authentication error loading activities - check API keys');
-                }
-                
-                // Create fallback data on error
-                activities.push({
-                    id: 'error_1',
-                    name: 'Error Loading Activities',
-                    category: 'Unknown',
-                    level: 1,
-                    duration: 'N/A',
-                    type: 'Error'
-                });
             }
             
             this.state.activities = activities;
@@ -1158,9 +1210,17 @@
         // Parse activity data from table row
         parseActivityFromRow($row) {
             try {
+                // Get the record ID from row attributes
+                let activityId = $row.data('record-id') || $row.attr('id') || '';
+                
+                // Clean up the ID if it has a prefix like "row-"
+                if (activityId.startsWith('row-')) {
+                    activityId = activityId.substring(4);
+                }
+                
                 const cells = $row.find('td');
                 const activity = {
-                    id: $row.data('record-id') || $row.attr('id'),
+                    id: activityId,
                     name: '',
                     category: 'Unknown',
                     level: 1,
@@ -1168,19 +1228,42 @@
                     type: 'Activity'
                 };
                 
-                // Try to extract activity name from first cell
-                if (cells.length > 0) {
-                    activity.name = cells.eq(0).text().trim();
+                // Try to extract activity data from cells
+                cells.each((index, cell) => {
+                    const $cell = $(cell);
+                    const text = $cell.text().trim();
+                    
+                    // First cell is usually the activity name
+                    if (index === 0 && text) {
+                        activity.name = this.stripHtml(text);
+                    }
+                    
+                    // Look for category in cell classes or content
+                    const cellClass = $cell.attr('class') || '';
+                    if (cellClass.includes('field_1285') || cellClass.includes('category')) {
+                        activity.category = this.stripHtml(text);
+                    }
+                    
+                    // Look for level
+                    if (cellClass.includes('field_1295') || cellClass.includes('level')) {
+                        const levelMatch = text.match(/\d+/);
+                        if (levelMatch) {
+                            activity.level = parseInt(levelMatch[0]);
+                        }
+                    }
+                });
+                
+                // If category not found in cells, try to detect from name
+                if (activity.category === 'Unknown' && activity.name) {
+                    const nameUpper = activity.name.toUpperCase();
+                    if (nameUpper.includes('VISION')) activity.category = 'Vision';
+                    else if (nameUpper.includes('EFFORT')) activity.category = 'Effort';
+                    else if (nameUpper.includes('SYSTEM')) activity.category = 'Systems';
+                    else if (nameUpper.includes('PRACTICE')) activity.category = 'Practice';
+                    else if (nameUpper.includes('ATTITUDE')) activity.category = 'Attitude';
                 }
                 
-                // Try to detect category from name or other cells
-                const nameUpper = activity.name.toUpperCase();
-                if (nameUpper.includes('VISION')) activity.category = 'Vision';
-                else if (nameUpper.includes('EFFORT')) activity.category = 'Effort';
-                else if (nameUpper.includes('SYSTEM')) activity.category = 'Systems';
-                else if (nameUpper.includes('PRACTICE')) activity.category = 'Practice';
-                else if (nameUpper.includes('ATTITUDE')) activity.category = 'Attitude';
-                
+                log(`Parsed activity from row: ${activity.name} (${activity.id})`);
                 return activity;
             } catch (err) {
                 error('Error parsing activity from row:', err);
@@ -1737,13 +1820,34 @@
             }
         }
         
-        // Load activity questions from object_45
+        // Load activity questions from object_45 or generate default questions
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             
             const objects = this.config.objects;
             
             try {
+                // First try view_3177 if available
+                const viewData = $('#view_3177').find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
+                if (viewData.length > 0) {
+                    log('Found questions in view_3177');
+                    const questions = [];
+                    viewData.find('.question-item, .field_1137').each((index, elem) => {
+                        const $elem = $(elem);
+                        questions.push({
+                            id: `q_${index}`,
+                            question: $elem.text().trim(),
+                            type: 'text',
+                            options: '',
+                            order: index
+                        });
+                    });
+                    if (questions.length > 0) {
+                        return questions;
+                    }
+                }
+                
+                // Try API call
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/object_45/records`,
                     type: 'GET',
@@ -1758,25 +1862,87 @@
                             value: activityId
                         }]),
                         page: 1,
-                        rows_per_page: 10  // Limit to 10 questions for performance
+                        rows_per_page: 20
                     }
                 });
                 
-                log(`Loaded ${response.records.length} questions for activity ${activityId}`);
+                if (response.records && response.records.length > 0) {
+                    log(`Loaded ${response.records.length} questions from API for activity ${activityId}`);
+                    
+                    // Parse questions
+                    return response.records.map(record => ({
+                        id: record.id,
+                        question: this.stripHtml(record.field_1137 || ''), // Question text
+                        type: record.field_1138 || 'text', // Question type
+                        options: record.field_1139 || '', // Multiple choice options
+                        order: parseInt(record.field_1140) || 0 // Question order
+                    })).sort((a, b) => a.order - b.order);
+                }
                 
-                // Parse questions
-                return response.records.map(record => ({
-                    id: record.id,
-                    question: record.field_1137 || '', // Question text
-                    type: record.field_1138 || 'text', // Question type
-                    options: record.field_1139 || '', // Multiple choice options
-                    order: parseInt(record.field_1140) || 0 // Question order
-                })).sort((a, b) => a.order - b.order);
+                // If no questions found, generate default reflection questions based on activity
+                log('No questions found, generating default reflection questions');
+                const activity = this.state.activities.find(a => a.id === activityId);
+                if (activity) {
+                    return this.generateDefaultQuestions(activity);
+                }
+                
+                return [];
                 
             } catch (err) {
                 error('Failed to load activity questions:', err);
+                
+                // Generate default questions as fallback
+                const activity = this.state.activities.find(a => a.id === activityId);
+                if (activity) {
+                    return this.generateDefaultQuestions(activity);
+                }
                 return [];
             }
+        }
+        
+        // Generate default reflection questions for an activity
+        generateDefaultQuestions(activity) {
+            const categoryQuestions = {
+                'Vision': [
+                    'What are your main goals for this term/year?',
+                    'How does this activity help you achieve your vision?',
+                    'What obstacles might prevent you from reaching your goals?'
+                ],
+                'Effort': [
+                    'How much time do you currently dedicate to studying?',
+                    'What strategies will you use to maintain consistent effort?',
+                    'How will you track your progress?'
+                ],
+                'Systems': [
+                    'What study systems or routines work best for you?',
+                    'How can you improve your current study methods?',
+                    'What tools or resources do you need to succeed?'
+                ],
+                'Practice': [
+                    'How often do you practice or review material?',
+                    'What specific skills need more practice?',
+                    'How will you measure improvement in your practice?'
+                ],
+                'Attitude': [
+                    'How do you stay motivated when things get difficult?',
+                    'What negative thoughts do you need to overcome?',
+                    'How can you maintain a positive mindset?'
+                ]
+            };
+            
+            const questions = categoryQuestions[activity.category] || [
+                'What did you learn from this activity?',
+                'How will you apply this to your studies?',
+                'What challenges did you face?'
+            ];
+            
+            return questions.map((q, index) => ({
+                id: `default_${activity.id}_${index}`,
+                question: q,
+                type: 'text',
+                options: '',
+                order: index
+            }));
         }
 
         // Show student details modal
@@ -2426,9 +2592,63 @@
             });
         }
         
-        // Load additional activity data from Object_44
+        // Load additional activity data from Object_44 or cached activity data
         async loadActivityAdditionalData(activityId) {
             try {
+                // First check if we have this activity in our cached data
+                let activityData = this.state.activitiesData?.find(a => a.Activity_id === activityId);
+                
+                // If not in cache, try to load from activities JSON
+                if (!activityData) {
+                    log('Activity not in cache, loading from JSON...');
+                    await this.loadActivitiesFromJSON();
+                    activityData = this.state.activitiesData?.find(a => a.Activity_id === activityId);
+                }
+                
+                // If we have activity data from JSON, use it
+                if (activityData) {
+                    log('Found activity in JSON data:', activityData);
+                    
+                    // Convert markdown-style content to HTML
+                    let backgroundContent = activityData.background_content || '';
+                    
+                    // Basic markdown to HTML conversion
+                    backgroundContent = backgroundContent
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br>')
+                        .replace(/^/, '<p>')
+                        .replace(/$/, '</p>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/LEARN 💡/g, '<h3>LEARN 💡</h3>')
+                        .replace(/REFLECT🤔/g, '<h3>REFLECT 🤔</h3>')
+                        .replace(/Final Thoughts/g, '<h4>Final Thoughts</h4>')
+                        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                    
+                    // Extract any PDF links from media
+                    let pdfUrl = '';
+                    if (activityData.media?.pdf?.url) {
+                        pdfUrl = activityData.media.pdf.url;
+                    }
+                    
+                    // Calculate time based on content and level
+                    const contentLength = (backgroundContent.length) / 200; // Rough word count
+                    const baseTime = activityData.Level === 'Level 3' ? 25 : 
+                                    activityData.Level === 'Level 2' ? 20 : 15;
+                    const totalTime = Math.min(Math.max(Math.ceil(contentLength + baseTime), 15), 45);
+                    
+                    return {
+                        backgroundInfo: backgroundContent,
+                        additionalInfo: '',
+                        pdfUrl: pdfUrl,
+                        timeMinutes: totalTime,
+                        objective: backgroundContent.substring(0, 200).replace(/<[^>]*>/g, '') + '...',
+                        media: activityData.media || {}
+                    };
+                }
+                
+                // Fall back to API call with original field names
+                log('Activity not found in JSON, trying API...');
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/${this.config.objects.activities}/records/${activityId}`,
                     type: 'GET',
@@ -2439,32 +2659,16 @@
                     }
                 });
                 
-                // Extract rich text content and clean it
-                const backgroundInfo = this.stripHtml(response.field_1293 || '', true); // Keep some formatting
-                const additionalInfo = response.field_1289 || '';
-                
-                // Extract PDF link if present in field_1289
-                let pdfUrl = '';
-                if (additionalInfo.includes('href="')) {
-                    const pdfMatch = additionalInfo.match(/href="([^"]+\.pdf[^"]*)"/i);
-                    if (pdfMatch) {
-                        pdfUrl = pdfMatch[1];
-                    }
-                }
-                
-                // Calculate time based on content (15-45 minutes)
-                const questions = this.currentActivityQuestions || [];
-                const contentLength = (backgroundInfo.length + this.stripHtml(additionalInfo).length) / 1000; // Rough word count
-                const questionTime = questions.length * 2; // 2 minutes per question
-                const readingTime = Math.ceil(contentLength * 3); // 3 minutes per 1000 characters
-                const totalTime = Math.min(Math.max(questionTime + readingTime, 15), 45); // Between 15-45 minutes
+                // Try various possible field names for background content
+                const backgroundInfo = response.field_1293 || response.field_1289 || 
+                                     response.background_content || response['Background Content'] || '';
                 
                 return {
-                    backgroundInfo: response.field_1293 || '', // Keep HTML for rich formatting
-                    additionalInfo: response.field_1289 || '', // Keep HTML for rich formatting
-                    pdfUrl: pdfUrl,
-                    timeMinutes: totalTime,
-                    objective: this.stripHtml(response.field_1289 || '').substring(0, 200) + '...' // First 200 chars as objective
+                    backgroundInfo: backgroundInfo,
+                    additionalInfo: '',
+                    pdfUrl: '',
+                    timeMinutes: 20,
+                    objective: this.stripHtml(backgroundInfo).substring(0, 200) + '...'
                 };
             } catch (err) {
                 log('Failed to load additional activity data:', err);
@@ -2608,6 +2812,19 @@
                                                                 <span class="pdf-icon">📄</span>
                                                                 Download Activity PDF
                                                             </a>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${additionalData.media?.images && additionalData.media.images.length > 0 ? `
+                                                        <div class="activity-images-section">
+                                                            <h4>Activity Images</h4>
+                                                            <div class="images-grid">
+                                                                ${additionalData.media.images.map(img => `
+                                                                    <img src="${img.url}" alt="${img.alt || 'Activity image'}" 
+                                                                         class="activity-preview-image" 
+                                                                         onclick="window.open('${img.url}', '_blank')">
+                                                                `).join('')}
+                                                            </div>
                                                         </div>
                                                     ` : ''}
                                                 </div>
