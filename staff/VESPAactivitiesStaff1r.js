@@ -717,6 +717,24 @@
         }
 
         // Parse student data from API record
+        // Helper method to strip HTML and extract clean text
+        stripHtml(html) {
+            if (!html) return '';
+            // First decode HTML entities
+            const txt = document.createElement('textarea');
+            txt.innerHTML = html;
+            let decoded = txt.value;
+            
+            // Remove all HTML tags
+            decoded = decoded.replace(/<[^>]*>/g, '');
+            
+            // Clean up any remaining artifacts
+            decoded = decoded.replace(/&nbsp;/g, ' ');
+            decoded = decoded.replace(/\s+/g, ' ').trim();
+            
+            return decoded;
+        }
+
         parseStudentFromRecord(record) {
             try {
                 const fields = this.config.fields;
@@ -732,14 +750,18 @@
                 if (prescribedText) {
                     // Check if it's HTML with connection spans
                     if (prescribedText.includes('<span')) {
-                        // Extract text from spans
+                        // Extract text from spans and clean HTML
                         const matches = prescribedText.match(/>([^<]+)</g);
                         if (matches) {
-                            prescribedActivities = matches.map(match => match.replace(/[><]/g, '').trim()).filter(a => a);
+                            prescribedActivities = matches.map(match => {
+                                const cleaned = match.replace(/[><]/g, '').trim();
+                                // Remove any HTML entities and extra formatting
+                                return this.stripHtml(cleaned);
+                            }).filter(a => a && !a.includes('data-') && !a.includes('onclick'));
                         }
                     } else {
                         // Plain text, split by comma or newline
-                        prescribedActivities = prescribedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
+                        prescribedActivities = prescribedText.split(/[,\n]/).map(a => this.stripHtml(a.trim())).filter(a => a);
                     }
                 }
                 
@@ -768,10 +790,31 @@
                 }
                 log(`Student ${name} finished activity IDs:`, finishedActivityIds);
                 
-                const completedCount = finishedActivityIds.length;
+                // Calculate completed count only for prescribed activities
+                let actualCompletedCount = 0;
+                let prescribedActivityIds = [];
                 
-                // Use 40 as the baseline for all activities at student level
-                const totalActivitiesBaseline = 40;
+                // Convert prescribed activity names to IDs for accurate comparison
+                if (this.state.activities && prescribedActivities.length > 0) {
+                    for (const activityName of prescribedActivities) {
+                        const activity = this.state.activities.find(a => 
+                            this.stripHtml(a.name).toLowerCase() === activityName.toLowerCase()
+                        );
+                        if (activity) {
+                            prescribedActivityIds.push(activity.id);
+                            if (finishedActivityIds.includes(activity.id)) {
+                                actualCompletedCount++;
+                            }
+                        }
+                    }
+                }
+                
+                // Use the accurate completed count
+                const completedCount = actualCompletedCount;
+                
+                // Calculate progress based on prescribed activities, not baseline
+                const progressPercentage = prescribedCount > 0 ? 
+                    Math.round((completedCount / prescribedCount) * 100) : 0;
                 
                 // For VESPA scores, check if they're in the record or need to be loaded separately
                 const vespaScores = {
@@ -836,10 +879,11 @@
                     name: name,
                     email: email,
                     prescribedActivities: prescribedActivities,
-                    finishedActivities: finishedActivityIds, // Store activity IDs, not names
+                    prescribedActivityIds: prescribedActivityIds, // Store IDs of prescribed activities
+                    finishedActivities: finishedActivityIds, // Store activity IDs
                     prescribedCount: prescribedCount,
-                    completedCount: finishedActivityIds.length,
-                    progress: Math.round((finishedActivityIds.length / totalActivitiesBaseline) * 100),
+                    completedCount: completedCount, // Now shows accurate count of prescribed activities completed
+                    progress: progressPercentage, // Progress based on prescribed activities
                     vespaScores: vespaScores,
                     vespaConnectionId: vespaConnectionId,
                     vespaConnectionEmail: vespaConnectionEmail
@@ -1119,22 +1163,29 @@
             try {
                 const fields = this.config.fields;
                 
-                // Use helper to get field values
-                const name = this.getFieldValue(record, fields.activityName, 'Unnamed Activity');
-                const category = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
+                // Use helper to get field values and strip HTML
+                const rawName = this.getFieldValue(record, fields.activityName, 'Unnamed Activity');
+                const name = this.stripHtml(rawName); // Clean activity name
+                
+                const rawCategory = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
+                const category = this.stripHtml(rawCategory);
+                
                 const levelValue = this.getFieldValue(record, fields.activityLevel, '1');
                 
-                // Get additional fields and clean HTML if present
-                let description = this.getFieldValue(record, 'field_1134', ''); // Activity description
-                const duration = this.getFieldValue(record, 'field_1135', ''); // Activity duration
-                const type = this.getFieldValue(record, 'field_1133', ''); // Activity type
-                
-                // Strip HTML tags from description if present
-                if (description && description.includes('<')) {
-                    const temp = document.createElement('div');
-                    temp.innerHTML = description;
-                    description = temp.textContent || temp.innerText || '';
+                // Log level field for debugging
+                if (this.config.debug) {
+                    log(`Activity "${name}" level field value:`, record[fields.activityLevel], 'parsed as:', parseInt(levelValue));
                 }
+                
+                // Get additional fields and clean HTML if present
+                let rawDescription = this.getFieldValue(record, 'field_1134', ''); // Activity description
+                const description = this.stripHtml(rawDescription);
+                
+                const rawDuration = this.getFieldValue(record, 'field_1135', ''); // Activity duration
+                const duration = this.stripHtml(rawDuration);
+                
+                const rawType = this.getFieldValue(record, 'field_1133', ''); // Activity type
+                const type = this.stripHtml(rawType);
                 
                 const activity = {
                     id: record.id,
@@ -1142,8 +1193,8 @@
                     category: category,
                     level: parseInt(levelValue) || 1,
                     description: description,
-                    duration: duration,
-                    type: type
+                    duration: duration || 'N/A',
+                    type: type || 'Activity'
                 };
                 
                 return activity;
@@ -1682,9 +1733,12 @@
                 // Load all prescribed activities data for the student
                 const prescribedActivityData = [];
                 for (const activityName of student.prescribedActivities) {
-                    const activity = this.state.activities.find(a => a.name === activityName);
+                    // Find activity by comparing cleaned names
+                    const activity = this.state.activities.find(a => 
+                        this.stripHtml(a.name).toLowerCase() === activityName.toLowerCase()
+                    );
                     if (activity) {
-                        // Check if this activity is completed by ID
+                        // Check if this activity is completed by checking if its ID is in finishedActivities
                         const isCompleted = student.finishedActivities.includes(activity.id);
                         const response = responses.find(r => r.activityId === activity.id);
                         
@@ -1696,6 +1750,8 @@
                             studentId: student.id,
                             questions: [] // Empty initially
                         });
+                    } else {
+                        log(`Warning: Could not find activity "${activityName}" in loaded activities`);
                     }
                 }
                 
