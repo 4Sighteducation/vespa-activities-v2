@@ -222,6 +222,14 @@
             }
         }
         
+        // Helper to escape HTML for safe display
+        escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         // Wait for Knack to be ready
         waitForKnack() {
             return new Promise((resolve) => {
@@ -738,23 +746,27 @@
                 const prescribedCount = prescribedActivities.length;
                 log(`Student ${name} prescribed activities:`, prescribedActivities);
                 
-                // Extract finished activities
+                // Extract finished activities (field_1380 contains activity IDs)
                 const finishedText = this.getFieldValue(record, fields.finishedActivities, '');
-                let finishedActivities = [];
+                let finishedActivityIds = [];
                 
                 if (finishedText) {
-                    // Check if it's HTML with connection spans
+                    // Check if it's HTML with connection spans (contains activity record IDs)
                     if (finishedText.includes('<span')) {
-                        // Extract text from spans
-                        const matches = finishedText.match(/>([^<]+)</g);
-                        if (matches) {
-                            finishedActivities = matches.map(match => match.replace(/[><]/g, '').trim()).filter(a => a);
+                        // Extract the IDs from span classes
+                        const classMatches = finishedText.match(/class="([^"]+)"/g);
+                        if (classMatches) {
+                            finishedActivityIds = classMatches.map(match => {
+                                const idMatch = match.match(/class="([^"]+)"/);
+                                return idMatch ? idMatch[1] : '';
+                            }).filter(id => id && id.length > 0);
                         }
                     } else {
-                        // Plain text, split by comma or newline
-                        finishedActivities = finishedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
+                        // Plain text, split by comma (assuming IDs)
+                        finishedActivityIds = finishedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
                     }
                 }
+                log(`Student ${name} finished activity IDs:`, finishedActivityIds);
                 
                 const completedCount = finishedActivities.length;
                 log(`Student ${name} finished activities:`, finishedActivities);
@@ -825,10 +837,10 @@
                     name: name,
                     email: email,
                     prescribedActivities: prescribedActivities,
-                    finishedActivities: finishedActivities,
+                    finishedActivities: finishedActivityIds, // Store activity IDs, not names
                     prescribedCount: prescribedCount,
-                    completedCount: completedCount,
-                    progress: Math.round((completedCount / totalActivitiesBaseline) * 100),
+                    completedCount: finishedActivityIds.length,
+                    progress: Math.round((finishedActivityIds.length / totalActivitiesBaseline) * 100),
                     vespaScores: vespaScores,
                     vespaConnectionId: vespaConnectionId,
                     vespaConnectionEmail: vespaConnectionEmail
@@ -1113,10 +1125,17 @@
                 const category = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
                 const levelValue = this.getFieldValue(record, fields.activityLevel, '1');
                 
-                // Get additional fields
-                const description = this.getFieldValue(record, 'field_1134', ''); // Activity description
+                // Get additional fields and clean HTML if present
+                let description = this.getFieldValue(record, 'field_1134', ''); // Activity description
                 const duration = this.getFieldValue(record, 'field_1135', ''); // Activity duration
                 const type = this.getFieldValue(record, 'field_1133', ''); // Activity type
+                
+                // Strip HTML tags from description if present
+                if (description && description.includes('<')) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = description;
+                    description = temp.textContent || temp.innerText || '';
+                }
                 
                 const activity = {
                     id: record.id,
@@ -1666,8 +1685,8 @@
                 for (const activityName of student.prescribedActivities) {
                     const activity = this.state.activities.find(a => a.name === activityName);
                     if (activity) {
-                        // Check if this activity is completed
-                        const isCompleted = student.finishedActivities.includes(activityName);
+                        // Check if this activity is completed by ID
+                        const isCompleted = student.finishedActivities.includes(activity.id);
                         const response = responses.find(r => r.activityId === activity.id);
                         
                         // Don't load questions here - load them on demand when activity is clicked
@@ -1820,11 +1839,11 @@
                         ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
                     </div>
                     
-                    <div class="activity-card-content">
-                        <h4 class="activity-name">${activity.name}</h4>
-                        ${activity.description ? `<p class="activity-description">${activity.description}</p>` : ''}
-                        ${responseSummary}
-                    </div>
+                                                        <div class="activity-card-content">
+                                        <h4 class="activity-name">${this.escapeHtml(activity.name)}</h4>
+                                        ${activity.description ? `<p class="activity-description">${this.escapeHtml(activity.description)}</p>` : ''}
+                                        ${responseSummary}
+                                    </div>
                     
                     <div class="activity-info">
                         ${isCompleted ? 
@@ -2345,10 +2364,10 @@
                                                             <span class="question-number">Question ${index + 1}</span>
                                                             ${q.type ? `<span class="question-type">${q.type}</span>` : ''}
                                                         </div>
-                                                        <div class="question-text-detailed">${q.question}</div>
+                                                        <div class="question-text-detailed">${this.escapeHtml(q.question || '')}</div>
                                                         ${q.options ? `
                                                             <div class="question-options-detailed">
-                                                                <strong>Options:</strong> ${q.options}
+                                                                <strong>Options:</strong> ${this.escapeHtml(q.options)}
                                                             </div>
                                                         ` : ''}
                                                         <div class="student-response-block ${studentResponses[q.id] || studentResponses[q.question] ? 'has-response' : 'no-response'}">
@@ -2376,6 +2395,9 @@
                             </div>
                             <div class="modal-footer">
                                 ${activity.isCompleted ? `
+                                    <button class="btn btn-danger" onclick="VESPAStaff.markActivityIncomplete('${activityId}', '${studentId}')">
+                                        Mark as Incomplete
+                                    </button>
                                     <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}')">
                                         Save Feedback
                                     </button>
@@ -2403,6 +2425,74 @@
             setTimeout(() => {
                 $('#feedback-text').focus();
             }, 300);
+        }
+        
+        // Mark activity as incomplete
+        async markActivityIncomplete(activityId, studentId) {
+            if (!confirm('Are you sure you want to mark this activity as incomplete? This will require the student to complete it again.')) {
+                return;
+            }
+            
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) {
+                alert('Student not found');
+                return;
+            }
+            
+            this.showLoading();
+            
+            try {
+                // Remove activity ID from finishedActivities
+                const updatedFinishedIds = student.finishedActivities.filter(id => id !== activityId);
+                const activity = this.state.activities.find(a => a.id === activityId);
+                
+                if (!activity) {
+                    throw new Error('Activity not found');
+                }
+                
+                // Make sure activity is in prescribed list
+                if (!student.prescribedActivities.includes(activity.name)) {
+                    student.prescribedActivities.push(activity.name);
+                }
+                
+                // Update the student record
+                const updateData = {};
+                updateData[this.config.fields.finishedActivities] = updatedFinishedIds.join(',');
+                updateData[this.config.fields.prescribedActivities] = student.prescribedActivities.join(',');
+                
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(updateData)
+                });
+                
+                // Update local state
+                student.finishedActivities = updatedFinishedIds;
+                student.completedCount = updatedFinishedIds.length;
+                student.progress = Math.round((updatedFinishedIds.length / 40) * 100);
+                
+                // Refresh the view
+                this.applyFilters();
+                this.render();
+                
+                // Close the modal and show success
+                this.closeModal('activity-detail-modal');
+                alert('Activity marked as incomplete successfully');
+                
+                // Refresh student details
+                await this.viewStudent(studentId);
+                
+            } catch (err) {
+                error('Failed to mark activity as incomplete:', err);
+                alert('Error marking activity as incomplete. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
         }
         
         // Save feedback
