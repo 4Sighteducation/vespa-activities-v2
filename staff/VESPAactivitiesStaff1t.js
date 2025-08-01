@@ -718,8 +718,14 @@
 
         // Parse student data from API record
         // Helper method to strip HTML and extract clean text
-        stripHtml(html) {
+        stripHtml(html, preserveFormatting = false) {
             if (!html) return '';
+            
+            if (preserveFormatting) {
+                // Keep the HTML but clean it up for display
+                return html;
+            }
+            
             // First decode HTML entities
             const txt = document.createElement('textarea');
             txt.innerHTML = html;
@@ -789,10 +795,16 @@
                     }
                 }
                 log(`Student ${name} finished activity IDs:`, finishedActivityIds);
+                log(`Student ${name} finished activities count:`, finishedActivityIds.length);
                 
                 // Calculate completed count only for prescribed activities
                 let actualCompletedCount = 0;
                 let prescribedActivityIds = [];
+                
+                // Debug: Log all available activities
+                if (this.config.debug && name === 'Alena Ramsey') {
+                    log('All available activities:', this.state.activities?.map(a => ({id: a.id, name: a.name})));
+                }
                 
                 // Convert prescribed activity names to IDs for accurate comparison
                 if (this.state.activities && prescribedActivities.length > 0) {
@@ -804,9 +816,26 @@
                             prescribedActivityIds.push(activity.id);
                             if (finishedActivityIds.includes(activity.id)) {
                                 actualCompletedCount++;
+                                if (this.config.debug) {
+                                    log(`Match found: ${activityName} (${activity.id})`);
+                                }
+                            }
+                        } else {
+                            if (this.config.debug) {
+                                log(`WARNING: Could not find activity for prescribed name: "${activityName}"`);
                             }
                         }
                     }
+                }
+                
+                // Debug logging for specific students
+                if (this.config.debug && (name === 'Alena Ramsey' || name === 'Ian Woodard')) {
+                    log(`=== DEBUG: ${name} ===`);
+                    log('Prescribed activities:', prescribedActivities);
+                    log('Prescribed activity IDs:', prescribedActivityIds);
+                    log('Finished activity IDs:', finishedActivityIds);
+                    log('Matches found:', actualCompletedCount);
+                    log('================');
                 }
                 
                 // Use the accurate completed count
@@ -880,9 +909,10 @@
                     email: email,
                     prescribedActivities: prescribedActivities,
                     prescribedActivityIds: prescribedActivityIds, // Store IDs of prescribed activities
-                    finishedActivities: finishedActivityIds, // Store activity IDs
+                    finishedActivities: finishedActivityIds, // Store ALL completed activity IDs
                     prescribedCount: prescribedCount,
-                    completedCount: completedCount, // Now shows accurate count of prescribed activities completed
+                    completedCount: completedCount, // Count of prescribed activities that are completed
+                    totalCompletedCount: finishedActivityIds.length, // Total number of completed activities
                     progress: progressPercentage, // Progress based on prescribed activities
                     vespaScores: vespaScores,
                     vespaConnectionId: vespaConnectionId,
@@ -1319,6 +1349,22 @@
                         <span class="student-count">Average Progress: ${avgProgress}%</span>
                     </div>
                 </div>
+                
+                <!-- Progress Legend -->
+                <div class="progress-legend">
+                    <div class="legend-item">
+                        <div class="legend-color prescribed-color"></div>
+                        <span>Prescribed Activities (Staff Assigned)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color general-color"></div>
+                        <span>All Activities (Including Self-Selected)</span>
+                    </div>
+                    <div class="legend-note">
+                        <span class="info-icon">ℹ️</span>
+                        Students can now self-select activities in addition to prescribed ones
+                    </div>
+                </div>
             `;
         }
         
@@ -1427,9 +1473,15 @@
                         <div class="student-email">${student.email}</div>
                     </td>
                     <td class="progress-cell">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${student.progress}%"></div>
-                            <span class="progress-text">${student.progress}%</span>
+                        <div class="dual-progress-container">
+                            <div class="progress-bar progress-prescribed" title="Prescribed Activities Progress">
+                                <div class="progress-fill prescribed-fill" style="width: ${student.progress}%"></div>
+                                <span class="progress-text">${student.completedCount}/${student.prescribedCount}</span>
+                            </div>
+                            <div class="progress-bar progress-general" title="Total Activities (Self-selected + Prescribed)">
+                                <div class="progress-fill general-fill" style="width: ${Math.min((student.totalCompletedCount / 40) * 100, 100)}%"></div>
+                                <span class="progress-text">${student.totalCompletedCount} total</span>
+                            </div>
                         </div>
                     </td>
                     <td class="hide-mobile">
@@ -1438,7 +1490,13 @@
                         </div>
                     </td>
                     <td>${student.prescribedCount}</td>
-                    <td>${student.completedCount}</td>
+                    <td>
+                        <div class="completed-counts">
+                            <span class="prescribed-completed">${student.completedCount}</span> / 
+                            <span class="total-completed">${student.totalCompletedCount}</span>
+                            <small class="count-label">prescribed / total</small>
+                        </div>
+                    </td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-action btn-secondary" 
@@ -1755,6 +1813,30 @@
                     }
                 }
                 
+                // Also load ALL completed activities (not just prescribed)
+                const allCompletedActivityData = [];
+                for (const activityId of student.finishedActivities) {
+                    const activity = this.state.activities.find(a => a.id === activityId);
+                    if (activity) {
+                        const response = responses.find(r => r.activityId === activityId);
+                        const isPrescribed = student.prescribedActivityIds.includes(activityId);
+                        
+                        allCompletedActivityData.push({
+                            ...activity,
+                            isCompleted: true,
+                            isPrescribed,
+                            response,
+                            studentId: student.id,
+                            questions: []
+                        });
+                    } else {
+                        log(`Warning: Could not find completed activity with ID "${activityId}"`);
+                    }
+                }
+                
+                // Store for later use
+                this.currentStudentAllActivities = allCompletedActivityData;
+                
                 // Create modal HTML
                 const modalHtml = `
                     <div id="student-details-modal" class="modal-overlay" style="display: flex;">
@@ -1803,12 +1885,14 @@
                                     <span class="stat-value">${student.progress}%</span>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-label">Activities Completed</span>
+                                    <span class="stat-label">Prescribed Progress</span>
                                     <span class="stat-value">${student.completedCount} / ${student.prescribedCount}</span>
+                                    <small style="display: block; color: var(--primary-color); font-size: 11px;">Staff assigned</small>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-label">Activities Remaining</span>
-                                    <span class="stat-value">${student.prescribedCount - student.completedCount}</span>
+                                    <span class="stat-label">Total Activities</span>
+                                    <span class="stat-value">${student.totalCompletedCount}</span>
+                                    <small style="display: block; color: #28a745; font-size: 11px;">Including self-selected</small>
                                 </div>
                             </div>
                         </div>
@@ -1825,10 +1909,13 @@
                     <div class="activity-tabs">
                         <div class="tab-buttons">
                             <button class="tab-button active" onclick="VESPAStaff.switchTab('incomplete', event)">
-                                Incomplete (${incompleteActivities.length})
+                                Prescribed Incomplete (${incompleteActivities.length})
                             </button>
                             <button class="tab-button" onclick="VESPAStaff.switchTab('completed', event)">
-                                Completed (${completedActivities.length})
+                                Prescribed Completed (${completedActivities.length})
+                            </button>
+                            <button class="tab-button" onclick="VESPAStaff.switchTab('all-completed', event)">
+                                All Completed (${this.currentStudentAllActivities?.length || 0})
                             </button>
                         </div>
                         
@@ -1848,6 +1935,21 @@
                                 ${completedActivities.length > 0 ? 
                                     completedActivities.map(activity => this.renderActivityCard(activity, true)).join('') :
                                     '<p class="no-activities">No completed activities</p>'
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- All Completed Activities Tab -->
+                        <div id="all-completed-tab" class="tab-content" style="display: none;">
+                            <div class="activities-grid">
+                                ${this.currentStudentAllActivities && this.currentStudentAllActivities.length > 0 ? 
+                                    this.currentStudentAllActivities.map(activity => 
+                                        this.renderActivityCard({
+                                            ...activity,
+                                            showPrescribedBadge: activity.isPrescribed
+                                        }, true)
+                                    ).join('') :
+                                    '<p class="no-activities">No completed activities found</p>'
                                 }
                             </div>
                         </div>
@@ -1892,6 +1994,7 @@
                         <span class="category-badge ${categoryClass}">${activity.category || 'General'}</span>
                         <span class="level-badge">Level ${activity.level || '1'}</span>
                         ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
+                        ${activity.showPrescribedBadge ? `<span class="prescribed-badge">✓ Prescribed</span>` : ''}
                     </div>
                     
                                                         <div class="activity-card-content">
@@ -2111,6 +2214,20 @@
                             </div>
                         `;
                     }
+                } else if (tabName === 'all-completed' && !tabElement.querySelector('.activity-card')) {
+                    const allActivities = this.currentStudentAllActivities || [];
+                    if (allActivities.length > 0) {
+                        tabElement.innerHTML = `
+                            <div class="activities-grid">
+                                ${allActivities.map(activity => 
+                                    this.renderActivityCard({
+                                        ...activity,
+                                        showPrescribedBadge: activity.isPrescribed
+                                    }, true)
+                                ).join('')}
+                            </div>
+                        `;
+                    }
                 }
             }
             
@@ -2319,21 +2436,41 @@
                     }
                 });
                 
-                // Return relevant fields
+                // Extract rich text content and clean it
+                const backgroundInfo = this.stripHtml(response.field_1293 || '', true); // Keep some formatting
+                const additionalInfo = response.field_1289 || '';
+                
+                // Extract PDF link if present in field_1289
+                let pdfUrl = '';
+                if (additionalInfo.includes('href="')) {
+                    const pdfMatch = additionalInfo.match(/href="([^"]+\.pdf[^"]*)"/i);
+                    if (pdfMatch) {
+                        pdfUrl = pdfMatch[1];
+                    }
+                }
+                
+                // Calculate time based on content (15-45 minutes)
+                const questions = this.currentActivityQuestions || [];
+                const contentLength = (backgroundInfo.length + this.stripHtml(additionalInfo).length) / 1000; // Rough word count
+                const questionTime = questions.length * 2; // 2 minutes per question
+                const readingTime = Math.ceil(contentLength * 3); // 3 minutes per 1000 characters
+                const totalTime = Math.min(Math.max(questionTime + readingTime, 15), 45); // Between 15-45 minutes
+                
                 return {
-                    backgroundInfo: response.field_1281 || '', // Background/context info
-                    objective: response.field_1282 || '', // Learning objective
-                    slideshow: response.field_1283 || '', // Additional content/slideshow
-                    timeMinutes: response.field_1284 || 30, // Estimated time
-                    // Add any other relevant fields from Object_44
+                    backgroundInfo: response.field_1293 || '', // Keep HTML for rich formatting
+                    additionalInfo: response.field_1289 || '', // Keep HTML for rich formatting
+                    pdfUrl: pdfUrl,
+                    timeMinutes: totalTime,
+                    objective: this.stripHtml(response.field_1289 || '').substring(0, 200) + '...' // First 200 chars as objective
                 };
             } catch (err) {
                 log('Failed to load additional activity data:', err);
                 return {
                     backgroundInfo: '',
-                    objective: '',
-                    slideshow: '',
-                    timeMinutes: 30
+                    additionalInfo: '',
+                    pdfUrl: '',
+                    timeMinutes: 20,
+                    objective: 'Develop key skills'
                 };
             }
         }
@@ -2461,6 +2598,9 @@
                     activity.questions = await this.loadActivityQuestions(activityId);
                 }
                 
+                // Store questions for time calculation
+                this.currentActivityQuestions = activity.questions;
+                
                 // Load additional activity data (Object_44 fields) if available
                 const additionalData = await this.loadActivityAdditionalData(activityId);
                 
@@ -2505,7 +2645,7 @@
                                             <div class="overview-card">
                                                 <span class="overview-icon">⏱️</span>
                                                 <h4>Time Needed</h4>
-                                                <p>${activity.duration || 'Approximately 30 minutes'}</p>
+                                                <p>Approximately ${additionalData.timeMinutes} minutes</p>
                                             </div>
                                             <div class="overview-card">
                                                 <span class="overview-icon">⭐</span>
@@ -2534,10 +2674,29 @@
                                         <!-- Background Content -->
                                         <div id="background-content-tab" class="content-tab-panel active">
                                             <div class="background-info-section">
-                                                ${additionalData.backgroundInfo ? `
-                                                    <div class="background-info-content">
-                                                        ${additionalData.backgroundInfo}
-                                                    </div>
+                                                ${additionalData.backgroundInfo || additionalData.additionalInfo ? `
+                                                    ${additionalData.backgroundInfo ? `
+                                                        <div class="background-info-content">
+                                                            <h4>Background Information</h4>
+                                                            ${additionalData.backgroundInfo}
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${additionalData.additionalInfo ? `
+                                                        <div class="additional-info-content">
+                                                            <h4>Additional Resources</h4>
+                                                            ${additionalData.additionalInfo}
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${additionalData.pdfUrl ? `
+                                                        <div class="pdf-download-section">
+                                                            <a href="${additionalData.pdfUrl}" target="_blank" class="pdf-download-btn">
+                                                                <span class="pdf-icon">📄</span>
+                                                                Download Activity PDF
+                                                            </a>
+                                                        </div>
+                                                    ` : ''}
                                                 ` : `
                                                     <p class="no-content-message">No background information available for this activity.</p>
                                                 `}

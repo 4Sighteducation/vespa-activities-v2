@@ -1718,33 +1718,92 @@
 }
 
 /* Background Info Styling */
-.background-info-content {
+.background-info-content,
+.additional-info-content {
     background: var(--bg-secondary);
     padding: 20px;
     border-radius: 8px;
     line-height: 1.8;
+    margin-bottom: 20px;
+}
+
+.background-info-content h4,
+.additional-info-content h4 {
+    color: var(--primary-dark);
+    font-size: 18px;
+    margin-bottom: 15px;
+    font-weight: 600;
 }
 
 .background-info-content h1,
 .background-info-content h2,
-.background-info-content h3 {
+.background-info-content h3,
+.additional-info-content h1,
+.additional-info-content h2,
+.additional-info-content h3 {
     color: var(--primary-dark);
     margin-top: 20px;
     margin-bottom: 10px;
 }
 
-.background-info-content p {
+.background-info-content p,
+.additional-info-content p {
     margin-bottom: 15px;
 }
 
 .background-info-content ul,
-.background-info-content ol {
+.background-info-content ol,
+.additional-info-content ul,
+.additional-info-content ol {
     margin-left: 20px;
     margin-bottom: 15px;
 }
 
-.background-info-content li {
+.background-info-content li,
+.additional-info-content li {
     margin-bottom: 8px;
+}
+
+/* Control images from rich text fields */
+.background-info-content img,
+.additional-info-content img {
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 400px !important;
+    display: block;
+    margin: 15px auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* PDF Download Button */
+.pdf-download-section {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.pdf-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--primary-color);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.pdf-download-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.pdf-icon {
+    font-size: 20px;
 }
 
 /* Questions Preview */
@@ -1797,4 +1856,136 @@
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(121, 189, 207, 0.1);
+}
+
+/* Prescribed Badge */
+.prescribed-badge {
+    background: #28a745;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+/* Dual Progress Bars */
+.dual-progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.progress-bar {
+    height: 20px;
+    position: relative;
+}
+
+.progress-prescribed {
+    background: rgba(123, 216, 208, 0.2);
+}
+
+.progress-general {
+    background: rgba(40, 167, 69, 0.2);
+}
+
+.prescribed-fill {
+    background: var(--primary-color);
+}
+
+.general-fill {
+    background: #28a745;
+}
+
+.progress-bar .progress-text {
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 1;
+    position: relative;
+}
+
+/* Completed Counts Display */
+.completed-counts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.prescribed-completed {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.total-completed {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.count-label {
+    font-size: 10px;
+    color: #666;
+    display: block;
+    margin-top: 2px;
+}
+
+/* Progress Legend */
+.progress-legend {
+    background: var(--bg-secondary);
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+    margin-top: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+.legend-color.prescribed-color {
+    background: var(--primary-color);
+}
+
+.legend-color.general-color {
+    background: #28a745;
+}
+
+.legend-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+    font-size: 13px;
+    font-style: italic;
+    margin-left: auto;
+}
+
+.info-icon {
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .progress-legend {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .legend-note {
+        margin-left: 0;
+        margin-top: 5px;
+    }
 }
