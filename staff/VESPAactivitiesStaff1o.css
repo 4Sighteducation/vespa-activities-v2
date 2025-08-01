@@ -723,6 +723,31 @@
     .vespa-score-item {
         grid-template-columns: 70px 1fr 50px;
     }
+    
+    /* Activity Cards on Mobile */
+    .activities-grid {
+        grid-template-columns: 1fr;
+        padding: 0;
+    }
+    
+    .activity-card {
+        padding: 15px;
+    }
+    
+    .activity-name {
+        font-size: 16px;
+    }
+    
+    .card-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn-view-activity,
+    .btn-provide-feedback {
+        width: 100%;
+        white-space: normal;
+    }
 }
 
 /* Print Styles */
@@ -773,6 +798,13 @@
     color: white;
 }
 
+/* No scores styling */
+.no-scores {
+    color: #999;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
 /* Activity Tabs */
 .activity-tabs {
     margin-top: 30px;
@@ -817,9 +849,10 @@
 /* Activity Cards Grid */
 .activities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
     margin-top: 20px;
+    padding: 0 10px;
 }
 
 /* Activity Card */
@@ -1248,6 +1281,7 @@
 /* Activity content in card */
 .activity-card-content {
     margin: 15px 0;
+    min-height: 60px;
 }
 
 .activity-name {
@@ -1256,6 +1290,8 @@
     color: var(--primary-dark);
     margin-bottom: 8px;
     line-height: 1.3;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .activity-description {
@@ -1310,6 +1346,10 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-view-activity:hover {

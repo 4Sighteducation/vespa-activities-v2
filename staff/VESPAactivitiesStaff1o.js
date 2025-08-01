@@ -781,8 +781,44 @@
                 }
                 
                 // Get VESPA connection (field_182)
-                const vespaConnection = this.getFieldValue(record, fields.studentVESPAConnection, '');
-                log(`Student ${name} VESPA connection (field_182):`, vespaConnection);
+                const vespaConnectionRaw = this.getFieldValue(record, fields.studentVESPAConnection, '');
+                let vespaConnectionId = '';
+                let vespaConnectionEmail = '';
+                
+                // Extract ID and email from the HTML span (Knack connection field format)
+                if (vespaConnectionRaw && vespaConnectionRaw.includes('<span')) {
+                    // Extract the connection ID from the span class attribute
+                    // Knack uses format: <span class="connectionID">display text</span>
+                    const classMatch = vespaConnectionRaw.match(/class="([^"]+)"/);
+                    if (classMatch && classMatch[1]) {
+                        // The class contains the connected record ID
+                        vespaConnectionId = classMatch[1];
+                    }
+                    
+                    // Extract display text (which might be email)
+                    const textMatch = vespaConnectionRaw.match(/>([^<]+)</);
+                    if (textMatch && textMatch[1]) {
+                        const displayText = textMatch[1].trim();
+                        if (displayText.includes('@')) {
+                            vespaConnectionEmail = displayText;
+                        }
+                    }
+                    
+                    // Also check for mailto links
+                    const emailMatch = vespaConnectionRaw.match(/mailto:([^"]+)"/);
+                    if (emailMatch) {
+                        vespaConnectionEmail = emailMatch[1];
+                    }
+                } else if (vespaConnectionRaw) {
+                    // If it's not HTML, it might be just the ID or email
+                    vespaConnectionId = vespaConnectionRaw.trim();
+                    if (vespaConnectionRaw.includes('@')) {
+                        vespaConnectionEmail = vespaConnectionRaw.trim();
+                        vespaConnectionId = ''; // Clear ID if it's an email
+                    }
+                }
+                
+                log(`Student ${name} VESPA connection - ID: ${vespaConnectionId}, Email: ${vespaConnectionEmail}`);
                 
                 const student = {
                     id: record.id,
@@ -794,7 +830,8 @@
                     completedCount: completedCount,
                     progress: Math.round((completedCount / totalActivitiesBaseline) * 100),
                     vespaScores: vespaScores,
-                    vespaConnectionId: vespaConnection // Store the connection ID/email
+                    vespaConnectionId: vespaConnectionId,
+                    vespaConnectionEmail: vespaConnectionEmail
                 };
                 
                 return student;
@@ -817,37 +854,39 @@
             const fields = this.config.fields;
             
             try {
-                // Get all VESPA connection IDs from students
+                // Get all VESPA connection IDs and emails from students
                 const vespaConnectionIds = this.state.students
                     .map(s => s.vespaConnectionId)
                     .filter(id => id); // Remove empty values
+                    
+                const vespaConnectionEmails = this.state.students
+                    .map(s => s.vespaConnectionEmail)
+                    .filter(email => email); // Remove empty values
                 
-                if (vespaConnectionIds.length === 0) {
-                    log('No VESPA connection IDs found in student records');
+                if (vespaConnectionIds.length === 0 && vespaConnectionEmails.length === 0) {
+                    log('No VESPA connection IDs or emails found in student records');
                     return;
                 }
                 
-                log('VESPA connection IDs from field_182:', vespaConnectionIds);
+                log('VESPA connection IDs:', vespaConnectionIds);
+                log('VESPA connection emails:', vespaConnectionEmails);
                 
                 // Build OR conditions for the VESPA connection IDs
-                // These might be emails or record IDs - we'll search by ID first
-                const orConditions = vespaConnectionIds.map(connectionId => ({
+                const idConditions = vespaConnectionIds.map(connectionId => ({
                     field: 'id',
                     operator: 'is',
                     value: connectionId
                 }));
                 
-                // If connection IDs look like emails, also search by email field
-                const emailConditions = vespaConnectionIds
-                    .filter(id => id.includes('@'))
-                    .map(email => ({
-                        field: 'field_192', // Email field in Object_10 (adjust if needed)
-                        operator: 'is',
-                        value: email
-                    }));
+                // Build OR conditions for emails
+                const emailConditions = vespaConnectionEmails.map(email => ({
+                    field: 'field_192', // Email field in Object_10
+                    operator: 'is',
+                    value: email
+                }));
                 
                 // Combine all conditions
-                const allConditions = [...orConditions, ...emailConditions];
+                const allConditions = [...idConditions, ...emailConditions];
                 
                 const filters = allConditions.length > 0 ? [{
                     match: 'or',
@@ -855,6 +894,8 @@
                 }] : [];
                 
                 log('VESPA scores filter:', filters);
+                log('Loading from object:', objects.vespaResults);
+                log('Using Knack App ID:', this.config.knackAppId);
                 
                 // Load VESPA results
                 const response = await $.ajax({
@@ -907,16 +948,16 @@
                     
                     // Update student records with VESPA scores
                     this.state.students.forEach(student => {
-                        // Try to find scores by connection ID (could be record ID or email)
+                        // Try to find scores by connection ID or email
                         const scores = vespaMapById.get(student.vespaConnectionId) || 
-                                      vespaMapByEmail.get(student.vespaConnectionId) ||
+                                      vespaMapByEmail.get(student.vespaConnectionEmail) ||
                                       vespaMapByEmail.get(student.email);
                         
                         if (scores) {
                             student.vespaScores = scores;
                             log(`Updated VESPA scores for ${student.name}:`, scores);
                         } else {
-                            log(`No VESPA scores found for ${student.name} (connection: ${student.vespaConnectionId})`);
+                            log(`No VESPA scores found for ${student.name} (ID: ${student.vespaConnectionId}, Email: ${student.vespaConnectionEmail})`);
                         }
                     });
                 } else {
@@ -1196,11 +1237,6 @@
                             <button class="btn btn-secondary" onclick="VESPAStaff.exportReport()">
                                 📊 Export Report
                             </button>
-                            ${this.state.currentRole.canAssign ? `
-                                <button class="btn btn-primary" onclick="VESPAStaff.showAssignModal()">
-                                    ➕ Assign Activities
-                                </button>
-                            ` : ''}
                         </div>
                     </div>
                     <div class="role-info">
@@ -1329,7 +1365,7 @@
                     </td>
                     <td class="hide-mobile">
                         <div class="vespa-scores">
-                            ${this.renderVESPAScores(student.vespaScores)}
+                            ${student.vespaScores ? this.renderVESPAScores(student.vespaScores) : '<span class="no-scores">No scores</span>'}
                         </div>
                     </td>
                     <td>${student.prescribedCount}</td>
@@ -1355,9 +1391,13 @@
         
         // Render VESPA score pills
         renderVESPAScores(scores) {
+            if (!scores || typeof scores !== 'object') {
+                return '<span class="no-scores">No scores</span>';
+            }
+            
             return Object.entries(scores).map(([key, value]) => `
                 <span class="vespa-pill ${key}" title="${key}: ${value}/10">
-                    ${value.toFixed(1)}
+                    ${value ? value.toFixed(1) : '0.0'}
                 </span>
             `).join('');
         }
@@ -1457,7 +1497,18 @@
         updateSearch(value) {
             this.state.filters.search = value;
             this.applyFilters();
+            const currentFocus = document.activeElement;
+            const focusId = currentFocus?.id || currentFocus?.className;
             this.render();
+            
+            // Restore focus to search input after render
+            requestAnimationFrame(() => {
+                const searchInput = this.container.querySelector('.search-input');
+                if (searchInput && focusId && focusId.includes('search')) {
+                    searchInput.focus();
+                    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+                }
+            });
         }
         
         updateProgressFilter(value) {
@@ -1580,7 +1631,7 @@
                             value: activityId
                         }]),
                         page: 1,
-                        rows_per_page: 100
+                        rows_per_page: 10  // Limit to 10 questions for performance
                     }
                 });
                 
@@ -1619,15 +1670,13 @@
                         const isCompleted = student.finishedActivities.includes(activityName);
                         const response = responses.find(r => r.activityId === activity.id);
                         
-                        // Load questions for this activity
-                        const questions = await this.loadActivityQuestions(activity.id);
-                        
+                        // Don't load questions here - load them on demand when activity is clicked
                         prescribedActivityData.push({
                             ...activity,
                             isCompleted,
                             response,
                             studentId: student.id,
-                            questions
+                            questions: [] // Empty initially
                         });
                     }
                 }
