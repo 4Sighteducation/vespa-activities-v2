@@ -749,69 +749,62 @@
                 const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
                 const email = this.getFieldValue(record, fields.studentEmail, '');
                 
-                // Extract prescribed activities (may contain HTML with connection spans)
-                const prescribedText = this.getFieldValue(record, fields.prescribedActivities, '');
+                // Prefer RAW connection to get IDs and names for prescribed activities
+                const prescribedRaw = record[fields.prescribedActivities + '_raw'];
                 let prescribedActivities = [];
-                
-                if (prescribedText) {
-                    // Check if it's HTML with connection spans
-                    if (prescribedText.includes('<span')) {
-                        // Extract text from spans and clean HTML
-                        const matches = prescribedText.match(/>([^<]+)</g);
-                        if (matches) {
-                            prescribedActivities = matches.map(match => {
-                                const cleaned = match.replace(/[><]/g, '').trim();
-                                // Remove any HTML entities and extra formatting
-                                return this.stripHtml(cleaned);
-                            }).filter(a => a && !a.includes('data-') && !a.includes('onclick'));
-                        }
-                    } else {
-                        // Plain text, split by comma or newline
+                let prescribedActivityIds = [];
+                if (Array.isArray(prescribedRaw)) {
+                    prescribedActivities = prescribedRaw
+                        .map(item => this.stripHtml(item?.identifier || item?.title || item?.name || ''))
+                        .filter(Boolean);
+                    prescribedActivityIds = prescribedRaw.map(item => item?.id).filter(Boolean);
+                } else {
+                    const prescribedText = this.getFieldValue(record, fields.prescribedActivities, '');
+                    if (prescribedText && typeof prescribedText === 'string') {
                         prescribedActivities = prescribedText.split(/[,\n]/).map(a => this.stripHtml(a.trim())).filter(a => a);
                     }
                 }
+                const prescribedCount = (prescribedActivityIds.length || prescribedActivities.length);
+                log(`Student ${name} prescribed activities (names):`, prescribedActivities);
+                log(`Student ${name} prescribed activity IDs (raw):`, prescribedActivityIds);
                 
-                const prescribedCount = prescribedActivities.length;
-                log(`Student ${name} prescribed activities:`, prescribedActivities);
-                
-                // Extract finished activities (field_1380 contains activity IDs)
+                // field_1380: short text storing comma-separated activity IDs
                 const finishedText = this.getFieldValue(record, fields.finishedActivities, '');
                 let finishedActivityIds = [];
-                
-                if (finishedText) {
-                    // Check if it's HTML with connection spans (contains activity record IDs)
-                    if (finishedText.includes('<span')) {
-                        // Extract the IDs from span classes
-                        const classMatches = finishedText.match(/class="([^"]+)"/g);
-                        if (classMatches) {
-                            finishedActivityIds = classMatches.map(match => {
-                                const idMatch = match.match(/class="([^"]+)"/);
-                                return idMatch ? idMatch[1] : '';
-                            }).filter(id => id && id.length > 0);
-                        }
-                    } else {
-                        // Plain text, split by comma (assuming IDs)
-                        finishedActivityIds = finishedText.split(/[,\n]/).map(a => a.trim()).filter(a => a);
-                    }
+                if (typeof finishedText === 'string' && finishedText.trim().length > 0) {
+                    finishedActivityIds = finishedText.split(/[,\s]+/).map(id => id.trim()).filter(Boolean);
                 }
                 log(`Student ${name} finished activity IDs:`, finishedActivityIds);
                 log(`Student ${name} finished activities count:`, finishedActivityIds.length);
                 
                 // Calculate completed count only for prescribed activities
                 let actualCompletedCount = 0;
-                let prescribedActivityIds = [];
                 
                 // Debug: Log all available activities
                 if (this.config.debug && name === 'Alena Ramsey') {
                     log('All available activities:', this.state.activities?.map(a => ({id: a.id, name: a.name})));
                 }
                 
-                // Convert prescribed activity names to IDs for accurate comparison
-                if (this.state.activities && prescribedActivities.length > 0) {
+                // If we have prescribed IDs from RAW, use them; else map names to IDs
+                if (prescribedActivityIds.length > 0) {
+                    actualCompletedCount = prescribedActivityIds.filter(id => finishedActivityIds.includes(id)).length;
+                } else if (this.state.activities && prescribedActivities.length > 0) {
                     for (const activityName of prescribedActivities) {
-                        const activity = this.state.activities.find(a => 
-                            this.stripHtml(a.name).toLowerCase() === activityName.toLowerCase()
-                        );
+                        // Normalize the activity name for matching
+                        const normalizedName = activityName.toLowerCase().trim().replace(/\s+/g, ' ');
+                        
+                        const activity = this.state.activities.find(a => {
+                            const normalizedActivityName = this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ');
+                            // Try exact match first
+                            if (normalizedActivityName === normalizedName) return true;
+                            // Try contains match (in case of partial names)
+                            if (normalizedActivityName.includes(normalizedName) || normalizedName.includes(normalizedActivityName)) return true;
+                            // Try removing common words
+                            const cleanName1 = normalizedName.replace(/(the|a|an)\s+/g, '');
+                            const cleanName2 = normalizedActivityName.replace(/(the|a|an)\s+/g, '');
+                            return cleanName1 === cleanName2;
+                        });
+                        
                         if (activity) {
                             prescribedActivityIds.push(activity.id);
                             if (finishedActivityIds.includes(activity.id)) {
@@ -821,8 +814,10 @@
                                 }
                             }
                         } else {
-                            if (this.config.debug) {
-                                log(`WARNING: Could not find activity for prescribed name: "${activityName}"`);
+                            log(`WARNING: Could not find activity for prescribed name: "${activityName}"`);
+                            // Log available activities for debugging
+                            if (this.state.activities.length < 20) {
+                                log('Available activities:', this.state.activities.map(a => a.name));
                             }
                         }
                     }
@@ -1095,6 +1090,7 @@
                 // If external loading fails, use embedded sample data for key activities
                 log('Using embedded activity data as fallback');
                 this.state.activitiesData = this.getEmbeddedActivities();
+                log(`Loaded ${this.state.activitiesData.length} embedded activities`);
                 
             } catch (err) {
                 error('Error in loadActivitiesFromJSON:', err);
@@ -1159,6 +1155,38 @@
                     "Activity_id": "5fef58e82872bc001e89dd32",
                     "VESPA Category": "Effort",
                     "background_content": "LEARN 💡\nMotivation is the driving force behind sustained effort. Understanding what motivates you and how to maintain motivation is essential for academic success.\n\nTypes of motivation:\n• Intrinsic - driven by personal interest and satisfaction\n• Extrinsic - driven by external rewards or consequences\n\nBuilding motivation involves:\n• Connecting learning to personal goals\n• Celebrating small wins\n• Finding meaning in your studies\n• Creating accountability systems\n\nREFLECT🤔\nWhat motivates you to study? How can you strengthen your motivation when it wanes?",
+                    "Level": "Level 1",
+                    "Active": true
+                },
+                {
+                    "Activities Name": "Spaced Practice",
+                    "Activity_id": "5fcf4a9bbf8cc5001fa96358",
+                    "VESPA Category": "Practice",
+                    "background_content": "LEARN 💡\nSpaced practice is one of the most effective learning strategies. Rather than cramming, spreading your study sessions over time helps create stronger, longer-lasting memories.\n\nBenefits of spaced practice:\n• Better long-term retention\n• Reduced study stress\n• More efficient use of time\n• Deeper understanding\n\nHow to implement:\n• Review material at increasing intervals\n• Use a study schedule or app\n• Mix different topics in each session\n• Test yourself regularly\n\nREFLECT🤔\nHow do you currently space out your studying? What changes could you make to use this technique more effectively?",
+                    "Level": "Level 2",
+                    "Active": true
+                },
+                {
+                    "Activities Name": "Effort Thermometer",
+                    "Activity_id": "5fef58e82872bc001e89dd33",
+                    "VESPA Category": "Effort",
+                    "background_content": "LEARN 💡\nThe Effort Thermometer helps you visualize and track your effort levels across different subjects and activities. Understanding where you're putting your energy helps you make better decisions about time allocation.\n\nUsing the Effort Thermometer:\n• Rate your effort in each subject (1-10)\n• Identify gaps between current and needed effort\n• Set specific targets for improvement\n• Monitor progress weekly\n\nREFLECT🤔\nWhich subjects are getting most of your effort? Where do you need to increase your effort levels?",
+                    "Level": "Level 1",
+                    "Active": true
+                },
+                {
+                    "Activities Name": "Five Roads",
+                    "Activity_id": "5fef5934f4ca8a001c79c6e8",
+                    "VESPA Category": "Vision",
+                    "background_content": "LEARN 💡\nThe Five Roads activity helps you explore different pathways to your goals. By considering multiple routes, you become more flexible and resilient in your planning.\n\nThe five roads represent:\n• The direct path - straightforward route\n• The scenic route - taking time to explore\n• The fast track - accelerated options\n• The alternative path - backup plans\n• The collaborative route - working with others\n\nREFLECT🤔\nWhat different paths could lead to your academic goals? Which route appeals to you most and why?",
+                    "Level": "Level 2",
+                    "Active": true
+                },
+                {
+                    "Activities Name": "Force Field",
+                    "Activity_id": "5fef5926d89dbd001c1c4c91",
+                    "VESPA Category": "Vision",
+                    "background_content": "LEARN 💡\nForce Field Analysis helps you identify the forces helping and hindering your progress towards goals. By understanding these forces, you can strengthen positive influences and reduce obstacles.\n\nHow to use Force Field Analysis:\n• List your goal\n• Identify helping forces (supporters, resources, skills)\n• Identify hindering forces (obstacles, challenges)\n• Rate the strength of each force\n• Develop strategies to increase helpers and decrease hinderers\n\nREFLECT🤔\nWhat forces are helping you succeed? What obstacles are holding you back? How can you shift the balance?",
                     "Level": "Level 1",
                     "Active": true
                 }
@@ -1251,8 +1279,9 @@
                     }
                 }
                 
-                // If still no activities but we have JSON data, use that
-                if (activities.length === 0 && this.state.activitiesData) {
+                            // If still no activities but we have JSON data, use that
+            if (activities.length === 0) {
+                if (this.state.activitiesData && this.state.activitiesData.length > 0) {
                     log('No activities from view/API, using JSON data...');
                     this.state.activitiesData.forEach(jsonActivity => {
                         if (jsonActivity.Active) {
@@ -1266,7 +1295,22 @@
                             });
                         }
                     });
+                } else {
+                    // No JSON data either, use embedded activities directly
+                    log('No activities from any source, using embedded activities...');
+                    const embeddedActivities = this.getEmbeddedActivities();
+                    embeddedActivities.forEach(activity => {
+                        activities.push({
+                            id: activity.Activity_id,
+                            name: activity['Activities Name'],
+                            category: activity['VESPA Category'],
+                            level: parseInt(activity.Level?.replace('Level ', '')) || 1,
+                            hasBackgroundContent: !!activity.background_content,
+                            media: activity.media
+                        });
+                    });
                 }
+            }
                 
             } catch (err) {
                 error('Failed to load activities:', err);
@@ -1890,34 +1934,28 @@
             }
         }
         
-        // Load activity questions from object_45 or generate default questions
+        // Load activity questions from Object_45 using correct field mappings
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
-            
-            const objects = this.config.objects;
-            
             try {
-                // First try view_3177 if available
+                // Try scraping if present (harmless fallback)
                 const viewData = $('#view_3177').find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
                 if (viewData.length > 0) {
-                    log('Found questions in view_3177');
-                    const questions = [];
-                    viewData.find('.question-item, .field_1137').each((index, elem) => {
+                    const scraped = [];
+                    viewData.find('.question-item, .field_1279').each((index, elem) => {
                         const $elem = $(elem);
-                        questions.push({
-                            id: `q_${index}`,
-                            question: $elem.text().trim(),
-                            type: 'text',
-                            options: '',
-                            order: index
-                        });
+                        scraped.push({ id: `q_${index}`, question: $elem.text().trim(), type: 'text', options: '', order: index });
                     });
-                    if (questions.length > 0) {
-                        return questions;
-                    }
+                    if (scraped.length > 0) return scraped;
                 }
-                
-                // Try API call
+
+                // We must filter Object_45 by connection to activity NAME (field_1286)
+                const activity = this.state.activities.find(a => a.id === activityId);
+                const activityName = activity ? activity.name : '';
+                if (!activityName) {
+                    log('No activity name found for questions lookup');
+                }
+
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/object_45/records`,
                     type: 'GET',
@@ -1926,47 +1964,35 @@
                         'X-Knack-REST-API-Key': this.config.knackApiKey
                     },
                     data: {
-                        filters: JSON.stringify([{
-                            field: 'field_1136', // Activity connection field
-                            operator: 'is',
-                            value: activityId
-                        }]),
+                        filters: JSON.stringify([
+                            {
+                                field: 'field_1286', // questionActivity connection (by activity name)
+                                operator: 'is',
+                                value: activityName
+                            }
+                        ]),
                         page: 1,
-                        rows_per_page: 20
+                        rows_per_page: 200
                     }
                 });
-                
+
                 if (response.records && response.records.length > 0) {
-                    log(`Loaded ${response.records.length} questions from API for activity ${activityId}`);
-                    
-                    // Parse questions
                     return response.records.map(record => ({
                         id: record.id,
-                        question: this.stripHtml(record.field_1137 || ''), // Question text
-                        type: record.field_1138 || 'text', // Question type
-                        options: record.field_1139 || '', // Multiple choice options
-                        order: parseInt(record.field_1140) || 0 // Question order
+                        question: this.stripHtml(record.field_1279 || ''),
+                        type: record.field_1290 || 'text',
+                        options: record.field_1291 || '',
+                        order: parseInt(record.field_1303) || 0
                     })).sort((a, b) => a.order - b.order);
                 }
-                
-                // If no questions found, generate default reflection questions based on activity
-                log('No questions found, generating default reflection questions');
-                const activity = this.state.activities.find(a => a.id === activityId);
-                if (activity) {
-                    return this.generateDefaultQuestions(activity);
-                }
-                
-                return [];
-                
+
+                // Fallback to generated defaults
+                const fallbackActivity = this.state.activities.find(a => a.id === activityId);
+                return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
             } catch (err) {
                 error('Failed to load activity questions:', err);
-                
-                // Generate default questions as fallback
-                const activity = this.state.activities.find(a => a.id === activityId);
-                if (activity) {
-                    return this.generateDefaultQuestions(activity);
-                }
-                return [];
+                const fallbackActivity = this.state.activities.find(a => a.id === activityId);
+                return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
             }
         }
         
@@ -2027,10 +2053,21 @@
                 // Load all prescribed activities data for the student
                 const prescribedActivityData = [];
                 for (const activityName of student.prescribedActivities) {
-                    // Find activity by comparing cleaned names
-                    const activity = this.state.activities.find(a => 
-                        this.stripHtml(a.name).toLowerCase() === activityName.toLowerCase()
-                    );
+                    // Normalize the activity name for matching
+                    const normalizedName = activityName.toLowerCase().trim().replace(/\s+/g, ' ');
+                    
+                    const activity = this.state.activities.find(a => {
+                        const normalizedActivityName = this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ');
+                        // Try exact match first
+                        if (normalizedActivityName === normalizedName) return true;
+                        // Try contains match (in case of partial names)
+                        if (normalizedActivityName.includes(normalizedName) || normalizedName.includes(normalizedActivityName)) return true;
+                        // Try removing common words
+                        const cleanName1 = normalizedName.replace(/(the|a|an)\s+/g, '');
+                        const cleanName2 = normalizedActivityName.replace(/(the|a|an)\s+/g, '');
+                        return cleanName1 === cleanName2;
+                    });
+                    
                     if (activity) {
                         // Check if this activity is completed by checking if its ID is in finishedActivities
                         const isCompleted = student.finishedActivities.includes(activity.id);
@@ -2046,6 +2083,10 @@
                         });
                     } else {
                         log(`Warning: Could not find activity "${activityName}" in loaded activities`);
+                        // Log available activities for debugging
+                        if (this.state.activities.length < 20) {
+                            log('Available activities:', this.state.activities.map(a => a.name));
+                        }
                     }
                 }
                 
@@ -3288,23 +3329,19 @@
             this.showLoading();
             
             try {
-                // Remove activity ID from finishedActivities
+                // Remove activity ID from finishedActivities (IDs only)
                 const updatedFinishedIds = student.finishedActivities.filter(id => id !== activityId);
-                const activity = this.state.activities.find(a => a.id === activityId);
                 
-                if (!activity) {
-                    throw new Error('Activity not found');
+                // Ensure activity ID remains in prescribed IDs
+                if (!Array.isArray(student.prescribedActivityIds)) student.prescribedActivityIds = [];
+                if (!student.prescribedActivityIds.includes(activityId)) {
+                    student.prescribedActivityIds.push(activityId);
                 }
                 
-                // Make sure activity is in prescribed list
-                if (!student.prescribedActivities.includes(activity.name)) {
-                    student.prescribedActivities.push(activity.name);
-                }
-                
-                // Update the student record
+                // Update the student record (IDs for both fields)
                 const updateData = {};
                 updateData[this.config.fields.finishedActivities] = updatedFinishedIds.join(',');
-                updateData[this.config.fields.prescribedActivities] = student.prescribedActivities.join(',');
+                updateData[this.config.fields.prescribedActivities] = student.prescribedActivityIds;
                 
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${studentId}`,
@@ -3319,8 +3356,9 @@
                 
                 // Update local state
                 student.finishedActivities = updatedFinishedIds;
-                student.completedCount = updatedFinishedIds.length;
-                student.progress = Math.round((updatedFinishedIds.length / 40) * 100);
+                student.completedCount = updatedFinishedIds.filter(id => student.prescribedActivityIds.includes(id)).length;
+                const prescribedCount = student.prescribedActivityIds.length || 0;
+                student.progress = prescribedCount > 0 ? Math.round((student.completedCount / prescribedCount) * 100) : 0;
                 
                 // Refresh the view
                 this.applyFilters();
@@ -3373,15 +3411,12 @@
             this.closeModal('assign-modal');
             
             try {
-                // Get activity names for selected activities
-                const activityNames = selectedActivities.map(activityId => {
-                    const activity = this.state.activities.find(a => a.id === activityId);
-                    return activity ? activity.name : '';
-                }).filter(name => name);
+                // We store and send activity IDs for connection updates
+                const activityIds = selectedActivities;
                 
-                // Update each student's prescribed activities
+                // Update each student's prescribed activities using IDs
                 const updatePromises = selectedStudents.map(studentId => 
-                    this.updateStudentPrescribedActivities(studentId, activityNames)
+                    this.updateStudentPrescribedActivities(studentId, activityIds)
                 );
                 
                 await Promise.all(updatePromises);
@@ -3400,8 +3435,8 @@
             }
         }
         
-        // Update student's prescribed activities (field_1683)
-        async updateStudentPrescribedActivities(studentId, newActivityNames) {
+        // Update student's prescribed activities (field_1683) using connection IDs
+        async updateStudentPrescribedActivities(studentId, newActivityIds) {
             const fields = this.config.fields;
             const objects = this.config.objects;
             
@@ -3410,11 +3445,11 @@
                 const student = this.state.students.find(s => s.id === studentId);
                 if (!student) return;
                 
-                // Get current prescribed activities
-                const currentPrescribed = student.prescribedActivities || [];
+                // Get current prescribed activity IDs
+                const currentIds = Array.isArray(student.prescribedActivityIds) ? student.prescribedActivityIds : [];
                 
-                // Combine with new activities (avoid duplicates)
-                const allActivities = [...new Set([...currentPrescribed, ...newActivityNames])];
+                // Combine with new IDs (avoid duplicates)
+                const allIds = [...new Set([...currentIds, ...newActivityIds])];
                 
                 // Update the student record
                 await $.ajax({
@@ -3426,11 +3461,17 @@
                         'Content-Type': 'application/json'
                     },
                     data: JSON.stringify({
-                        [fields.prescribedActivities]: allActivities.join(', ')
+                        [fields.prescribedActivities]: allIds
                     })
                 });
                 
-                log(`Updated prescribed activities for student ${student.name}`);
+                // Update local state
+                student.prescribedActivityIds = allIds;
+                // Optionally refresh prescribedActivities names from activity list
+                const idToName = new Map(this.state.activities.map(a => [a.id, a.name]));
+                student.prescribedActivities = allIds.map(id => idToName.get(id) || id);
+                
+                log(`Updated prescribed activities (IDs) for student ${student.name}`);
                 
             } catch (err) {
                 error(`Failed to update student ${studentId}:`, err);
