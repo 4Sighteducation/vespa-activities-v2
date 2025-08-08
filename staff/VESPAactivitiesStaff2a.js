@@ -66,7 +66,10 @@
             // Activity fields (Object_44)
             activityName: 'field_1278',
             activityVESPACategory: 'field_1285',
-            activityLevel: 'field_1295',
+            activityLevel: 'field_1295', // fallback
+            activityLevelAlt: 'field_3568', // preferred level field
+            activityScoreMoreThan: 'field_1287', // threshold: show if score is more than X
+            activityScoreLessEqual: 'field_1294', // threshold: show if score is <= Y
             
             // Activity Answers fields (Object_46)
             answerStudentName: 'field_1875',
@@ -1061,8 +1064,33 @@
             try {
                 log('Loading activities data...');
                 
-                // First, try to load from a CDN or external source that supports CORS
+                // First, try local workspace JSONs (preferred)
+                const localPaths = [
+                    '/shared/utils/activitiesjsonwithfields.json',
+                    '/shared/utils/Activitesjson2.json',
+                    '/shared/utils/activities1e.json'
+                ];
+                for (const path of localPaths) {
+                    try {
+                        const response = await $.ajax({ url: path, type: 'GET', dataType: 'json', timeout: 5000 });
+                        if (Array.isArray(response) && response.length > 0) {
+                            this.state.activitiesData = response;
+                            log(`Loaded ${response.length} activities from local ${path}`);
+                            return;
+                        }
+                    } catch (err) {
+                        log(`Local load failed for ${path}:`, err.status || err.message);
+                    }
+                }
+
+                // Then try CDN sources (preferred: consolidated, field-rich JSON)
                 const externalPaths = [
+                    // Primary: new consolidated JSON in this repo
+                    'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activitiesjsonwithfields1a.json',
+                    // Secondary: field-rich JSON in FlashcardLoader (backup)
+                    'https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/activitiesjsonwithfields.json',
+                    'https://raw.githubusercontent.com/4Sighteducation/FlashcardLoader/main/integrations/activitiesjsonwithfields.json',
+                    // Legacy fallbacks
                     'https://raw.githubusercontent.com/4Sighteducation/vespa-activities/main/activities1e.json',
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities@latest/activities1e.json'
                 ];
@@ -1226,14 +1254,16 @@
                             // Try to match with JSON data for complete information
                             if (this.state.activitiesData) {
                                 const jsonActivity = this.state.activitiesData.find(
-                                    a => a.Activity_id === activity.id || 
-                                    a['Activities Name'] === activity.name
+                                    a => a.Activity_id === activity.id || a.id === activity.id ||
+                                    a['Activities Name'] === activity.name || a.name === activity.name
                                 );
                                 if (jsonActivity) {
                                     // Enrich with JSON data
-                                    activity.hasBackgroundContent = !!jsonActivity.background_content;
+                                    activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
                                     activity.media = jsonActivity.media;
-                                    activity.level = parseInt(jsonActivity.Level?.replace('Level ', '')) || activity.level;
+                                    activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
+                                    activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
+                                    activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
                                 }
                             }
                             activities.push(activity);
@@ -1266,11 +1296,15 @@
                                 // Try to match with JSON data
                                 if (this.state.activitiesData) {
                                     const jsonActivity = this.state.activitiesData.find(
-                                        a => a.Activity_id === activity.id
+                                        a => a.Activity_id === activity.id || a.id === activity.id
                                     );
                                     if (jsonActivity) {
-                                        activity.hasBackgroundContent = !!jsonActivity.background_content;
+                                        activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
                                         activity.media = jsonActivity.media;
+                                        // Map extra fields when present
+                                        activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
+                                        activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
+                                        activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
                                     }
                                 }
                                 activities.push(activity);
@@ -1397,7 +1431,8 @@
                 const rawCategory = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
                 const category = this.stripHtml(rawCategory);
                 
-                const levelValue = this.getFieldValue(record, fields.activityLevel, '1');
+                // Prefer new level field if present
+                const levelValue = this.getFieldValue(record, fields.activityLevelAlt, this.getFieldValue(record, fields.activityLevel, '1'));
                 
                 // Log level field for debugging
                 if (this.config.debug) {
@@ -1421,7 +1456,10 @@
                     level: parseInt(levelValue) || 1,
                     description: description,
                     duration: duration || 'N/A',
-                    type: type || 'Activity'
+                    type: type || 'Activity',
+                    // thresholds to compute prescribed indicator
+                    scoreShowIfMoreThan: parseFloat(this.getFieldValue(record, fields.activityScoreMoreThan, '0')) || 0,
+                    scoreShowIfLessEqual: parseFloat(this.getFieldValue(record, fields.activityScoreLessEqual, '0')) || 0
                 };
                 
                 return activity;
@@ -1696,17 +1734,11 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-action btn-secondary" 
+                            <button class="btn btn-action btn-primary" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
-                                    title="View student progress and ${this.state.currentRole.canViewAnswers ? 'responses' : 'activities'}">
-                                View
+                                    title="Open Activities for this student">
+                                Activities
                             </button>
-                            ${this.state.currentRole.canAssign ? `
-                                <button class="btn btn-action btn-primary" 
-                                        onclick="VESPAStaff.assignToStudent('${student.id}')">
-                                    Assign
-                                </button>
-                            ` : ''}
                         </div>
                     </td>
                 </tr>
@@ -2073,13 +2105,28 @@
                         const isCompleted = student.finishedActivities.includes(activity.id);
                         const response = responses.find(r => r.activityId === activity.id);
                         
+                        // Compute prescribed indicator using VESPA score thresholds
+                        const catKey = (activity.category || '').toLowerCase();
+                        const scoreByCat = {
+                            vision: student.vespaScores?.vision || 0,
+                            effort: student.vespaScores?.effort || 0,
+                            systems: student.vespaScores?.systems || 0,
+                            practice: student.vespaScores?.practice || 0,
+                            attitude: student.vespaScores?.attitude || 0
+                        };
+                        const studentScore = scoreByCat[catKey] || 0;
+                        const meetsUpper = typeof activity.scoreShowIfMoreThan === 'number' && studentScore > activity.scoreShowIfMoreThan;
+                        const meetsLower = typeof activity.scoreShowIfLessEqual === 'number' && activity.scoreShowIfLessEqual > 0 ? (studentScore <= activity.scoreShowIfLessEqual) : false;
+                        const isPrescribedByThreshold = !!(meetsUpper || meetsLower);
+
                         // Don't load questions here - load them on demand when activity is clicked
                         prescribedActivityData.push({
                             ...activity,
                             isCompleted,
                             response,
                             studentId: student.id,
-                            questions: [] // Empty initially
+                            questions: [], // Empty initially
+                            showPrescribedBadge: isPrescribedByThreshold
                         });
                     } else {
                         log(`Warning: Could not find activity "${activityName}" in loaded activities`);
@@ -2150,12 +2197,33 @@
             const completedActivities = activities.filter(a => a.isCompleted);
             const incompleteActivities = activities.filter(a => !a.isCompleted);
             
+            // Group activities by VESPA category and render a single unified list
+            const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+            const activitiesByCategory = categories.map(cat => ({
+                category: cat,
+                incomplete: activities.filter(a => (a.category === cat) && !a.isCompleted),
+                completed: activities.filter(a => (a.category === cat) && a.isCompleted)
+            }));
+
+            const renderCategory = (group) => {
+                const hasAny = group.incomplete.length + group.completed.length > 0;
+                if (!hasAny) return '';
+                return `
+                    <div class="category-group vespa-${group.category.toLowerCase()}">
+                        <h3 class="category-group-title">${group.category}</h3>
+                        <div class="activities-grid">
+                            ${group.incomplete.map(a => this.renderActivityCard(a, false)).join('')}
+                            ${group.completed.map(a => this.renderActivityCard(a, true)).join('')}
+                        </div>
+                    </div>
+                `;
+            };
+
             return `
                 <div class="student-details-container">
-                    <!-- Student Overview -->
                     <div class="student-overview">
                         <div class="overview-card">
-                            <h3>Progress Overview</h3>
+                            <h3>Student Activities</h3>
                             <div class="progress-stats">
                                 <div class="stat-item">
                                     <span class="stat-label">Total Progress</span>
@@ -2164,73 +2232,20 @@
                                 <div class="stat-item">
                                     <span class="stat-label">Prescribed Progress</span>
                                     <span class="stat-value">${student.completedCount} / ${student.prescribedCount}</span>
-                                    <small style="display: block; color: var(--primary-color); font-size: 11px;">Staff assigned</small>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-label">Total Activities</span>
-                                    <span class="stat-value">${student.totalCompletedCount}</span>
-                                    <small style="display: block; color: #28a745; font-size: 11px;">Including self-selected</small>
+                                    <span class="stat-label">All Completed</span>
+                                    <span class="stat-value">${this.currentStudentAllActivities?.length || 0}</span>
                                 </div>
                             </div>
                         </div>
-                        
                         <div class="overview-card">
                             <h3>VESPA Scores</h3>
-                            <div class="vespa-scores-detail">
-                                ${this.renderDetailedVESPAScores(student.vespaScores)}
-                            </div>
+                            <div class="vespa-scores-detail">${this.renderDetailedVESPAScores(student.vespaScores)}</div>
                         </div>
                     </div>
-                    
-                    <!-- Activity Tabs -->
-                    <div class="activity-tabs">
-                        <div class="tab-buttons">
-                            <button class="tab-button active" onclick="VESPAStaff.switchTab('incomplete', event)">
-                                Prescribed Incomplete (${incompleteActivities.length})
-                            </button>
-                            <button class="tab-button" onclick="VESPAStaff.switchTab('completed', event)">
-                                Prescribed Completed (${completedActivities.length})
-                            </button>
-                            <button class="tab-button" onclick="VESPAStaff.switchTab('all-completed', event)">
-                                All Completed (${this.currentStudentAllActivities?.length || 0})
-                            </button>
-                        </div>
-                        
-                        <!-- Incomplete Activities Tab -->
-                        <div id="incomplete-tab" class="tab-content active">
-                            <div class="activities-grid">
-                                ${incompleteActivities.length > 0 ? 
-                                    incompleteActivities.map(activity => this.renderActivityCard(activity, false)).join('') :
-                                    '<p class="no-activities">No incomplete activities</p>'
-                                }
-                            </div>
-                        </div>
-                        
-                        <!-- Completed Activities Tab -->
-                        <div id="completed-tab" class="tab-content" style="display: none;">
-                            <div class="activities-grid">
-                                ${completedActivities.length > 0 ? 
-                                    completedActivities.map(activity => this.renderActivityCard(activity, true)).join('') :
-                                    '<p class="no-activities">No completed activities</p>'
-                                }
-                            </div>
-                        </div>
-                        
-                        <!-- All Completed Activities Tab -->
-                        <div id="all-completed-tab" class="tab-content" style="display: none;">
-                            <div class="activities-grid">
-                                ${this.currentStudentAllActivities && this.currentStudentAllActivities.length > 0 ? 
-                                    this.currentStudentAllActivities.map(activity => 
-                                        this.renderActivityCard({
-                                            ...activity,
-                                            showPrescribedBadge: activity.isPrescribed
-                                        }, true)
-                                    ).join('') :
-                                    '<p class="no-activities">No completed activities found</p>'
-                                }
-                            </div>
-                        </div>
-                    </div>
+
+                    ${activitiesByCategory.map(renderCategory).join('') || '<p class="no-activities">No activities found</p>'}
                 </div>
             `;
         }

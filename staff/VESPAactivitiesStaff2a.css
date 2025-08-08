@@ -1,3 +1,71 @@
+/* Minimal style additions to match student card layout/grouping */
+
+/* Category groups styled like student view */
+.category-group { 
+  margin: 16px 0; 
+  padding: 16px; 
+  border-radius: 12px; 
+  border: 2px solid var(--gray-200, #e9ecef);
+  background: #fff;
+}
+
+.category-group-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gray-800, #343a40);
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.activities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.activity-card { 
+  border: 2px solid var(--gray-100, #eee); 
+  border-radius: 16px; 
+  background: #fff; 
+  padding: 16px; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.activity-badges { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.category-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: #fff; }
+.level-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; background: var(--gray-100,#eee); color: var(--gray-700,#555); }
+.prescribed-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; background: #16a34a; color: #fff; }
+
+/* Category color chips (align with student palette) */
+.category-badge.vision { background: #ff8f00; }
+.category-badge.effort { background: #86b4f0; }
+.category-badge.systems { background: #72cb44; }
+.category-badge.practice { background: #7f31a4; }
+.category-badge.attitude { background: #f032e6; }
+
+.vespa-vision { border-color: rgba(255,143,0,0.3); background: rgba(255,143,0,0.04); }
+.vespa-effort { border-color: rgba(134,180,240,0.3); background: rgba(134,180,240,0.04); }
+.vespa-systems { border-color: rgba(114,203,68,0.3); background: rgba(114,203,68,0.04); }
+.vespa-practice { border-color: rgba(127,49,164,0.3); background: rgba(127,49,164,0.04); }
+.vespa-attitude { border-color: rgba(240,50,230,0.3); background: rgba(240,50,230,0.04); }
+
+.activity-name { font-weight: 700; color: var(--gray-800,#333); margin: 6px 0 8px; }
+.activity-description { color: var(--gray-600,#666); font-size: 0.9rem; }
+
+.status-badge.pending { color: #a16207; background: #fef3c7; border-radius: 10px; padding: 2px 8px; font-size: 12px; }
+.completion-date { color: #15803d; font-weight: 600; font-size: 12px; }
+
+.btn-view-activity, .btn-provide-feedback {
+  border: none; border-radius: 10px; padding: 8px 12px; font-weight: 600; cursor: pointer;
+}
+.btn-view-activity { background: #079baa; color: #fff; }
+.btn-view-activity:hover { background: #047c8a; }
+.btn-provide-feedback { background: #e9ecef; color: #333; }
+.btn-provide-feedback:hover { background: #dee2e6; }
 /* VESPA Staff Activities Management - Clean Professional UI */
 
 /* CSS Variables */
