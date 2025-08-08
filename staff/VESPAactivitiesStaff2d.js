@@ -12,7 +12,7 @@
     // Configuration
     const CONFIG = {
         debug: true,
-        scenes: ['scene_1256'], // Staff management scene
+        scenes: ['scene_1258'], // Staff management scene (updated)
         
         // Object IDs
         objects: {
@@ -114,11 +114,11 @@
             feedbackType: 'field_3567'
         },
         
-        // View IDs (to be updated based on actual scene)
+        // View IDs (Staff page)
         views: {
-            container: 'view_3179', // Rich text view for UI injection
-            students: 'view_3178', // Activity assignments view
-            activities: 'view_3177'  // Student responses view
+            container: 'view_3179',
+            activities: 'view_3178',
+            answers: 'view_3177'
         }
     };
     
@@ -239,7 +239,7 @@
                 if (typeof Knack !== 'undefined' && Knack.session && Knack.session.user) {
                     resolve();
                 } else {
-                    $(document).on('knack-scene-render.scene_1256', () => {
+                    $(document).on('knack-scene-render.scene_1258', () => {
                         setTimeout(resolve, 100);
                     });
                 }
@@ -252,7 +252,7 @@
             const selectors = [
                 `#${CONFIG.views.container}`,
                 `.kn-view[data-view-key="${CONFIG.views.container}"]`,
-                '#view_3179',
+                '#view_3168',
                 '.kn-details',
                 '.kn-text'
             ];
@@ -428,9 +428,26 @@
             const objects = this.config.objects;
             
             try {
-                // First try to get data from the hidden view if it exists
-                const viewId = this.config.views.activityAssignments;
-                const viewData = $(`#${viewId}`).find('.kn-list-table tbody tr');
+                // First try to get data from the hidden student views for the current role
+                let studentViewId = null;
+                switch (this.state.currentRole.type) {
+                    case 'staffAdmin':
+                        studentViewId = 'view_3192';
+                        break;
+                    case 'tutor':
+                        studentViewId = 'view_3193';
+                        break;
+                    case 'headOfYear':
+                        studentViewId = 'view_3194';
+                        break;
+                    case 'subjectTeacher':
+                        studentViewId = 'view_3195';
+                        break;
+                    default:
+                        studentViewId = null;
+                }
+
+                const viewData = studentViewId ? $(`#${studentViewId}`).find('.kn-list-table tbody tr, .kn-table tbody tr, .kn-list-content .kn-list-item') : $();
                 
                 if (viewData.length > 0) {
                     log('Found student data in view, parsing...');
@@ -1064,29 +1081,10 @@
             try {
                 log('Loading activities data...');
                 
-                // First, try local workspace JSONs (preferred)
-                const localPaths = [
-                    '/shared/utils/activitiesjsonwithfields.json',
-                    '/shared/utils/Activitesjson2.json',
-                    '/shared/utils/activities1e.json'
-                ];
-                for (const path of localPaths) {
-                    try {
-                        const response = await $.ajax({ url: path, type: 'GET', dataType: 'json', timeout: 5000 });
-                        if (Array.isArray(response) && response.length > 0) {
-                            this.state.activitiesData = response;
-                            log(`Loaded ${response.length} activities from local ${path}`);
-                            return;
-                        }
-                    } catch (err) {
-                        log(`Local load failed for ${path}:`, err.status || err.message);
-                    }
-                }
-
-                // Then try CDN sources (preferred: consolidated, field-rich JSON)
+                // CDN sources only (preferred: consolidated, field-rich JSON)
                 const externalPaths = [
-                    // Primary: new consolidated JSON in this repo
-                    'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activitiesjsonwithfields1a.json',
+                    // Primary: consolidated JSON in this repo
+                    'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activitiesjsonwithfields1c.json',
                     // Secondary: field-rich JSON in FlashcardLoader (backup)
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/activitiesjsonwithfields.json',
                     'https://raw.githubusercontent.com/4Sighteducation/FlashcardLoader/main/integrations/activitiesjsonwithfields.json',
@@ -1232,8 +1230,8 @@
                 // First try to load from JSON for complete data
                 await this.loadActivitiesFromJSON();
                 
-                // Try to get data from the hidden view - check multiple possible view IDs
-                const possibleViewIds = ['view_3176', 'view_3177', 'view_3178'];
+                // Try to get data from the hidden view - check staff page views first
+                const possibleViewIds = [CONFIG.views.activities];
                 let viewData = $();
                 
                 for (const viewId of possibleViewIds) {
@@ -1318,14 +1316,23 @@
                 if (this.state.activitiesData && this.state.activitiesData.length > 0) {
                     log('No activities from view/API, using JSON data...');
                     this.state.activitiesData.forEach(jsonActivity => {
-                        if (jsonActivity.Active) {
+                        const id = jsonActivity.Activity_id || jsonActivity.id;
+                        const name = jsonActivity['Activities Name'] || jsonActivity.field_1278 || jsonActivity.name;
+                        const category = jsonActivity['VESPA Category'] || jsonActivity.field_1285 || jsonActivity.category || 'General';
+                        const rawLevel = jsonActivity.Level || jsonActivity.field_3568 || jsonActivity.field_1295 || 1;
+                        const level = parseInt(rawLevel.toString().replace('Level ', '')) || 1;
+                        const moreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || 0;
+                        const lessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || 0;
+                        if (id && name) {
                             activities.push({
-                                id: jsonActivity.Activity_id,
-                                name: jsonActivity['Activities Name'],
-                                category: jsonActivity['VESPA Category'],
-                                level: parseInt(jsonActivity.Level?.replace('Level ', '')) || 1,
-                                hasBackgroundContent: !!jsonActivity.background_content,
-                                media: jsonActivity.media
+                                id,
+                                name,
+                                category,
+                                level,
+                                hasBackgroundContent: !!(jsonActivity.background_content || jsonActivity.background),
+                                media: jsonActivity.media,
+                                scoreShowIfMoreThan: moreThan,
+                                scoreShowIfLessEqual: lessEqual
                             });
                         }
                     });
@@ -1554,7 +1561,7 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/yourusername/vespa-activities@latest/staff/VESPAactivitiesStaff.css';
+                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2c.css';
                 document.head.appendChild(styleLink);
             }
         }
@@ -1952,8 +1959,8 @@
                 // Parse and return responses
                 return response.records.map(record => ({
                     id: record.id,
-                    activityId: record[fields.answerResponsesPerActivity],
-                    activityJSON: record[fields.answerActivityJSON],
+                    activityId: record[fields.answerActivityConnection] || record[fields.answerActivityConnection + '_raw']?.[0]?.id || record.field_1302_raw?.[0]?.id,
+                    activityJSON: record[fields.answerActivityJSON] || record.field_1300,
                     completionDate: record[fields.answerCompletionDate],
                     yearGroup: record[fields.answerYearGroup],
                     group: record[fields.answerGroup],
@@ -1971,7 +1978,7 @@
             log(`Loading questions for activity: ${activityId}`);
             try {
                 // Try scraping if present (harmless fallback)
-                const viewData = $('#view_3177').find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
+                const viewData = $(`#${CONFIG.views.activities}`).find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
                 if (viewData.length > 0) {
                     const scraped = [];
                     viewData.find('.question-item, .field_1279').each((index, elem) => {
@@ -1981,7 +1988,7 @@
                     if (scraped.length > 0) return scraped;
                 }
 
-                // We must filter Object_45 by connection to activity NAME (field_1286)
+                // Filter Object_45 by connection to activity NAME (field_1286)
                 const activity = this.state.activities.find(a => a.id === activityId);
                 const activityName = activity ? activity.name : '';
                 if (!activityName) {
@@ -1998,7 +2005,7 @@
                     data: {
                         filters: JSON.stringify([
                             {
-                                field: 'field_1286', // questionActivity connection (by activity name)
+                                field: 'field_1286', // connection to Activities by name
                                 operator: 'is',
                                 value: activityName
                             }
@@ -2011,10 +2018,10 @@
                 if (response.records && response.records.length > 0) {
                     return response.records.map(record => ({
                         id: record.id,
-                        question: this.stripHtml(record.field_1279 || ''),
-                        type: record.field_1290 || 'text',
-                        options: record.field_1291 || '',
-                        order: parseInt(record.field_1303) || 0
+                        question: this.stripHtml(record.field_1137 || record.field_1279 || ''),
+                        type: record.field_1138 || record.field_1290 || 'text',
+                        options: record.field_1139 || record.field_1291 || '',
+                        order: parseInt(record.field_1140 || record.field_1303) || 0
                     })).sort((a, b) => a.order - b.order);
                 }
 
@@ -2532,9 +2539,9 @@
             }
         }
         
-        // Uncomplete (re-assign) an activity
-        async uncompleteActivity(studentId, activityName) {
-            if (!confirm(`Are you sure you want to re-assign "${activityName}"? This will mark it as incomplete.`)) {
+        // Uncomplete (re-assign) an activity by ID
+        async uncompleteActivity(studentId, activityId) {
+            if (!confirm(`Are you sure you want to re-assign this activity? This will mark it as incomplete.`)) {
                 return;
             }
             
@@ -2544,7 +2551,7 @@
                 if (!student) return;
                 
                 // Remove from finished activities
-                const updatedFinished = student.finishedActivities.filter(a => a !== activityName);
+                const updatedFinished = student.finishedActivities.filter(id => id !== activityId);
                 
                 // Update in database
                 await $.ajax({
@@ -2556,7 +2563,7 @@
                         'Content-Type': 'application/json'
                     },
                     data: JSON.stringify({
-                        [this.config.fields.finishedActivities]: updatedFinished.join(', ')
+                        [this.config.fields.finishedActivities]: updatedFinished.join(',')
                     })
                 });
                 
@@ -3436,7 +3443,7 @@
                 
                 await Promise.all(updatePromises);
                 
-                alert(`Successfully assigned ${activityNames.length} activities to ${selectedStudents.length} student(s)`);
+                alert(`Successfully assigned ${activityIds.length} activities to ${selectedStudents.length} student(s)`);
                 
                 // Refresh data
                 await this.loadData();
@@ -3579,8 +3586,8 @@
         
         log('Initializing VESPA Activities Staff Management', config);
         
-        // Hide data views immediately
-        const viewsToHide = ['view_3177', 'view_3178'];
+        // Hide data views immediately (use staff page views)
+        const viewsToHide = [CONFIG.views.activities, CONFIG.views.answers];
         viewsToHide.forEach(viewId => {
             const viewElement = document.querySelector(`#${viewId}`);
             if (viewElement) {
