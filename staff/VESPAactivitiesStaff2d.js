@@ -447,22 +447,45 @@
                         studentViewId = null;
                 }
 
-                const viewData = studentViewId ? $(`#${studentViewId}`).find('.kn-list-table tbody tr, .kn-table tbody tr, .kn-list-content .kn-list-item') : $();
-                
-                if (viewData.length > 0) {
-                    log('Found student data in view, parsing...');
-                    viewData.each((index, row) => {
-                        const $row = $(row);
-                        const recordId = $row.data('record-id');
-                        if (recordId) {
-                            // Parse student data from the row
-                            const student = this.parseStudentFromRow($row);
-                            if (student) {
-                                studentData.push(student);
+                // Prefer Knack.views data (works for both details and table views)
+                let parsedFromKnackViews = false;
+                if (studentViewId && Knack.views && Knack.views[studentViewId]) {
+                    const viewObj = Knack.views[studentViewId];
+                    const models = viewObj?.model?.data?.models;
+                    const attributes = viewObj?.model?.attributes;
+                    if (Array.isArray(models) && models.length > 0) {
+                        log(`Found ${models.length} student models in Knack.views for ${studentViewId}`);
+                        models.forEach(m => {
+                            const record = m.attributes || m;
+                            const student = this.parseStudentFromRecord(record);
+                            if (student) studentData.push(student);
+                        });
+                        parsedFromKnackViews = studentData.length > 0;
+                    } else if (attributes && Object.keys(attributes).length > 0) {
+                        log(`Found single student record in Knack.views for ${studentViewId}`);
+                        const student = this.parseStudentFromRecord(attributes);
+                        if (student) studentData.push(student);
+                        parsedFromKnackViews = studentData.length > 0;
+                    }
+                }
+
+                // Fallback: parse from DOM rows if present
+                if (!parsedFromKnackViews && studentViewId) {
+                    const viewData = $(`#${studentViewId}`).find('.kn-table tbody tr, .kn-list-table tbody tr, .kn-list-content .kn-list-item');
+                    if (viewData.length > 0) {
+                        log('Found student data in DOM, parsing...');
+                        viewData.each((index, row) => {
+                            const $row = $(row);
+                            const recordId = $row.data('record-id') || $row.attr('id');
+                            if (recordId) {
+                                const student = this.parseStudentFromRow($row);
+                                if (student) studentData.push(student);
                             }
-                        }
-                    });
-                } else {
+                        });
+                    }
+                }
+
+                if (studentData.length === 0) {
                     // Fall back to API call
                     log('No view data found, making API call...');
                     
