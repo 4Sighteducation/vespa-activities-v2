@@ -121,6 +121,27 @@
             answers: 'view_3177'
         }
     };
+
+    // Immediately hide data views to prevent flash of content before init
+    (function injectImmediateHideStyles() {
+        try {
+            if (!document.getElementById('vespa-staff-immediate-hide')) {
+                const style = document.createElement('style');
+                style.id = 'vespa-staff-immediate-hide';
+                style.textContent = `
+                    #view_3177, #view_3178,
+                    #view_3192, #view_3193, #view_3194, #view_3195 {
+                        display: none !important;
+                        visibility: hidden !important;
+                        opacity: 0 !important;
+                        height: 0 !important;
+                        overflow: hidden !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        } catch (_) { /* no-op */ }
+    })();
     
     // Utility functions
     const log = (...args) => {
@@ -184,11 +205,11 @@
                 objects: CONFIG.objects
             };
             
-            // Update CONFIG to use the values from KnackAppLoader
+            // Update CONFIG to use the values from KnackAppLoader (use correct keys; do not swap views)
             if (this.config.views) {
                 CONFIG.views.container = this.config.views.richText || CONFIG.views.container;
-                CONFIG.views.students = this.config.views.activityAssignments || CONFIG.views.students;
-                CONFIG.views.activities = this.config.views.studentResponses || CONFIG.views.activities;
+                CONFIG.views.activities = this.config.views.activities || CONFIG.views.activities;
+                CONFIG.views.answers = this.config.views.answers || CONFIG.views.answers;
             }
             
             log('Using config:', this.config);
@@ -681,6 +702,41 @@
                 }
             }
             
+            // If we loaded from views, enrich with full records via API to ensure connection fields exist
+            try {
+                const idsToEnrich = studentData.map(s => s.id).filter(Boolean);
+                if (idsToEnrich.length > 0) {
+                    const orRules = idsToEnrich.map(id => ({ field: 'id', operator: 'is', value: id }));
+                    const filters = [{ match: 'or', rules: orRules }];
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.student}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey
+                        },
+                        data: { filters: JSON.stringify(filters), page: 1, rows_per_page: idsToEnrich.length }
+                    });
+                    const byId = new Map((response.records || []).map(r => [r.id, r]));
+                    // Re-parse prescribed/finished from full records
+                    this.state.activities = this.state.activities || [];
+                    for (let i = 0; i < studentData.length; i++) {
+                        const base = studentData[i];
+                        const full = byId.get(base.id);
+                        if (!full) continue;
+                        const enriched = this.parseStudentFromRecord(full);
+                        if (enriched) {
+                            // Preserve name/email if parse returns minimal
+                            enriched.name = enriched.name || base.name;
+                            enriched.email = enriched.email || base.email;
+                            studentData[i] = enriched;
+                        }
+                    }
+                }
+            } catch (enrichErr) {
+                log('Warning: enrich step failed, continuing with basic view data', enrichErr);
+            }
+
             this.state.students = studentData;
             log(`Loaded ${studentData.length} students`);
         }
@@ -1584,7 +1640,7 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2c.css';
+                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2e.css';
                 document.head.appendChild(styleLink);
             }
         }
