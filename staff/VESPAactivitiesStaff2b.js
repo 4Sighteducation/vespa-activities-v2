@@ -1064,28 +1064,9 @@
             try {
                 log('Loading activities data...');
                 
-                // First, try local workspace JSONs (preferred)
-                const localPaths = [
-                    '/shared/utils/activitiesjsonwithfields.json',
-                    '/shared/utils/Activitesjson2.json',
-                    '/shared/utils/activities1e.json'
-                ];
-                for (const path of localPaths) {
-                    try {
-                        const response = await $.ajax({ url: path, type: 'GET', dataType: 'json', timeout: 5000 });
-                        if (Array.isArray(response) && response.length > 0) {
-                            this.state.activitiesData = response;
-                            log(`Loaded ${response.length} activities from local ${path}`);
-                            return;
-                        }
-                    } catch (err) {
-                        log(`Local load failed for ${path}:`, err.status || err.message);
-                    }
-                }
-
-                // Then try CDN sources (preferred: consolidated, field-rich JSON)
+                // CDN sources only (preferred: consolidated, field-rich JSON)
                 const externalPaths = [
-                    // Primary: new consolidated JSON in this repo
+                    // Primary: consolidated JSON in this repo
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activitiesjsonwithfields1a.json',
                     // Secondary: field-rich JSON in FlashcardLoader (backup)
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/activitiesjsonwithfields.json',
@@ -1318,14 +1299,23 @@
                 if (this.state.activitiesData && this.state.activitiesData.length > 0) {
                     log('No activities from view/API, using JSON data...');
                     this.state.activitiesData.forEach(jsonActivity => {
-                        if (jsonActivity.Active) {
+                        const id = jsonActivity.Activity_id || jsonActivity.id;
+                        const name = jsonActivity['Activities Name'] || jsonActivity.field_1278 || jsonActivity.name;
+                        const category = jsonActivity['VESPA Category'] || jsonActivity.field_1285 || jsonActivity.category || 'General';
+                        const rawLevel = jsonActivity.Level || jsonActivity.field_3568 || jsonActivity.field_1295 || 1;
+                        const level = parseInt(rawLevel.toString().replace('Level ', '')) || 1;
+                        const moreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || 0;
+                        const lessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || 0;
+                        if (id && name) {
                             activities.push({
-                                id: jsonActivity.Activity_id,
-                                name: jsonActivity['Activities Name'],
-                                category: jsonActivity['VESPA Category'],
-                                level: parseInt(jsonActivity.Level?.replace('Level ', '')) || 1,
-                                hasBackgroundContent: !!jsonActivity.background_content,
-                                media: jsonActivity.media
+                                id,
+                                name,
+                                category,
+                                level,
+                                hasBackgroundContent: !!(jsonActivity.background_content || jsonActivity.background),
+                                media: jsonActivity.media,
+                                scoreShowIfMoreThan: moreThan,
+                                scoreShowIfLessEqual: lessEqual
                             });
                         }
                     });
