@@ -238,6 +238,117 @@ For large colleges (2000+ students):
 
 ## 📌 Next Steps
 
+---
+
+## 2f/2g Update – Staff Activities (Latest)
+
+This section documents the most recent changes made in versions 2f/2g of the staff app.
+
+### Views (Staff Page)
+- Container (inject app): `view_3179`
+- Activities (Object_44): `view_3178`
+- Activity Answers (Object_46): `view_3177`
+- Student role-scoped views (Object_6):
+  - Staff Admin: `view_3192`
+  - Tutor: `view_3193`
+  - Head of Year: `view_3194`
+  - Subject Teacher: `view_3195`
+
+All of the above are hidden immediately on page load to prevent UI flash. The rich text view (`view_3179`) is the only visible container.
+
+### Objects & Critical Field Mappings (recap)
+- Object_6 (Student)
+  - Prescribed/All Activities connection: `field_1683`
+  - Finished Activities (CSV of activity IDs, no spaces): `field_1380`
+  - New optional fields (not required for origin):
+    - Staff Added Activities: `field_3581` (CSV)
+    - Staff Added Date/Time: `field_3583` (dd/mm/yyyy)
+    - Student Added Activities: `field_3580` (CSV)
+    - Student Added Date/Time: `field_3582`
+
+- Object_44 (Activities)
+  - Name: `field_1278`, Category: `field_1285`, Level (preferred): `field_3568`, Thresholds: `field_1287`/`field_1294`
+
+- Object_45 (Activity Questions)
+  - Connection to Activity (by name): `field_1286`
+  - Text/Type/Options/Order: `field_1137`/`field_1138`/`field_1139`/`field_1140`
+
+- Object_46 (Activity Answers)
+  - Activity JSON (raw): `field_1300`
+  - Activity connection: `field_1302` (use `_raw[0].id` when available)
+
+- Object_126 (Activity Progress)
+  - Student: `field_3536`, Activity: `field_3537`
+  - Dates: `field_3539/3540/3541` (assigned/started/completed)
+  - Status: `field_3543`
+  - Selected Via (origin): `field_3546`
+
+### Origin of Activities (Badges)
+We now standardize “origin” in the Activity Progress object (`object_126.field_3546`).
+- Student app writes `selectedVia = 'student_choice'` when a student starts an activity.
+- Staff app writes `selectedVia = 'staff_assigned'` when assigning an activity.
+- Prescribed is inferred by membership of `student.prescribedActivityIds` (threshold logic is not written to progress).
+
+Badges rendered on cards:
+- Prescribed: teal chip `badge-prescribed`
+- Staff Added: purple chip `badge-staff` (latest progress `selected_via === 'staff_assigned'`)
+- Self Selected: blue chip `badge-self` (not prescribed and not staff-assigned)
+- Completed: grey chip `badge-completed` + card greyscale
+
+### Assignment Flow (Staff UI)
+When a staff member assigns activities:
+1) Update `Object_6.field_1683` with the assigned activity IDs (connection update, IDs only)
+2) Create a Progress record (Object_126) per student+activity with:
+   - `field_3536 = studentId`, `field_3537 = activityId`
+   - `field_3539 = now` (date assigned)
+   - `field_3543 = 'assigned'`
+   - `field_3546 = 'staff_assigned'`
+
+This ensures the staff-added origin is visible without duplicating data into Object_6 CSVs.
+
+### Student View (Staff Modal)
+- Activities are grouped by VESPA category (Vision/Effort/Systems/Practice/Attitude) matching the student UI.
+- “View” button opens the detail modal.
+- Default tab:
+  - If the activity is completed and we have responses, open “Responses”.
+  - Otherwise open “Questions”.
+  - “Background” (and a PDF download if present) remains available as a tab.
+
+### Data Loading Order
+1) Activities: from `view_3178` (table) → fallback API → CDN JSON (1c)
+2) Students: role view (`view_3192–3195`) via Knack.views; if needed, enrich by API to ensure connection fields exist
+3) Answers: API (Object_46), `field_1300` for JSON; `field_1302` for activity ID
+4) Questions: API (Object_45) filter by `field_1286` (activity name)
+5) Progress: API (Object_126), reduce to latest per activity for origin badges
+
+### Inclusion of Self‑Selected Activities
+The student modal renders the union set of activity IDs from:
+- `student.prescribedActivityIds`
+- `student.prescribedActivities` (names mapped to IDs)
+- `student.finishedActivities` (CSV of IDs)
+- Activities found in the student’s progress (Object_126)
+
+This ensures self‑selected incomplete activities are visible alongside prescribed ones.
+
+### Styling
+- CSS file: `staff/VESPAactivitiesStaff2f.css`
+- Completed cards are greyed with a subtle ribbon
+- Chips use palette colors (teal/blue/purple/grey)
+- Category sections (`.vespa-vision/effort/systems/practice/attitude`) match student theming
+
+### Deployment Notes
+- Bump file names (2f/2g) to clear CDN cache (update Knack custom code to the new URLs)
+- Ensure the immediate-hide CSS is active to prevent data view flash (`view_3177`, `view_3178`, `view_3192–3195`)
+- Verify API keys in Knack (X-Knack-Application-Id / X-Knack-REST-API-Key) are present
+
+### Quick Test Checklist
+1) Load staff page → no data view flash; themed sections visible
+2) Assign one activity → student shows Staff Added chip; Progress record exists
+3) Student starts non‑prescribed activity → Self Selected chip appears
+4) Prescribed activities show Prescribed chip; completed cards greyed
+5) Detail modal opens on Responses (if completed & responses exist) or Questions; Background/PDF is accessible
+
+
 1. Verify VESPA score field mappings with live data
 2. Test with real staff admin account (2000+ students)
 3. Implement search functionality for large datasets

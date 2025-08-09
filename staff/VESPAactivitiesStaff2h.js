@@ -70,6 +70,8 @@
             activityLevelAlt: 'field_3568', // preferred level field
             activityScoreMoreThan: 'field_1287', // threshold: show if score is more than X
             activityScoreLessEqual: 'field_1294', // threshold: show if score is <= Y
+            // Bespoke curriculum tags (CSV or multi-select style)
+            activityCurriculum: 'field_3584',
             
             // Activity Answers fields (Object_46)
             answerStudentName: 'field_1875',
@@ -166,6 +168,10 @@
                 filteredStudents: [],
                 selectedStudents: new Set(),
                 selectedActivities: new Set(),
+                // Cache of progress activity IDs per student for list counts
+                progressActivitiesByStudent: new Map(),
+                // Undo handler for snackbar
+                lastUndo: null,
                 filters: {
                     search: '',
                     progress: 'all',
@@ -425,6 +431,11 @@
                 
                 // Load students based on role
                 await this.loadStudents();
+                // Enrich list with in-progress activity IDs for All Activities count
+                try {
+                    const map = await this.loadProgressActivitiesForStudents(this.state.students.map(s => s.id));
+                    this.state.progressActivitiesByStudent = map;
+                } catch (_) { /* non-fatal */ }
                 
                 // Load VESPA scores for students
                 await this.loadVESPAScores();
@@ -438,6 +449,33 @@
             } finally {
                 this.state.isLoading = false;
             }
+        }
+
+        // Load minimal in-progress activity IDs per student for list counts
+        async loadProgressActivitiesForStudents(studentIds = []) {
+            const f = this.config.fields; const o = this.config.objects;
+            const idSet = new Set(studentIds);
+            const result = new Map();
+            try {
+                const resp = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
+                    type: 'GET',
+                    headers: { 'X-Knack-Application-Id': this.config.knackAppId, 'X-Knack-REST-API-Key': this.config.knackApiKey },
+                    data: { page: 1, rows_per_page: 1000, sort_field: 'created_at', sort_order: 'desc' }
+                });
+                (resp.records || []).forEach(r => {
+                    const sid = r[f.progressStudent];
+                    const aid = r[f.progressActivity + '_raw']?.[0]?.id || r[f.progressActivity];
+                    const status = r[f.progressStatus];
+                    if (!sid || !aid || !idSet.has(sid)) return;
+                    if (status === 'removed' || status === 'completed') return;
+                    if (!result.has(sid)) result.set(sid, new Set());
+                    result.get(sid).add(aid);
+                });
+            } catch (e) {
+                error('Failed to load progress activities for students', e);
+            }
+            return result;
         }
         
         // Load students based on current role
@@ -1535,6 +1573,10 @@
                 const rawType = this.getFieldValue(record, 'field_1133', ''); // Activity type
                 const type = this.stripHtml(rawType);
                 
+                // Bespoke curriculum tags
+                const rawCurriculum = record[fields.activityCurriculum + '_raw'] || record[fields.activityCurriculum];
+                const curriculums = this.parseCurriculumTags(rawCurriculum, category);
+
                 const activity = {
                     id: record.id,
                     name: name,
@@ -1545,7 +1587,8 @@
                     type: type || 'Activity',
                     // thresholds to compute prescribed indicator
                     scoreShowIfMoreThan: parseFloat(this.getFieldValue(record, fields.activityScoreMoreThan, '0')) || 0,
-                    scoreShowIfLessEqual: parseFloat(this.getFieldValue(record, fields.activityScoreLessEqual, '0')) || 0
+                    scoreShowIfLessEqual: parseFloat(this.getFieldValue(record, fields.activityScoreLessEqual, '0')) || 0,
+                    curriculums: curriculums
                 };
                 
                 return activity;
@@ -1597,10 +1640,12 @@
                         aVal = a.progress;
                         bVal = b.progress;
                         break;
-                    case 'prescribed':
-                        aVal = a.prescribedCount;
-                        bVal = b.prescribedCount;
+                    case 'allActivities': {
+                        const aAll = new Set([...(a.prescribedActivityIds || []), ...(a.finishedActivities || [])]).size;
+                        const bAll = new Set([...(b.prescribedActivityIds || []), ...(b.finishedActivities || [])]).size;
+                        aVal = aAll; bVal = bAll;
                         break;
+                    }
                     case 'completed':
                         aVal = a.completedCount;
                         bVal = b.completedCount;
@@ -1725,9 +1770,16 @@
             
             return `
                 <div class="student-table-container">
+                    <div class="bulk-toolbar">
+                        <label><input type="checkbox" onchange="VESPAStaff.toggleSelectAll(this.checked)"> Select all (filtered)</label>
+                        <button class="btn" onclick="VESPAStaff.clearSelection()">Clear selection</button>
+                        <button class="btn btn-primary" onclick="VESPAStaff.openBulkAdd()">Add activities to selected</button>
+                        <span class="selection-count">${this.state.selectedStudents.size} selected</span>
+                    </div>
                     <table class="student-table">
                         <thead>
                             <tr>
+                                <th style="width:36px"><input type="checkbox" onchange="VESPAStaff.toggleSelectAll(this.checked)"></th>
                                 <th class="sortable ${this.getSortClass('name')}" 
                                     onclick="VESPAStaff.sort('name')">
                                     Student Name
@@ -1736,16 +1788,10 @@
                                     onclick="VESPAStaff.sort('progress')">
                                     Progress
                                 </th>
+                                <th class="sortable ${this.getSortClass('allActivities')}">All Activities</th>
+                                <th class="sortable ${this.getSortClass('completed')}" onclick="VESPAStaff.sort('completed')">Completed</th>
                                 <th class="hide-mobile">VESPA Scores</th>
-                                <th class="sortable ${this.getSortClass('prescribed')}" 
-                                    onclick="VESPAStaff.sort('prescribed')">
-                                    Prescribed
-                                </th>
-                                <th class="sortable ${this.getSortClass('completed')}" 
-                                    onclick="VESPAStaff.sort('completed')">
-                                    Completed
-                                </th>
-                                <th>Actions</th>
+                                <th>View</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1771,12 +1817,16 @@
         
         // Render individual student row
         renderStudentRow(student) {
-            // Calculate if student has completed additional activities
-            const hasAdditionalActivities = student.totalCompletedCount > student.completedCount;
-            const additionalCount = student.totalCompletedCount - student.completedCount;
+            // Calculate All Activities = union of prescribed IDs, finished IDs and in-progress IDs (from cache)
+            const prescribedIds = new Set(student.prescribedActivityIds || []);
+            const finishedIds = new Set(student.finishedActivities || []);
+            const progressIds = this.state.progressActivitiesByStudent.get(student.id) || new Set();
+            const union = new Set([...prescribedIds, ...finishedIds, ...progressIds]);
+            const allActivitiesCount = union.size;
             
             return `
                 <tr data-student-id="${student.id}">
+                    <td><input type="checkbox" ${this.state.selectedStudents.has(student.id) ? 'checked' : ''} onchange="VESPAStaff.toggleStudentSelection('${student.id}', this.checked)"></td>
                     <td>
                         <div class="student-name">${student.name}</div>
                         <div class="student-email">${student.email}</div>
@@ -1787,48 +1837,48 @@
                                 <div class="progress-fill" style="width: ${student.progress}%"></div>
                                 <span class="progress-text">${student.completedCount}/${student.prescribedCount}</span>
                             </div>
-                            ${hasAdditionalActivities ? `
-                                <div class="additional-activities-indicator" title="${additionalCount} self-selected activities completed">
-                                    <span class="additional-icon">+</span>
-                                    <span class="additional-count">${additionalCount} self-selected</span>
-                                </div>
-                            ` : ''}
                         </div>
                     </td>
-                    <td class="hide-mobile">
-                        <div class="vespa-scores">
-                            ${student.vespaScores ? this.renderVESPAScores(student.vespaScores) : '<span class="no-scores">No scores</span>'}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="prescribed-count">
-                            ${student.prescribedCount}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="completed-info">
-                            <div class="completed-main">
-                                <span class="completed-prescribed">${student.completedCount}</span>
-                                ${hasAdditionalActivities ? `
-                                    <span class="additional-badge" title="${additionalCount} additional self-selected activities">
-                                        +${additionalCount}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="completed-label">prescribed${hasAdditionalActivities ? ' + self' : ''}</div>
-                        </div>
-                    </td>
+                    <td><div class="all-activities-count">${allActivitiesCount}</div></td>
+                    <td><div class="completed-info"><span class="completed-prescribed">${student.completedCount}</span></div></td>
+                    <td class="hide-mobile"><div class="vespa-scores">${student.vespaScores ? this.renderVESPAScores(student.vespaScores) : '<span class=\"no-scores\">No scores</span>'}</div></td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-action btn-primary" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
-                                    title="Open Activities for this student">
-                                Activities
+                                    title="View activities for this student">
+                                👁️ View
                             </button>
                         </div>
                     </td>
                 </tr>
             `;
+        }
+
+        // Selection helpers for bulk add
+        toggleStudentSelection(studentId, checked) {
+            if (checked) this.state.selectedStudents.add(studentId); else this.state.selectedStudents.delete(studentId);
+            const countBadge = document.querySelector('.selection-count');
+            if (countBadge) countBadge.textContent = `${this.state.selectedStudents.size} selected`;
+        }
+        toggleSelectAll(checked) {
+            if (checked) {
+                this.state.selectedStudents = new Set(this.state.filteredStudents.map(s => s.id));
+            } else {
+                this.state.selectedStudents.clear();
+            }
+            this.renderStudentTable();
+        }
+        clearSelection() {
+            this.state.selectedStudents.clear();
+            this.renderStudentTable();
+        }
+        openBulkAdd() {
+            if (this.state.selectedStudents.size === 0) {
+                alert('Select at least one student first');
+                return;
+            }
+            this.showAssignModal();
         }
         
         // Render VESPA score pills
@@ -2002,8 +2052,8 @@
                 // Load latest progress per activity for origin badges
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
                 
-                // Create and show student details modal
-                this.showStudentDetailsModal(student, responses, progressByActivity);
+                // Render full-screen workspace view (top/bottom)
+                this.showStudentWorkspace(student, responses, progressByActivity);
                 
             } catch (err) {
                 error('Failed to load student details:', err);
@@ -2011,6 +2061,308 @@
             } finally {
                 this.hideLoading();
             }
+        }
+
+        // Build normalized activity dataset for a student with origin flags
+        buildStudentActivityData(student, responses, progressByActivity = new Map()) {
+            const idFromNames = (student.prescribedActivities || []).map(name => {
+                const norm = (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+                const act = this.state.activities.find(a => this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ') === norm);
+                return act?.id;
+            }).filter(Boolean);
+            const unionIds = new Set([
+                ...(student.prescribedActivityIds || []),
+                ...idFromNames,
+                ...(student.finishedActivities || []),
+                ...Array.from(progressByActivity.keys())
+            ]);
+
+            const entries = [];
+            for (const activityId of unionIds) {
+                const activity = this.state.activities.find(a => a.id === activityId);
+                if (!activity) continue;
+                const isCompleted = (student.finishedActivities || []).includes(activity.id);
+                const response = responses.find(r => r.activityId === activity.id);
+                const isPrescribed = (student.prescribedActivityIds || []).includes(activity.id);
+                const latestProgress = progressByActivity.get(activity.id);
+                const selectedVia = latestProgress ? latestProgress[this.config.fields.progressSelectedVia] : '';
+                const isStaffAdded = !isPrescribed && selectedVia === 'staff_assigned';
+                const isReportGenerated = selectedVia === 'report_generated';
+                const isSelfSelected = !isPrescribed && !isStaffAdded && !isReportGenerated;
+                entries.push({
+                    ...activity,
+                    isCompleted,
+                    response,
+                    studentId: student.id,
+                    questions: [],
+                    showPrescribedBadge: isPrescribed,
+                    showStaffBadge: isStaffAdded,
+                    showSelfBadge: isSelfSelected,
+                    showReportBadge: isReportGenerated
+                });
+            }
+            return entries;
+        }
+
+        // Full-screen student workspace (top/bottom)
+        showStudentWorkspace(student, responses = [], progressByActivity = new Map()) {
+            const activities = this.buildStudentActivityData(student, responses, progressByActivity);
+            const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+
+            const activitiesByCategory = categories.map(cat => ({
+                category: cat,
+                items: activities.filter(a => a.category === cat)
+            }));
+
+            const topHtml = `
+                <div class="workspace-header">
+                    <button class="btn btn-secondary" onclick="VESPAStaff.render()">← Back to list</button>
+                    <h2 class="modal-title">Current Student Activities for — ${this.escapeHtml(student.name)}</h2>
+                    <div class="workspace-header-actions">
+                        <button class="btn btn-danger" onclick="VESPAStaff.confirmClearAll('${student.id}')">Clear all</button>
+                    </div>
+                </div>
+                <div class="workspace-lanes">
+                    ${activitiesByCategory.map(group => `
+                        <section class="lane lane-${group.category.toLowerCase()}">
+                            <div class="lane-header">
+                                <h3>${group.category}</h3>
+                                <div class="lane-actions">
+                                    <button class="btn" onclick="VESPAStaff.addAllInCategory('${student.id}','${group.category}')">Add all</button>
+                                    ${this.renderCurriculumPicker(student.id, group.category)}
+                                    <button class="btn btn-secondary" onclick="VESPAStaff.clearCategory('${student.id}','${group.category}')">Clear</button>
+                                </div>
+                            </div>
+                            <div class="lane-body" data-category="${group.category}" ondragover="event.preventDefault()" ondrop="VESPAStaff.onDropInLane(event,'${student.id}','${group.category}')">
+                                ${group.items.map(a => this.renderActivityCard(a, a.isCompleted)).join('') || '<div class="empty-state">No activities in this lane</div>'}
+                            </div>
+                        </section>
+                    `).join('')}
+                </div>`;
+
+            // Bottom All Activities buttons grouped by category and level
+            const buttonsByCat = categories.map(cat => {
+                const acts = this.state.activities.filter(a => a.category === cat);
+                if (acts.length === 0) return '';
+                const byLevel = new Map();
+                acts.forEach(a => {
+                    const lvl = a.level || 1;
+                    if (!byLevel.has(lvl)) byLevel.set(lvl, []);
+                    byLevel.get(lvl).push(a);
+                });
+                return `
+                    <section class="all-activities-group">
+                        <h3>${cat}</h3>
+                        ${Array.from(byLevel.keys()).sort((a,b)=>a-b).map(lvl => `
+                            <div class="level-group"><h4>Level ${lvl}</h4>
+                                <div class="buttons-grid">
+                                    ${byLevel.get(lvl).map(a => `
+                                        <button class="activity-btn" draggable="true"
+                                                ondragstart="VESPAStaff.onDragStart(event,'${a.id}')"
+                                                onclick="VESPAStaff.addActivityToStudent('${student.id}','${a.id}')">
+                                            ${this.escapeHtml(a.name)}
+                                            <span class="btn-meta">${a.curriculums?.length ? ' · ' + a.curriculums.join(', ') : ''}</span>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>`).join('')}
+                    </section>`;
+            }).join('');
+
+            const bottomHtml = `
+                <div class="workspace-bottom">
+                    <h3>All Activities</h3>
+                    ${buttonsByCat}
+                </div>`;
+
+            const html = `
+                <div class="student-workspace">
+                    ${topHtml}
+                    ${bottomHtml}
+                </div>`;
+
+            // Replace container content
+            if (this.container) {
+                this.container.innerHTML = html;
+            }
+        }
+
+        renderCurriculumPicker(studentId, category) {
+            // Build curriculum options available in this category
+            const options = new Set();
+            this.state.activities.filter(a => a.category === category).forEach(a => (a.curriculums || []).forEach(c => options.add(c)));
+            const list = Array.from(options).sort();
+            if (list.length === 0) return '';
+            const id = `curr-${category}-${studentId}`.replace(/\s+/g,'-');
+            return `
+                <select id="${id}" class="filter-select" onchange="VESPAStaff.addCurriculumSet('${studentId}','${category}', this.value)">
+                    <option value="">Add curriculum…</option>
+                    ${list.map(c => `<option value="${this.escapeHtml(c)}">${this.escapeHtml(c)}</option>`).join('')}
+                </select>`;
+        }
+
+        onDragStart(event, activityId) {
+            event.dataTransfer.setData('text/plain', activityId);
+        }
+        async onDropInLane(event, studentId, category) {
+            event.preventDefault();
+            const activityId = event.dataTransfer.getData('text/plain');
+            const activity = this.state.activities.find(a => a.id === activityId);
+            if (!activity || activity.category !== category) return;
+            await this.addActivityToStudent(studentId, activityId);
+            await this.viewStudent(studentId);
+        }
+
+        // Actions for workspace
+        async addActivityToStudent(studentId, activityId) {
+            await this.updateStudentPrescribedActivities(studentId, [activityId]);
+            await this.createAssignedProgressRecord(studentId, activityId);
+        }
+        async removeActivityFromStudent(studentId, activityId) {
+            await this.removeFromStudentPrescribed(studentId, [activityId]);
+            await this.markProgressRemoved(studentId, activityId);
+        }
+        async clearCategory(studentId, category) {
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            const current = this.buildStudentActivityData(student, [], new Map()).filter(a => a.category === category && !a.isCompleted);
+            const ids = current.map(a => a.id);
+            if (ids.length === 0) return;
+            // Save undo info for snackbar
+            this.state.lastUndo = { type: 'clearCategory', studentId, ids };
+            await this.removeFromStudentPrescribed(studentId, ids);
+            for (const aid of ids) await this.markProgressRemoved(studentId, aid);
+            await this.viewStudent(studentId);
+            this.showUndoSnackbar(`${ids.length} activity(ies) cleared from ${category}`, () => this.undoLastAction());
+        }
+        async addAllInCategory(studentId, category) {
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            const assigned = new Set(student.prescribedActivityIds || []);
+            const toAdd = this.state.activities.filter(a => a.category === category && !assigned.has(a.id)).map(a => a.id);
+            if (toAdd.length === 0) return;
+            await this.updateStudentPrescribedActivities(studentId, toAdd);
+            await Promise.all(toAdd.map(aid => this.createAssignedProgressRecord(studentId, aid)));
+            await this.viewStudent(studentId);
+        }
+        async addCurriculumSet(studentId, category, curriculumName) {
+            if (!curriculumName) return;
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            const assigned = new Set(student.prescribedActivityIds || []);
+            const toAdd = this.state.activities
+                .filter(a => a.category === category && (a.curriculums || []).includes(curriculumName) && !assigned.has(a.id))
+                .map(a => a.id);
+            if (toAdd.length === 0) return;
+            await this.updateStudentPrescribedActivities(studentId, toAdd);
+            await Promise.all(toAdd.map(aid => this.createAssignedProgressRecord(studentId, aid)));
+            await this.viewStudent(studentId);
+        }
+        async removeFromStudentPrescribed(studentId, activityIds) {
+            const fields = this.config.fields;
+            const objects = this.config.objects;
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            const current = new Set(student.prescribedActivityIds || []);
+            activityIds.forEach(id => current.delete(id));
+            const updated = Array.from(current);
+            await $.ajax({
+                url: `https://api.knack.com/v1/objects/${objects.student}/records/${studentId}`,
+                type: 'PUT',
+                headers: {
+                    'X-Knack-Application-Id': this.config.knackAppId,
+                    'X-Knack-REST-API-Key': this.config.knackApiKey,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({ [fields.prescribedActivities]: updated })
+            });
+            student.prescribedActivityIds = updated;
+        }
+        async markProgressRemoved(studentId, activityId) {
+            const f = this.config.fields; const o = this.config.objects;
+            try {
+                const resp = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
+                    type: 'GET',
+                    headers: { 'X-Knack-Application-Id': this.config.knackAppId, 'X-Knack-REST-API-Key': this.config.knackApiKey },
+                    data: { filters: JSON.stringify([
+                        { field: f.progressStudent, operator: 'is', value: studentId },
+                        { field: f.progressActivity, operator: 'is', value: activityId }
+                    ]), rows_per_page: 1000 }
+                });
+                const records = resp.records || [];
+                if (records.length > 0) {
+                    await Promise.all(records.map(r => $.ajax({
+                        url: `https://api.knack.com/v1/objects/${o.activityProgress}/records/${r.id}`,
+                        type: 'PUT',
+                        headers: { 'X-Knack-Application-Id': this.config.knackAppId, 'X-Knack-REST-API-Key': this.config.knackApiKey, 'Content-Type': 'application/json' },
+                        data: JSON.stringify({ [f.progressStatus]: 'removed' })
+                    })));
+                } else {
+                    // create a new record with removed status if none exist
+                    await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
+                        type: 'POST',
+                        headers: { 'X-Knack-Application-Id': this.config.knackAppId, 'X-Knack-REST-API-Key': this.config.knackApiKey, 'Content-Type': 'application/json' },
+                        data: JSON.stringify({
+                            [f.progressStudent]: studentId,
+                            [f.progressActivity]: activityId,
+                            [f.progressDateAssigned]: new Date().toISOString(),
+                            [f.progressStatus]: 'removed',
+                            [f.progressSelectedVia]: 'staff_assigned'
+                        })
+                    });
+                }
+            } catch (e) {
+                error('Failed to mark progress removed', e);
+            }
+        }
+
+        async clearAllActivities(studentId) {
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            const assigned = Array.from(new Set(student.prescribedActivityIds || []));
+            if (assigned.length === 0) return;
+            this.state.lastUndo = { type: 'clearAll', studentId, ids: assigned };
+            await this.removeFromStudentPrescribed(studentId, assigned);
+            for (const aid of assigned) await this.markProgressRemoved(studentId, aid);
+            await this.viewStudent(studentId);
+            this.showUndoSnackbar(`Cleared ${assigned.length} activities`, () => this.undoLastAction());
+        }
+
+        confirmClearAll(studentId) {
+            if (confirm('Are you sure you want to clear all current activities? This can be undone for a short time.')) {
+                this.clearAllActivities(studentId);
+            }
+        }
+
+        async undoLastAction() {
+            const action = this.state.lastUndo;
+            if (!action) return;
+            this.state.lastUndo = null;
+            if (action.type === 'clearAll' || action.type === 'clearCategory') {
+                await this.updateStudentPrescribedActivities(action.studentId, action.ids);
+                await Promise.all(action.ids.map(aid => this.createAssignedProgressRecord(action.studentId, aid)));
+                await this.viewStudent(action.studentId);
+            }
+        }
+
+        showUndoSnackbar(message, onUndo) {
+            const id = 'vespa-snackbar';
+            let el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.className = 'snackbar';
+                document.body.appendChild(el);
+            }
+            el.innerHTML = `
+                <span>${this.escapeHtml(message)}</span>
+                <button class="btn btn-secondary" id="snackbar-undo">Undo</button>
+            `;
+            el.style.display = 'flex';
+            el.querySelector('#snackbar-undo').onclick = () => { el.style.display = 'none'; onUndo && onUndo(); };
+            setTimeout(() => { if (el) el.style.display = 'none'; }, 6000);
         }
         
         // Load student's activity responses
@@ -2395,8 +2747,7 @@
             
             return `
                 <div class="activity-card ${categoryClass} ${isCompleted ? 'completed' : ''}" 
-                     data-activity-id="${activity.id}"
-                     onclick="VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
+                     data-activity-id="${activity.id}">
                     
                     <div class="activity-badges">
                         <span class="category-badge ${categoryClass}">${activity.category || 'General'}</span>
@@ -2405,10 +2756,10 @@
                         ${activity.showPrescribedBadge ? `<span class="badge badge-prescribed" title="Prescribed">Prescribed</span>` : ''}
                         ${activity.showStaffBadge ? `<span class="badge badge-staff" title="Staff Added">Staff Added</span>` : ''}
                         ${activity.showSelfBadge ? `<span class="badge badge-self" title="Self Selected">Self Selected</span>` : ''}
+                        ${activity.showReportBadge ? `<span class="badge badge-report" title="Generated from report">Report</span>` : ''}
                         ${isCompleted ? `<span class="badge badge-completed" title="Completed">Completed</span>` : ''}
                     </div>
-                    
-                                                        <div class="activity-card-content">
+                    <div class="activity-card-content" onclick="VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
                                         <h4 class="activity-name">${this.escapeHtml(activity.name)}</h4>
                                         ${activity.description ? `<p class="activity-description">${this.escapeHtml(activity.description)}</p>` : ''}
                                         ${responseSummary}
@@ -2425,6 +2776,7 @@
                         <button class="btn-view-activity" onclick="event.stopPropagation(); VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
                             View
                         </button>
+                        ${!isCompleted ? `<button class=\"btn btn-secondary\" onclick=\"event.stopPropagation(); VESPAStaff.removeActivityFromStudent('${activity.studentId}', '${activity.id}')\" title=\"Remove from student\">− Remove</button>` : ''}
                         ${isCompleted ? `
                             <button class="btn-provide-feedback" onclick="event.stopPropagation(); VESPAStaff.provideFeedback('${activity.id}', '${activity.studentId}')">
                                 Feedback
@@ -2539,6 +2891,11 @@
         
         renderActivityList() {
             const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+            const levels = [1, 2, 3];
+            // Collect curriculum values from loaded activities
+            const curriculumSet = new Set();
+            this.state.activities.forEach(a => (a.curriculums || []).forEach(c => curriculumSet.add(c)));
+            const curriculums = Array.from(curriculumSet).sort();
             
             return `
                 <div class="activity-filters">
@@ -2550,28 +2907,48 @@
                         <option value="all">All Categories</option>
                         ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
                     </select>
+                    <select class="filter-select" onchange="VESPAStaff.filterByLevel(this.value)">
+                        <option value="all">All Levels</option>
+                        ${levels.map(l => `<option value="${l}">Level ${l}</option>`).join('')}
+                    </select>
+                    <select class="filter-select" onchange="VESPAStaff.filterByCurriculum(this.value)">
+                        <option value="all">All Curricula</option>
+                        ${curriculums.map(c => `<option value="${this.escapeHtml(c)}">${this.escapeHtml(c)}</option>`).join('')}
+                    </select>
                 </div>
-                <div class="activity-list" id="activity-list">
-                    ${this.state.activities.map(activity => `
-                        <div class="activity-item" data-activity-id="${activity.id}">
-                            <input type="checkbox" class="activity-checkbox" 
-                                   id="activity-${activity.id}"
-                                   onchange="VESPAStaff.toggleActivity('${activity.id}', this.checked)">
-                            <div class="activity-info">
-                                <div class="activity-name">${activity.name}</div>
-                                <div class="activity-meta">
-                                    <span class="vespa-pill ${activity.category.toLowerCase()}">
-                                        ${activity.category}
-                                    </span>
-                                    <span>Level ${activity.level}</span>
+                <div class="activity-groups">
+                    ${categories.map(cat => {
+                        const group = this.state.activities.filter(a => a.category === cat);
+                        if (group.length === 0) return '';
+                        return `
+                            <div class="activity-group">
+                                <h3>${cat}</h3>
+                                <div class="activity-list" id="activity-list-${cat}">
+                                    ${group.map(activity => `
+                                        <div class="activity-item" data-activity-id="${activity.id}">
+                                            <input type="checkbox" class="activity-checkbox" 
+                                                   id="activity-${activity.id}"
+                                                   onchange="VESPAStaff.toggleActivity('${activity.id}', this.checked)">
+                                            <div class="activity-info">
+                                                <div class="activity-name">${this.escapeHtml(activity.name)}</div>
+                                                <div class="activity-meta">
+                                                    <span class="vespa-pill ${activity.category.toLowerCase()}">
+                                                        ${activity.category}
+                                                    </span>
+                                                    <span>Level ${activity.level}</span>
+                                                    ${(activity.curriculums && activity.curriculums.length) ? `<span class="curriculum-tags">${activity.curriculums.map(c => `<em>${this.escapeHtml(c)}</em>`).join(', ')}</span>` : ''}
+                                                </div>
+                                            </div>
+                                            <button class="btn-review-activity" onclick="event.preventDefault(); VESPAStaff.viewEnhancedActivityPreview('${activity.id}')" title="Review activity content">
+                                                <span class="review-icon">👁️</span>
+                                                Review
+                                            </button>
+                                        </div>
+                                    `).join('')}
                                 </div>
                             </div>
-                            <button class="btn-review-activity" onclick="event.preventDefault(); VESPAStaff.viewEnhancedActivityPreview('${activity.id}')" title="Review activity content">
-                                <span class="review-icon">👁️</span>
-                                Review
-                            </button>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </div>
             `;
         }
@@ -3700,6 +4077,29 @@
                 } else {
                     const itemCategory = item.querySelector('.vespa-pill').textContent;
                     item.style.display = itemCategory === category ? 'flex' : 'none';
+                }
+            });
+        }
+        filterByLevel(level) {
+            const items = document.querySelectorAll('.activity-item');
+            items.forEach(item => {
+                if (level === 'all') {
+                    item.style.display = item.style.display === 'none' ? 'none' : 'flex';
+                } else {
+                    const text = item.querySelector('.activity-meta').textContent;
+                    const hasLevel = text.includes(`Level ${level}`);
+                    item.style.display = hasLevel ? 'flex' : 'none';
+                }
+            });
+        }
+        filterByCurriculum(curriculum) {
+            const items = document.querySelectorAll('.activity-item');
+            items.forEach(item => {
+                if (curriculum === 'all') {
+                    item.style.display = item.style.display === 'none' ? 'none' : 'flex';
+                } else {
+                    const tags = item.querySelector('.curriculum-tags')?.textContent || '';
+                    item.style.display = tags.toLowerCase().includes(curriculum.toLowerCase()) ? 'flex' : 'none';
                 }
             });
         }
