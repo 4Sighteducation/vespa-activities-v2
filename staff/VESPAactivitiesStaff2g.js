@@ -1640,7 +1640,7 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2e.css';
+                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2f.css';
                 document.head.appendChild(styleLink);
             }
         }
@@ -1998,9 +1998,12 @@
                 if (this.state.currentRole.canViewAnswers) {
                     responses = await this.loadStudentResponses(studentId);
                 }
+
+                // Load latest progress per activity for origin badges
+                const progressByActivity = await this.loadLatestProgressByActivity(studentId);
                 
                 // Create and show student details modal
-                this.showStudentDetailsModal(student, responses);
+                this.showStudentDetailsModal(student, responses, progressByActivity);
                 
             } catch (err) {
                 error('Failed to load student details:', err);
@@ -2049,6 +2052,39 @@
             } catch (err) {
                 error('Failed to load student responses:', err);
                 return [];
+            }
+        }
+
+        // Load latest progress per activity for a student (object_126)
+        async loadLatestProgressByActivity(studentId) {
+            const f = this.config.fields;
+            const o = this.config.objects;
+            try {
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([{ field: f.progressStudent, operator: 'is', value: studentId }]),
+                        page: 1,
+                        rows_per_page: 1000,
+                        sort_field: 'created_at',
+                        sort_order: 'desc'
+                    }
+                });
+                const byActivity = new Map();
+                (response.records || []).forEach(r => {
+                    const aid = r[f.progressActivity + '_raw']?.[0]?.id || r[f.progressActivity];
+                    if (!aid) return;
+                    if (!byActivity.has(aid)) byActivity.set(aid, r);
+                });
+                return byActivity;
+            } catch (e) {
+                error('Failed to load progress:', e);
+                return new Map();
             }
         }
         
@@ -2160,7 +2196,7 @@
         }
 
         // Show student details modal
-        async showStudentDetailsModal(student, responses) {
+        async showStudentDetailsModal(student, responses, progressByActivity = new Map()) {
             // Remove existing modal if any
             $('#student-details-modal').remove();
             
@@ -2168,42 +2204,34 @@
             this.showLoading();
             
             try {
-                // Load all prescribed activities data for the student
+                // Build union of activity IDs relevant to the student
+                const idFromNames = (student.prescribedActivities || []).map(name => {
+                    const norm = (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+                    const act = this.state.activities.find(a => this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ') === norm);
+                    return act?.id;
+                }).filter(Boolean);
+                const unionIds = new Set([
+                    ...(student.prescribedActivityIds || []),
+                    ...idFromNames,
+                    ...(student.finishedActivities || []),
+                    ...Array.from(progressByActivity.keys())
+                ]);
+
+                // Prepare activity data entries with origin badges
                 const prescribedActivityData = [];
-                for (const activityName of student.prescribedActivities) {
-                    // Normalize the activity name for matching
-                    const normalizedName = activityName.toLowerCase().trim().replace(/\s+/g, ' ');
-                    
-                    const activity = this.state.activities.find(a => {
-                        const normalizedActivityName = this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ');
-                        // Try exact match first
-                        if (normalizedActivityName === normalizedName) return true;
-                        // Try contains match (in case of partial names)
-                        if (normalizedActivityName.includes(normalizedName) || normalizedName.includes(normalizedActivityName)) return true;
-                        // Try removing common words
-                        const cleanName1 = normalizedName.replace(/(the|a|an)\s+/g, '');
-                        const cleanName2 = normalizedActivityName.replace(/(the|a|an)\s+/g, '');
-                        return cleanName1 === cleanName2;
-                    });
-                    
+                for (const activityId of unionIds) {
+                    const activity = this.state.activities.find(a => a.id === activityId);
                     if (activity) {
                         // Check if this activity is completed by checking if its ID is in finishedActivities
-                        const isCompleted = student.finishedActivities.includes(activity.id);
+                        const isCompleted = (student.finishedActivities || []).includes(activity.id);
                         const response = responses.find(r => r.activityId === activity.id);
                         
-                        // Compute prescribed indicator using VESPA score thresholds
-                        const catKey = (activity.category || '').toLowerCase();
-                        const scoreByCat = {
-                            vision: student.vespaScores?.vision || 0,
-                            effort: student.vespaScores?.effort || 0,
-                            systems: student.vespaScores?.systems || 0,
-                            practice: student.vespaScores?.practice || 0,
-                            attitude: student.vespaScores?.attitude || 0
-                        };
-                        const studentScore = scoreByCat[catKey] || 0;
-                        const meetsUpper = typeof activity.scoreShowIfMoreThan === 'number' && studentScore > activity.scoreShowIfMoreThan;
-                        const meetsLower = typeof activity.scoreShowIfLessEqual === 'number' && activity.scoreShowIfLessEqual > 0 ? (studentScore <= activity.scoreShowIfLessEqual) : false;
-                        const isPrescribedByThreshold = !!(meetsUpper || meetsLower);
+                        // Origin badges
+                        const isPrescribed = (student.prescribedActivityIds || []).includes(activity.id);
+                        const latestProgress = progressByActivity.get(activity.id);
+                        const selectedVia = latestProgress ? latestProgress[this.config.fields.progressSelectedVia] : '';
+                        const isStaffAdded = !isPrescribed && selectedVia === 'staff_assigned';
+                        const isSelfSelected = !isPrescribed && !isStaffAdded;
 
                         // Don't load questions here - load them on demand when activity is clicked
                         prescribedActivityData.push({
@@ -2212,10 +2240,12 @@
                             response,
                             studentId: student.id,
                             questions: [], // Empty initially
-                            showPrescribedBadge: isPrescribedByThreshold
+                            showPrescribedBadge: isPrescribed,
+                            showStaffBadge: isStaffAdded,
+                            showSelfBadge: isSelfSelected
                         });
                     } else {
-                        log(`Warning: Could not find activity "${activityName}" in loaded activities`);
+                        log(`Warning: Could not find activity by ID ${activityId} in loaded activities`);
                         // Log available activities for debugging
                         if (this.state.activities.length < 20) {
                             log('Available activities:', this.state.activities.map(a => a.name));
@@ -2372,7 +2402,10 @@
                         <span class="category-badge ${categoryClass}">${activity.category || 'General'}</span>
                         <span class="level-badge">Level ${activity.level || '1'}</span>
                         ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
-                        ${activity.showPrescribedBadge ? `<span class="prescribed-badge">✓ Prescribed</span>` : ''}
+                        ${activity.showPrescribedBadge ? `<span class="badge badge-prescribed" title="Prescribed">Prescribed</span>` : ''}
+                        ${activity.showStaffBadge ? `<span class="badge badge-staff" title="Staff Added">Staff Added</span>` : ''}
+                        ${activity.showSelfBadge ? `<span class="badge badge-self" title="Self Selected">Self Selected</span>` : ''}
+                        ${isCompleted ? `<span class="badge badge-completed" title="Completed">Completed</span>` : ''}
                     </div>
                     
                                                         <div class="activity-card-content">
@@ -2390,7 +2423,7 @@
                     
                     <div class="card-actions">
                         <button class="btn-view-activity" onclick="event.stopPropagation(); VESPAStaff.viewActivityDetails('${activity.id}', '${activity.studentId}')">
-                            ${isCompleted ? 'View Response & Questions' : 'Preview Activity'}
+                            View
                         </button>
                         ${isCompleted ? `
                             <button class="btn-provide-feedback" onclick="event.stopPropagation(); VESPAStaff.provideFeedback('${activity.id}', '${activity.studentId}')">
@@ -3130,6 +3163,20 @@
                 
                 $('body').append(modalHtml);
                 
+                // Default to questions or responses tab
+                try {
+                    const hasResponses = activity.isCompleted && !!(activity.response && activity.response.activityJSON);
+                    if (hasResponses) {
+                        this.switchActivityTab('responses');
+                        const rb = document.getElementById('tab-btn-responses');
+                        if (rb) rb.classList.add('active');
+                    } else {
+                        this.switchActivityTab('questions');
+                        const qb = document.getElementById('tab-btn-questions');
+                        if (qb) qb.classList.add('active');
+                    }
+                } catch (_) {}
+
             } catch (err) {
                 error('Failed to load activity preview:', err);
                 alert('Error loading activity preview. Please try again.');
@@ -3272,23 +3319,15 @@
                                     </div>
                                     
                                     <!-- Background Info Tab -->
-                                    <div class="activity-content-tabs">
-                                        <div class="content-tab-buttons">
-                                            <button class="content-tab-btn active" onclick="VESPAStaff.switchActivityTab('background', event)">
-                                                📖 Background Info
-                                            </button>
-                                            <button class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('questions', event)">
-                                                ❓ Questions ${activity.questions ? `(${activity.questions.length})` : ''}
-                                            </button>
-                                            ${activity.isCompleted ? `
-                                                <button class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('responses', event)">
-                                                    📝 Student Responses
-                                                </button>
-                                            ` : ''}
-                                        </div>
+                                        <div class="activity-content-tabs">
+                                            <div class="content-tab-buttons">
+                                                <button id="tab-btn-questions" class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('questions', event)">Questions ${activity.questions ? `(${activity.questions.length})` : ''}</button>
+                                                ${activity.isCompleted ? `<button id=\"tab-btn-responses\" class=\"content-tab-btn\" onclick=\"VESPAStaff.switchActivityTab('responses', event)\">Responses</button>` : ''}
+                                                <button id="tab-btn-background" class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('background', event)">Background</button>
+                                            </div>
                                         
                                         <!-- Background Content -->
-                                        <div id="background-content-tab" class="content-tab-panel active">
+                                        <div id="background-content-tab" class="content-tab-panel" style="display:none;">
                                             <div class="background-info-section">
                                                 ${additionalData.backgroundInfo || additionalData.additionalInfo ? `
                                                     ${additionalData.backgroundInfo ? `
@@ -3320,7 +3359,7 @@
                                         </div>
                                         
                                         <!-- Questions Content -->
-                                        <div id="questions-content-tab" class="content-tab-panel" style="display: none;">
+                                        <div id="questions-content-tab" class="content-tab-panel" style="display:none;">
                                             <div class="questions-list-section">
                                                 <h3>Activity Questions</h3>
                                         ${activity.questions && activity.questions.length > 0 ? `
@@ -3346,7 +3385,7 @@
                                         
                                         <!-- Student Responses Content (only if completed) -->
                                         ${activity.isCompleted ? `
-                                        <div id="responses-content-tab" class="content-tab-panel" style="display: none;">
+                                        <div id="responses-content-tab" class="content-tab-panel" style="display:none;">
                                             <div class="responses-section">
                                                 <h3>Student Responses</h3>
                                                 ${activity.questions && activity.questions.length > 0 ? `
@@ -3515,10 +3554,12 @@
                 // We store and send activity IDs for connection updates
                 const activityIds = selectedActivities;
                 
-                // Update each student's prescribed activities using IDs
-                const updatePromises = selectedStudents.map(studentId => 
-                    this.updateStudentPrescribedActivities(studentId, activityIds)
-                );
+                // Update each student's prescribed activities and create progress records
+                const updatePromises = selectedStudents.map(async (studentId) => {
+                    await this.updateStudentPrescribedActivities(studentId, activityIds);
+                    // Create 'assigned' progress records with selectedVia=staff_assigned
+                    await Promise.all(activityIds.map(aid => this.createAssignedProgressRecord(studentId, aid)));
+                });
                 
                 await Promise.all(updatePromises);
                 
@@ -3533,6 +3574,33 @@
                 alert('Error assigning activities. Please try again.');
             } finally {
                 this.hideLoading();
+            }
+        }
+
+        // Create an assigned progress record (object_126) for origin tracing
+        async createAssignedProgressRecord(studentId, activityId) {
+            const o = this.config.objects;
+            const f = this.config.fields;
+            try {
+                const payload = {
+                    [f.progressStudent]: studentId,
+                    [f.progressActivity]: activityId,
+                    [f.progressDateAssigned]: new Date().toISOString(),
+                    [f.progressStatus]: 'assigned',
+                    [f.progressSelectedVia]: 'staff_assigned'
+                };
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
+                    type: 'POST',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(payload)
+                });
+            } catch (e) {
+                error('Failed to create assigned progress record:', e);
             }
         }
         
