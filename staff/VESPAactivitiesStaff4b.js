@@ -9,7 +9,7 @@
 (function() {
     'use strict';
     
-    console.log('🚀 VESPA Staff 2i: Starting initialization...');
+    console.log('🚀 VESPA Staff 4b: Starting initialization...');
     
     // Immediately hide data views to prevent flash
     const style = document.createElement('style');
@@ -23,12 +23,12 @@
     
     // Configuration - COMPLETE FIELD MAPPINGS FROM ORIGINAL
     const CONFIG = {
-        version: '2i',
+        version: '4b',
         debug: true,
         
-        // Knack API credentials
-        appId: '66fbdc96a11d34001eb70a87',
-        apiKey: 'ad17045c-95bb-4c1d-ad79-7f1e76d5c52a',
+        // API credentials will come from KnackAppLoader via VESPA_ACTIVITIES_STAFF_CONFIG
+        appId: null,  // Set from loader config
+        apiKey: null, // Set from loader config
         
         // View IDs
         views: {
@@ -233,22 +233,32 @@
             console.log('🔍 Testing API access...');
             
             try {
-                const response = await fetch(`https://api.knack.com/v1/objects/${this.config.objects.student}/records?rows_per_page=1`, {
-                    headers: {
-                        'X-Knack-Application-Id': this.config.appId,
-                        'X-Knack-REST-API-Key': this.config.apiKey
-                    }
+                // Use jQuery AJAX like the original to avoid CORS issues
+                const data = await new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.appId,
+                            'X-Knack-REST-API-Key': this.config.apiKey
+                        },
+                        data: {
+                            rows_per_page: 1
+                        },
+                        success: function(response) {
+                            resolve(response);
+                        },
+                        error: function(xhr, status, error) {
+                            reject(error);
+                        }
+                    });
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    this.testResults.apiAccess = true;
-                    console.log('✅ API access successful, found', data.total_records, 'student records');
-                } else {
-                    console.warn('⚠️ API responded with status:', response.status);
-                }
+                this.testResults.apiAccess = true;
+                console.log('✅ API access successful, found', data.total_records, 'student records');
             } catch (error) {
                 console.error('❌ API access failed:', error);
+                this.testResults.apiAccess = false;
             }
         }
         
@@ -391,12 +401,23 @@
     
     // Initialization function for KnackAppLoader
     window.initializeVESPAActivitiesStaff = function() {
-        console.log('🎯 VESPA Staff 2i: initializeVESPAActivitiesStaff called');
+        console.log('🎯 VESPA Staff 4b: initializeVESPAActivitiesStaff called');
+        
+        // Get config from KnackAppLoader
+        const loaderConfig = window.VESPA_ACTIVITIES_STAFF_CONFIG;
+        if (loaderConfig) {
+            // Update API credentials from loader
+            CONFIG.appId = loaderConfig.knackAppId;
+            CONFIG.apiKey = loaderConfig.knackApiKey;
+            console.log('✅ API credentials loaded from KnackAppLoader');
+        } else {
+            console.error('❌ VESPA_ACTIVITIES_STAFF_CONFIG not found');
+        }
         
         // Initialize the app
         window.VESPAStaff.init();
     };
     
-    console.log('✅ VESPA Staff 2i: Script loaded successfully');
+    console.log('✅ VESPA Staff 4b: Script loaded successfully');
     
 })();
