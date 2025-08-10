@@ -11,7 +11,7 @@
     const style = document.createElement('style');
     style.textContent = `
         #view_3177, #view_3178, #view_3192, #view_3193, 
-        #view_3194, #view_3195 { 
+        #view_3194, #view_3195, #view_3196 { 
             display: none !important; 
         }
     `;
@@ -22,6 +22,7 @@
         appId: window.APP_ID || '66fbdc96a11d34001eb70a87',
         apiKey: window.API_KEY || 'ad17045c-95bb-4c1d-ad79-7f1e76d5c52a',
         containerId: 'view_3179',
+        debug: true,
         
         // View IDs
         views: {
@@ -34,49 +35,105 @@
             subjectTeacher: 'view_3195'
         },
         
-        // Object IDs
+        // Object IDs - COMPLETE SET FROM ORIGINAL
         objects: {
+            accounts: 'object_3',
+            staffAdmin: 'object_5',
+            tutor: 'object_7',
+            headOfYear: 'object_18',
+            subjectTeacher: 'object_78',
             student: 'object_6',
+            customer: 'object_2',
             activities: 'object_44',
-            questions: 'object_45',
-            answers: 'object_46',
-            vespaScores: 'object_10',
-            progress: 'object_126'
+            activityAnswers: 'object_46',
+            vespaResults: 'object_10',
+            activityProgress: 'object_126',
+            studentAchievements: 'object_127',
+            activityFeedback: 'object_128'
         },
         
-        // Field mappings
+        // Field mappings - COMPLETE SET FROM ORIGINAL
         fields: {
-            // Student fields
+            // User fields (Object_3)
+            userRoles: 'field_73',
+            userAccountID: 'field_70',
+            
+            // Staff role email fields
+            staffAdminEmail: 'field_86',
+            tutorEmail: 'field_96',
+            headOfYearEmail: 'field_417',
+            subjectTeacherEmail: 'field_1879',
+            
+            // Student connection fields (many-to-many, comma separated)
+            studentTutors: 'field_1682',
+            studentHeadsOfYear: 'field_547',
+            studentSubjectTeachers: 'field_2177',
+            studentStaffAdmins: 'field_190',
+            
+            // Student fields (Object_6)
             studentName: 'field_90',
             studentEmail: 'field_91',
-            curriculum: 'field_1683',  // Prescribed activities
-            completed: 'field_1380',   // Finished activities CSV
-            vespaConnection: 'field_182',
+            prescribedActivities: 'field_1683',
+            finishedActivities: 'field_1380',
+            studentVESPAConnection: 'field_182',
             
-            // Staff connections
-            tutors: 'field_1682',
-            headsOfYear: 'field_547',
-            subjectTeachers: 'field_2177',
-            staffAdmins: 'field_190',
+            // VESPA scores (Object_10)
+            visionScore: 'field_147',
+            effortScore: 'field_148',
+            systemsScore: 'field_149',
+            practiceScore: 'field_150',
+            attitudeScore: 'field_151',
             
-            // VESPA scores
-            vision: 'field_147',
-            effort: 'field_148',
-            systems: 'field_149',
-            practice: 'field_150',
-            attitude: 'field_151',
-            
-            // Activity fields
+            // Activity fields (Object_44)
             activityName: 'field_1278',
-            activityCategory: 'field_1285',
-            activityLevel: 'field_3568',
+            activityVESPACategory: 'field_1285',
+            activityLevel: 'field_1295', // fallback
+            activityLevelAlt: 'field_3568', // preferred level field
+            activityScoreMoreThan: 'field_1287', // threshold: show if score is more than X
+            activityScoreLessEqual: 'field_1294', // threshold: show if score is <= Y
+            activityCurriculum: 'field_3584', // CSV tags
             
-            // Progress fields
+            // Activity Answers fields (Object_46)
+            answerStudentName: 'field_1875',
+            answerActivityJSON: 'field_1300',
+            answerResponsesPerActivity: 'field_2334',
+            answerCompletionDate: 'field_1870',
+            answerYearGroup: 'field_2331',
+            answerGroup: 'field_2332',
+            answerFaculty: 'field_2333',
+            answerStudentConnection: 'field_1301',
+            answerActivityConnection: 'field_1302',
+            answerStaffFeedback: 'field_1734',
+            answerCustomerConnection: 'field_1871',
+            answerTutorConnection: 'field_1872',
+            answerStaffAdminConnection: 'field_1873',
+            
+            // Activity Progress fields (Object_126)
+            progressId: 'field_3535',
+            progressName: 'field_3534',
             progressStudent: 'field_3536',
             progressActivity: 'field_3537',
+            progressCycle: 'field_3538',
+            progressDateAssigned: 'field_3539',
+            progressDateStarted: 'field_3540',
+            progressDateCompleted: 'field_3541',
+            progressTimeMinutes: 'field_3542',
             progressStatus: 'field_3543',
-            progressOrigin: 'field_3546',
-            progressDateCompleted: 'field_3541'
+            progressVerified: 'field_3544',
+            progressPoints: 'field_3545',
+            progressSelectedVia: 'field_3546',
+            progressStaffNotes: 'field_3547',
+            progressReflection: 'field_3548',
+            progressWordCount: 'field_3549',
+            
+            // Activity Feedback fields (Object_128)
+            feedbackName: 'field_3561',
+            feedbackId: 'field_3562',
+            feedbackActivityProgress: 'field_3563',
+            feedbackStaffMember: 'field_3564',
+            feedbackText: 'field_3565',
+            feedbackDate: 'field_3566',
+            feedbackType: 'field_3567'
         },
         
         // VESPA theme colors
@@ -178,9 +235,23 @@
         async detectUserRole() {
             console.log('Detecting user roles...');
             
-            // Use Knack.getUserRoles() to get the profile keys
-            const profileKeys = Knack.getUserRoles() || [];
-            console.log('User profile keys from getUserRoles():', profileKeys);
+            // Use Knack.session.user like the original
+            const user = Knack.session?.user || Knack.getUserAttributes();
+            console.log('User object:', user);
+            
+            if (!user) {
+                throw new Error('User not authenticated');
+            }
+            
+            // Get profile keys from user object (like original)
+            const profileKeys = user.profile_keys || [];
+            
+            // If no profile_keys, try field_73 (as seen in GeneralHeader)
+            if (profileKeys.length === 0 && user.values?.field_73) {
+                profileKeys.push(...user.values.field_73);
+            }
+            
+            console.log('User profile keys:', profileKeys);
             
             // Map profile keys to roles (exactly like original)
             const profileToRoleMap = {
@@ -216,19 +287,27 @@
          */
         async getRoleRecord(role) {
             const roleObjects = {
-                staffAdmin: 'object_5',
-                tutor: 'object_7',
-                headOfYear: 'object_18',
-                subjectTeacher: 'object_78'
+                staffAdmin: CONFIG.objects.staffAdmin,
+                tutor: CONFIG.objects.tutor,
+                headOfYear: CONFIG.objects.headOfYear,
+                subjectTeacher: CONFIG.objects.subjectTeacher
+            };
+            
+            const emailFields = {
+                staffAdmin: CONFIG.fields.staffAdminEmail,
+                tutor: CONFIG.fields.tutorEmail,
+                headOfYear: CONFIG.fields.headOfYearEmail,
+                subjectTeacher: CONFIG.fields.subjectTeacherEmail
             };
             
             const objectId = roleObjects[role];
+            const emailField = emailFields[role];
             const userEmail = Knack.getUserAttributes().email;
             
             try {
                 const response = await this.knackAPI('GET', `${objectId}/records`, {
                     filters: [{
-                        field: 'field_70',  // Email field
+                        field: emailField,
                         operator: 'is',
                         value: userEmail
                     }]
@@ -281,7 +360,7 @@
                 case 'staffAdmin':
                     if (this.state.roleId) {
                         filters.push({
-                            field: CONFIG.fields.staffAdmins,
+                            field: CONFIG.fields.studentStaffAdmins,
                             operator: 'contains',
                             value: this.state.roleId
                         });
@@ -290,7 +369,7 @@
                 case 'tutor':
                     if (this.state.roleId) {
                         filters.push({
-                            field: CONFIG.fields.tutors,
+                            field: CONFIG.fields.studentTutors,
                             operator: 'contains',
                             value: this.state.roleId
                         });
@@ -299,7 +378,7 @@
                 case 'headOfYear':
                     if (this.state.roleId) {
                         filters.push({
-                            field: CONFIG.fields.headsOfYear,
+                            field: CONFIG.fields.studentHeadsOfYear,
                             operator: 'contains',
                             value: this.state.roleId
                         });
@@ -308,7 +387,7 @@
                 case 'subjectTeacher':
                     if (this.state.roleId) {
                         filters.push({
-                            field: CONFIG.fields.subjectTeachers,
+                            field: CONFIG.fields.studentSubjectTeachers,
                             operator: 'contains',
                             value: this.state.roleId
                         });
@@ -336,11 +415,11 @@
             };
             
             // Parse curriculum activities
-            const curriculumHtml = getFieldValue(CONFIG.fields.curriculum, '');
+            const curriculumHtml = getFieldValue(CONFIG.fields.prescribedActivities, '');
             const curriculumIds = this.parseActivityIds(curriculumHtml);
             
             // Parse completed activities
-            const completedCsv = getFieldValue(CONFIG.fields.completed, '');
+            const completedCsv = getFieldValue(CONFIG.fields.finishedActivities, '');
             const completedIds = completedCsv ? completedCsv.split(',').map(id => id.trim()) : [];
             
             return {
@@ -349,7 +428,7 @@
                 email: getFieldValue(CONFIG.fields.studentEmail, {}).email || '',
                 curriculumIds: curriculumIds,
                 completedIds: completedIds,
-                vespaConnectionId: getFieldValue(CONFIG.fields.vespaConnection),
+                vespaConnectionId: getFieldValue(CONFIG.fields.studentVESPAConnection),
                 progress: this.calculateProgress(curriculumIds, completedIds)
             };
         }
@@ -415,11 +494,14 @@
             return {
                 id: record.id,
                 name: getFieldValue(CONFIG.fields.activityName),
-                category: getFieldValue(CONFIG.fields.activityCategory).toLowerCase(),
-                level: getFieldValue(CONFIG.fields.activityLevel),
+                category: getFieldValue(CONFIG.fields.activityVESPACategory).toLowerCase(),
+                level: getFieldValue(CONFIG.fields.activityLevelAlt) || getFieldValue(CONFIG.fields.activityLevel),
                 description: record.field_1134 || '',
                 duration: record.field_1135 || '',
-                type: record.field_1133 || ''
+                type: record.field_1133 || '',
+                scoreMoreThan: getFieldValue(CONFIG.fields.activityScoreMoreThan),
+                scoreLessEqual: getFieldValue(CONFIG.fields.activityScoreLessEqual),
+                curriculum: getFieldValue(CONFIG.fields.activityCurriculum)
             };
         }
         
@@ -428,7 +510,8 @@
          */
         async loadActivitiesFromJSON() {
             try {
-                const response = await fetch('https://cdn.jsdelivr.net/gh/toneillcodes/my-projects@main/activities1e.json');
+                // Try CDN first, then local fallback
+                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1e.json');
                 const data = await response.json();
                 
                 this.state.activities = data.map((item, index) => ({
@@ -464,7 +547,7 @@
                     value: id
                 }));
                 
-                const response = await this.knackAPI('GET', `${CONFIG.objects.vespaScores}/records`, {
+                const response = await this.knackAPI('GET', `${CONFIG.objects.vespaResults}/records`, {
                     filters: filters.length > 1 ? { 
                         match: 'or', 
                         rules: filters 
@@ -473,11 +556,11 @@
                 
                 response.records.forEach(record => {
                     const scores = {
-                        vision: parseInt(record[CONFIG.fields.vision] || 0),
-                        effort: parseInt(record[CONFIG.fields.effort] || 0),
-                        systems: parseInt(record[CONFIG.fields.systems] || 0),
-                        practice: parseInt(record[CONFIG.fields.practice] || 0),
-                        attitude: parseInt(record[CONFIG.fields.attitude] || 0)
+                        vision: parseInt(record[CONFIG.fields.visionScore] || 0),
+                        effort: parseInt(record[CONFIG.fields.effortScore] || 0),
+                        systems: parseInt(record[CONFIG.fields.systemsScore] || 0),
+                        practice: parseInt(record[CONFIG.fields.practiceScore] || 0),
+                        attitude: parseInt(record[CONFIG.fields.attitudeScore] || 0)
                     };
                     
                     // Map scores to students
@@ -506,7 +589,7 @@
                     value: id
                 }));
                 
-                const response = await this.knackAPI('GET', `${CONFIG.objects.progress}/records`, {
+                const response = await this.knackAPI('GET', `${CONFIG.objects.activityProgress}/records`, {
                     filters: filters.length > 1 ? {
                         match: 'or',
                         rules: filters
@@ -526,8 +609,11 @@
                         
                         this.state.progress[studentId][activityId] = {
                             status: record[CONFIG.fields.progressStatus],
-                            origin: record[CONFIG.fields.progressOrigin],
-                            dateCompleted: record[CONFIG.fields.progressDateCompleted]
+                            origin: record[CONFIG.fields.progressSelectedVia],
+                            dateCompleted: record[CONFIG.fields.progressDateCompleted],
+                            verified: record[CONFIG.fields.progressVerified],
+                            points: record[CONFIG.fields.progressPoints],
+                            staffNotes: record[CONFIG.fields.progressStaffNotes]
                         };
                     }
                 });
@@ -1092,7 +1178,7 @@
          */
         async updateStudentCurriculum(studentId, activityIds) {
             return this.knackAPI('PUT', `${CONFIG.objects.student}/records/${studentId}`, {
-                [CONFIG.fields.curriculum]: activityIds
+                [CONFIG.fields.prescribedActivities]: activityIds
             });
         }
         
@@ -1100,12 +1186,12 @@
          * Create progress record
          */
         async createProgressRecord(studentId, activityId, origin) {
-            return this.knackAPI('POST', `${CONFIG.objects.progress}/records`, {
+            return this.knackAPI('POST', `${CONFIG.objects.activityProgress}/records`, {
                 [CONFIG.fields.progressStudent]: [studentId],
                 [CONFIG.fields.progressActivity]: [activityId],
                 [CONFIG.fields.progressStatus]: 'assigned',
-                [CONFIG.fields.progressOrigin]: origin,
-                field_3539: new Date().toLocaleDateString('en-GB')  // Date assigned
+                [CONFIG.fields.progressSelectedVia]: origin,
+                [CONFIG.fields.progressDateAssigned]: new Date().toLocaleDateString('en-GB')
             });
         }
         
@@ -1306,7 +1392,7 @@
          * Knack API helper
          */
         async knackAPI(method, endpoint, data = null) {
-            const url = `https://api.knack.com/v1/objects/${endpoint}`;
+            let url = `https://api.knack.com/v1/objects/${endpoint}`;
             
             const options = {
                 method: method,
