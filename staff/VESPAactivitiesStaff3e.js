@@ -178,23 +178,9 @@
         async detectUserRole() {
             console.log('Detecting user roles...');
             
-            // Use Knack.session.user like the original
-            const user = Knack.session?.user || Knack.getUserAttributes();
-            console.log('User object:', user);
-            
-            if (!user) {
-                throw new Error('User not authenticated');
-            }
-            
-            // Get profile keys from user object (like original)
-            const profileKeys = user.profile_keys || [];
-            
-            // If no profile_keys, try field_73 (as seen in GeneralHeader)
-            if (profileKeys.length === 0 && user.values?.field_73) {
-                profileKeys.push(...user.values.field_73);
-            }
-            
-            console.log('User profile keys:', profileKeys);
+            // Use Knack.getUserRoles() to get the profile keys
+            const profileKeys = Knack.getUserRoles() || [];
+            console.log('User profile keys from getUserRoles():', profileKeys);
             
             // Map profile keys to roles (exactly like original)
             const profileToRoleMap = {
