@@ -176,9 +176,26 @@
          * Detect user role and permissions
          */
         async detectUserRole() {
-            const user = Knack.getUserAttributes();
-            if (!user || !user.profiles) {
-                throw new Error('User not authenticated');
+            // Wait a bit for Knack to fully load user data
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            let user = Knack.getUserAttributes();
+            console.log('User attributes:', user);
+            
+            if (!user) {
+                console.warn('User not found, retrying...');
+                // Sometimes Knack needs more time
+                await new Promise(resolve => setTimeout(resolve, 500));
+                user = Knack.getUserAttributes();
+                if (!user) {
+                    throw new Error('User not authenticated');
+                }
+            }
+            
+            // Check if user has profiles array
+            if (!user.profiles) {
+                console.warn('User profiles not found, checking for roles directly');
+                user.profiles = [];
             }
             
             // Check each profile to find staff role
@@ -190,7 +207,7 @@
             };
             
             for (const [profile, role] of Object.entries(roleMapping)) {
-                if (user.profiles.includes(profile)) {
+                if (user.profiles && user.profiles.includes(profile)) {
                     this.state.userRole = role;
                     
                     // Get the actual role record ID
@@ -1370,15 +1387,39 @@
         }
     }
     
-    // Initialize when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
+    // Create global initializer function for the loader
+    window.initializeVESPAActivitiesStaff = function(config) {
+        console.log('VESPA Staff App v3.0 - Initializer called by loader');
+        
+        // Store config if provided
+        if (config) {
+            window.VESPA_ACTIVITIES_STAFF_CONFIG = config;
+        }
+        
+        // Initialize the app
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                window.vespaStaffApp = new VESPAStaffApp();
+                window.vespaStaffApp.init();
+            });
+        } else {
             window.vespaStaffApp = new VESPAStaffApp();
             window.vespaStaffApp.init();
-        });
-    } else {
-        window.vespaStaffApp = new VESPAStaffApp();
-        window.vespaStaffApp.init();
+        }
+    };
+    
+    // Also support direct initialization if not loaded via loader
+    if (!window._loaderVersion) {
+        console.log('VESPA Staff App v3.0 - Direct initialization (no loader detected)');
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                window.vespaStaffApp = new VESPAStaffApp();
+                window.vespaStaffApp.init();
+            });
+        } else {
+            window.vespaStaffApp = new VESPAStaffApp();
+            window.vespaStaffApp.init();
+        }
     }
     
 })();
