@@ -414,7 +414,7 @@
                 return record[field] || record[`${field}_raw`] || defaultValue;
             };
             
-            // Parse curriculum activities
+            // Parse curriculum activities (ALL activities, not just prescribed)
             const curriculumHtml = getFieldValue(CONFIG.fields.prescribedActivities, '');
             const curriculumIds = this.parseActivityIds(curriculumHtml);
             
@@ -429,7 +429,9 @@
                 curriculumIds: curriculumIds,
                 completedIds: completedIds,
                 vespaConnectionId: getFieldValue(CONFIG.fields.studentVESPAConnection),
-                progress: this.calculateProgress(curriculumIds, completedIds)
+                progress: this.calculateProgress(curriculumIds, completedIds),
+                // Store original state for undo
+                originalCurriculumIds: [...curriculumIds]
             };
         }
         

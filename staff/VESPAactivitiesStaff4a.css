@@ -1,0 +1,46 @@
+/**
+ * VESPA Activities Staff Management System v2i
+ * Minimal CSS for testing phase
+ */
+
+/* Hide data views immediately */
+#view_3177, #view_3178, #view_3192, 
+#view_3193, #view_3194, #view_3195 { 
+    display: none !important; 
+}
+
+/* Basic container styling for testing */
+#view_3179 {
+    min-height: 500px;
+    padding: 20px;
+}
+
+/* Test results table styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+th {
+    background: #f5f5f5;
+    font-weight: 600;
+}
+
+/* Status indicators */
+.status-success { color: #28a745; }
+.status-warning { color: #ffc107; }
+.status-error { color: #dc3545; }
+
+/* Code blocks */
+code {
+    font-family: 'Courier New', monospace;
+    background: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
