@@ -1815,8 +1815,37 @@
                                     onclick="VESPAStaff.sort('progress')">
                                     Progress
                                 </th>
-                                <th>Activity Categories</th>
-                                <th class="hide-mobile">VESPA Scores</th>
+                                <!-- Combined VESPA Category Columns -->
+                                <th class="vespa-column vision">
+                                    <div class="vespa-column-header">
+                                        <span class="category-icon">V</span>
+                                        <span>Vision</span>
+                                    </div>
+                                </th>
+                                <th class="vespa-column effort">
+                                    <div class="vespa-column-header">
+                                        <span class="category-icon">E</span>
+                                        <span>Effort</span>
+                                    </div>
+                                </th>
+                                <th class="vespa-column systems">
+                                    <div class="vespa-column-header">
+                                        <span class="category-icon">S</span>
+                                        <span>Systems</span>
+                                    </div>
+                                </th>
+                                <th class="vespa-column practice">
+                                    <div class="vespa-column-header">
+                                        <span class="category-icon">P</span>
+                                        <span>Practice</span>
+                                    </div>
+                                </th>
+                                <th class="vespa-column attitude">
+                                    <div class="vespa-column-header">
+                                        <span class="category-icon">A</span>
+                                        <span>Attitude</span>
+                                    </div>
+                                </th>
                                 <th>View</th>
                             </tr>
                         </thead>
@@ -1843,6 +1872,10 @@
         
         // Render individual student row
         renderStudentRow(student) {
+            const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
+            const categoryData = student.categoryBreakdown || {};
+            const vespaScores = student.vespaScores || {};
+            
             return `
                 <tr data-student-id="${student.id}">
                     <td><input type="checkbox" ${this.state.selectedStudents.has(student.id) ? 'checked' : ''} onchange="VESPAStaff.toggleStudentSelection('${student.id}', this.checked)"></td>
@@ -1857,8 +1890,25 @@
                             </div>
                         </div>
                     </td>
-                    <td>${this.renderCategoryBreakdown(student)}</td>
-                    <td class="hide-mobile"><div class="vespa-scores">${student.vespaScores ? this.renderVESPAScores(student.vespaScores) : '<span class=\"no-scores\">No scores</span>'}</div></td>
+                    ${categories.map(cat => {
+                        const activities = categoryData[cat] || [];
+                        const completedCount = activities.filter(a => a.completed).length;
+                        const totalCount = activities.length;
+                        const score = vespaScores[cat] || 0;
+                        
+                        return `
+                            <td class="vespa-data-cell">
+                                <div class="vespa-combined-data">
+                                    <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${score.toFixed(1)}/10">
+                                        ${score.toFixed(1)}
+                                    </div>
+                                    <div class="activity-count-display" title="${completedCount} of ${totalCount} ${cat} activities completed">
+                                        <span class="count-completed">${completedCount}</span>/<span class="count-total">${totalCount}</span>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+                    }).join('')}
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-action btn-primary" 
@@ -2181,7 +2231,7 @@
             return entries;
         }
 
-        // Full-screen student workspace - REDESIGNED
+        // Full-screen student workspace - RADICAL REDESIGN
         showStudentWorkspace(student, responses = [], progressByActivity = new Map()) {
             const studentActivities = this.buildStudentActivityData(student, responses, progressByActivity);
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
@@ -2190,90 +2240,100 @@
             const studentActivitiesByCategory = {};
             categories.forEach(cat => {
                 studentActivitiesByCategory[cat] = studentActivities.filter(a => 
-                    (a.category || '').toLowerCase() === cat
+                    (a.VESPACategory || a.category || '').toLowerCase() === cat
                 );
             });
             
-            // Group all activities by category
+            // Group all activities by category (excluding already assigned ones)
+            const assignedActivityIds = new Set(studentActivities.map(a => a.id));
             const allActivitiesByCategory = {};
             categories.forEach(cat => {
                 allActivitiesByCategory[cat] = this.state.activities.filter(a => 
-                    (a.VESPACategory || a.category || '').toLowerCase() === cat
+                    !assignedActivityIds.has(a.id) && (a.VESPACategory || a.category || '').toLowerCase() === cat
                 );
             });
 
             const html = `
-                <div class="workspace-redesigned">
+                <div class="workspace-radical">
                     <!-- Header -->
-                    <div class="workspace-header-new">
-                        <button class="btn-back" onclick="VESPAStaff.render()">
-                            <span class="back-arrow">←</span> Back to Home
+                    <div class="workspace-header-compact">
+                        <button class="btn-back-compact" onclick="VESPAStaff.render()">
+                            ← Back to Home
                         </button>
-                        <div class="student-info">
-                            <h2>${this.escapeHtml(student.name)}</h2>
-                            <span class="student-email">${this.escapeHtml(student.email)}</span>
+                        <div class="student-info-compact">
+                            <h3>${this.escapeHtml(student.name)}</h3>
+                            <span>${studentActivities.length} activities assigned</span>
                         </div>
-                        <button class="btn-clear-all" onclick="VESPAStaff.confirmClearAll('${student.id}')">
-                            <span class="clear-icon">×</span> Clear All Activities
-                        </button>
-                    </div>
-                    
-                    <!-- Student Activities Section -->
-                    <div class="student-activities-container">
-                        <div class="section-title">
-                            <h3>Student Activities</h3>
-                            <span class="activity-count">${studentActivities.length} activities assigned</span>
-                        </div>
-                        
-                        <div class="student-activities-area" 
-                             id="studentActivitiesArea"
-                             ondrop="VESPAStaff.onDropToStudent(event, '${student.id}')" 
-                             ondragover="event.preventDefault()"
-                             ondragenter="event.currentTarget.classList.add('drag-over')"
-                             ondragleave="event.currentTarget.classList.remove('drag-over')">
-                            ${studentActivities.length > 0 ? 
-                                studentActivities.map(activity => 
-                                    this.renderStudentActivityCard(activity, student.id)
-                                ).join('') :
-                                '<div class="empty-state-message">Drag activities here to assign them to the student</div>'
-                            }
+                        <div class="header-actions">
+                            <input type="search" 
+                                   class="search-activities-compact" 
+                                   placeholder="Search activities..."
+                                   onkeyup="VESPAStaff.filterAllActivities(this.value)">
+                            <button class="btn-clear-all-compact" onclick="VESPAStaff.confirmClearAll('${student.id}')">
+                                Clear All Activities
+                            </button>
                         </div>
                     </div>
                     
-                    <!-- All Activities Section -->
-                    <div class="all-activities-container">
-                        <div class="section-title">
-                            <h3>All Activities</h3>
-                            <div class="activity-controls">
-                                <input type="search" 
-                                       class="search-activities" 
-                                       placeholder="Search activities..."
-                                       onkeyup="VESPAStaff.filterAllActivities(this.value)">
+                    <!-- Main Content Area -->
+                    <div class="workspace-content">
+                        <!-- Student Activities Section -->
+                        <div class="student-section">
+                            <div class="section-header-compact">
+                                <h4>Student Activities</h4>
+                            </div>
+                            <div class="activities-by-category student">
+                                ${categories.map(category => `
+                                    <div class="category-column ${category}">
+                                        <div class="column-header-compact ${category}">
+                                            <span class="cat-icon">${this.getCategoryIcon(category)}</span>
+                                            <span>${category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                                            <span class="count">${studentActivitiesByCategory[category].length}</span>
+                                        </div>
+                                        <div class="column-activities-compact" 
+                                             id="student-${category}"
+                                             ondrop="VESPAStaff.onDropToStudentCategory(event, '${student.id}', '${category}')" 
+                                             ondragover="event.preventDefault()"
+                                             ondragenter="event.currentTarget.classList.add('drag-over')"
+                                             ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                            ${studentActivitiesByCategory[category].map(activity => 
+                                                this.renderCompactActivityCard(activity, true, student.id)
+                                            ).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                         
-                        <div class="all-activities-columns">
-                            ${categories.map(category => `
-                                <div class="activity-column ${category}">
-                                    <div class="column-header ${category}">
-                                        <div class="column-title">
-                                            <span class="category-icon">${this.getCategoryIcon(category)}</span>
+                        <!-- Divider -->
+                        <div class="section-divider"></div>
+                        
+                        <!-- All Activities Section -->
+                        <div class="all-section">
+                            <div class="section-header-compact">
+                                <h4>All Activities</h4>
+                            </div>
+                            <div class="activities-by-category all">
+                                ${categories.map(category => `
+                                    <div class="category-column ${category}">
+                                        <div class="column-header-compact ${category}">
+                                            <span class="cat-icon">${this.getCategoryIcon(category)}</span>
                                             <span>${category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                                            <span class="count">${allActivitiesByCategory[category].length}</span>
                                         </div>
-                                        <span class="activity-count">${allActivitiesByCategory[category].length}</span>
+                                        <div class="column-activities-compact" 
+                                             id="all-${category}"
+                                             ondrop="VESPAStaff.onDropToAllCategory(event, '${student.id}', '${category}')" 
+                                             ondragover="event.preventDefault()"
+                                             ondragenter="event.currentTarget.classList.add('drag-over')"
+                                             ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                            ${allActivitiesByCategory[category].map(activity => 
+                                                this.renderCompactActivityCard(activity, false, student.id)
+                                            ).join('')}
+                                        </div>
                                     </div>
-                                    <div class="column-body" 
-                                         id="column-${category}"
-                                         ondrop="VESPAStaff.onDropToColumn(event, '${category}')" 
-                                         ondragover="event.preventDefault()"
-                                         ondragenter="event.currentTarget.classList.add('drag-over')"
-                                         ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                        ${allActivitiesByCategory[category].map(activity => 
-                                            this.renderAllActivityCard(activity, student)
-                                        ).join('')}
-                                    </div>
-                                </div>
-                            `).join('')}
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2285,6 +2345,55 @@
                 // Initialize tooltips and event handlers
                 this.initializeWorkspaceEvents();
             }
+        }
+        
+        // Render compact activity card for the radical redesign
+        renderCompactActivityCard(activity, isStudent, studentId) {
+            const isCompleted = activity.isCompleted || false;
+            const category = (activity.VESPACategory || activity.category || '').toLowerCase();
+            const activityName = this.escapeHtml(activity.ActivityName || activity.name || 'Unnamed');
+            
+            // Determine origin for student activities
+            let originIndicator = '';
+            if (isStudent) {
+                if (activity.showPrescribedBadge) originIndicator = 'Q';
+                else if (activity.showStaffBadge) originIndicator = 'T';
+                else if (activity.showSelfBadge) originIndicator = 'S';
+            }
+            
+            return `
+                <div class="compact-activity-card ${category} ${isCompleted ? 'completed' : ''}" 
+                     draggable="true"
+                     data-activity-id="${activity.id}"
+                     data-student-id="${studentId}"
+                     data-is-student="${isStudent}"
+                     ondragstart="VESPAStaff.onDragStart(event, '${activity.id}', '${studentId}')"
+                     onclick="VESPAStaff.showActivityDetails('${activity.id}', '${studentId}')"
+                     title="${activityName}">
+                    ${isCompleted ? '<span class="completion-icon">✓</span>' : ''}
+                    ${originIndicator ? `<span class="origin-indicator">${originIndicator}</span>` : ''}
+                    <span class="activity-text">${activityName}</span>
+                    ${isStudent && isCompleted ? 
+                        `<button class="btn-uncomplete-compact" 
+                                 onclick="event.stopPropagation(); VESPAStaff.toggleActivityCompletion('${studentId}', '${activity.id}')"
+                                 title="Mark as incomplete">
+                            ↺
+                        </button>` : ''
+                    }
+                    ${isStudent ? 
+                        `<button class="btn-remove-compact" 
+                                 onclick="event.stopPropagation(); VESPAStaff.removeActivityFromStudent('${studentId}', '${activity.id}')"
+                                 title="Remove">
+                            −
+                        </button>` : 
+                        `<button class="btn-add-compact" 
+                                 onclick="event.stopPropagation(); VESPAStaff.quickAddActivity('${studentId}', '${activity.id}')"
+                                 title="Add">
+                            +
+                        </button>`
+                    }
+                </div>
+            `;
         }
         
         // Render student activity card (with completed state and indicators)
@@ -2409,6 +2518,90 @@
                     const progressByActivity = await this.loadLatestProgressByActivity(studentId);
                     this.showStudentWorkspace(student, responses, progressByActivity);
                 }
+            }
+        }
+        
+        // Handle drop to student category
+        async onDropToStudentCategory(event, studentId, category) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            
+            const activityId = event.dataTransfer.getData('activityId');
+            if (activityId) {
+                await this.addActivityToStudent(studentId, activityId);
+                // Refresh the workspace
+                const student = this.state.students.find(s => s.id === studentId);
+                if (student) {
+                    const responses = await this.loadStudentResponses(studentId);
+                    const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                    this.showStudentWorkspace(student, responses, progressByActivity);
+                }
+            }
+        }
+        
+        // Handle drop to all activities category
+        async onDropToAllCategory(event, studentId, category) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            
+            const activityId = event.dataTransfer.getData('activityId');
+            const fromStudent = event.dataTransfer.getData('studentId') === studentId;
+            
+            if (activityId && fromStudent) {
+                await this.removeActivityFromStudent(studentId, activityId);
+                // Refresh the workspace
+                const student = this.state.students.find(s => s.id === studentId);
+                if (student) {
+                    const responses = await this.loadStudentResponses(studentId);
+                    const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                    this.showStudentWorkspace(student, responses, progressByActivity);
+                }
+            }
+        }
+        
+        // Toggle activity completion status
+        async toggleActivityCompletion(studentId, activityId) {
+            try {
+                const student = this.state.students.find(s => s.id === studentId);
+                if (!student) return;
+                
+                const finishedActivities = student.finishedActivities || [];
+                const isCurrentlyCompleted = finishedActivities.includes(activityId);
+                
+                let newFinishedActivities;
+                if (isCurrentlyCompleted) {
+                    // Remove from completed
+                    newFinishedActivities = finishedActivities.filter(id => id !== activityId);
+                } else {
+                    // Add to completed
+                    newFinishedActivities = [...finishedActivities, activityId];
+                }
+                
+                // Update field_1380 (finished activities) using direct API call
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify({
+                        [this.config.fields.finishedActivities]: newFinishedActivities.join(',')
+                    })
+                });
+                
+                // Update local state
+                student.finishedActivities = newFinishedActivities;
+                
+                // Refresh the workspace
+                const responses = await this.loadStudentResponses(studentId);
+                const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                this.showStudentWorkspace(student, responses, progressByActivity);
+                
+            } catch (err) {
+                error('Failed to toggle activity completion:', err);
+                alert('Failed to update activity status. Please try again.');
             }
         }
         
