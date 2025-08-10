@@ -161,6 +161,8 @@
         constructor() {
             this.config = null;
             this.state = {
+                currentView: 'list', // 'list' for page 1, 'workspace' for page 2
+                currentStudentId: null, // Track current student when on page 2
                 currentRole: null,
                 allRoles: [],
                 students: [],
@@ -1503,6 +1505,15 @@
             }
             
             this.state.activities = activities;
+            
+            // Create a Map for quick activity lookups by ID
+            this.activitiesMap = new Map();
+            activities.forEach(activity => {
+                if (activity.id) {
+                    this.activitiesMap.set(activity.id, activity);
+                }
+            });
+            
             log(`Loaded ${activities.length} activities`);
         }
         
@@ -1696,16 +1707,31 @@
         render() {
             if (!this.container) return;
             
-            const html = `
-                <div class="vespa-staff-container">
-                    ${this.renderHeader()}
-                    ${this.renderFilterBar()}
-                    ${this.renderStudentTable()}
-                    ${this.renderModals()}
-                </div>
-            `;
-            
-            this.container.innerHTML = html;
+            // Check which view to render
+            if (this.state.currentView === 'workspace' && this.state.currentStudentId) {
+                // Re-render the workspace for the current student
+                const student = this.state.students.find(s => s.id === this.state.currentStudentId);
+                if (student) {
+                    this.loadStudentResponses(this.state.currentStudentId).then(responses => {
+                        this.loadLatestProgressByActivity(this.state.currentStudentId).then(progressByActivity => {
+                            this.showStudentWorkspace(student, responses, progressByActivity);
+                        });
+                    });
+                }
+            } else {
+                // Render the main list view (Page 1)
+                const html = `
+                    <div class="vespa-staff-container">
+                        ${this.renderHeader()}
+                        ${this.renderFilterBar()}
+                        ${this.renderStudentTable()}
+                        ${this.renderModals()}
+                    </div>
+                `;
+                
+                this.container.innerHTML = html;
+                this.state.currentView = 'list';
+            }
             
             // Inject styles if not already present
             if (!document.getElementById('vespa-staff-styles')) {
@@ -2162,6 +2188,13 @@
             this.loadData().then(() => this.render());
         }
         
+        // Navigate back to the list view (Page 1)
+        backToList() {
+            this.state.currentView = 'list';
+            this.state.currentStudentId = null;
+            this.render();
+        }
+        
         async viewStudent(studentId) {
             const student = this.state.students.find(s => s.id === studentId);
             if (!student) return;
@@ -2178,6 +2211,10 @@
 
                 // Load latest progress per activity for origin badges
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                
+                // Set state for navigation
+                this.state.currentView = 'workspace';
+                this.state.currentStudentId = studentId;
                 
                 // Render full-screen workspace view (top/bottom)
                 this.showStudentWorkspace(student, responses, progressByActivity);
@@ -2257,8 +2294,8 @@
                 <div class="workspace-radical">
                     <!-- Header -->
                     <div class="workspace-header-compact">
-                        <button class="btn-back-compact" onclick="VESPAStaff.render()">
-                            ← Back to Home
+                        <button class="btn-back-compact" onclick="VESPAStaff.backToList()">
+                            ← Back to List
                         </button>
                         <div class="student-info-compact">
                             <h3>${this.escapeHtml(student.name)}</h3>
@@ -2675,6 +2712,14 @@
         async removeActivityFromStudent(studentId, activityId) {
             await this.removeFromStudentPrescribed(studentId, [activityId]);
             await this.markProgressRemoved(studentId, activityId);
+            
+            // Refresh the workspace
+            const student = this.state.students.find(s => s.id === studentId);
+            if (student) {
+                const responses = await this.loadStudentResponses(studentId);
+                const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                this.showStudentWorkspace(student, responses, progressByActivity);
+            }
         }
         async clearCategory(studentId, category) {
             const student = this.state.students.find(s => s.id === studentId);
@@ -4075,9 +4120,186 @@
             });
         }
         
-        // View activity details with questions and responses
+        // View activity details with questions and responses - RADICAL REDESIGN
         async viewActivityDetails(activityId, studentId) {
-            // Find the activity in the current student's activities
+            // Find the student and activity
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) return;
+            
+            const activity = this.state.activities.find(a => a.id === activityId);
+            if (!activity) return;
+            
+            this.showLoading();
+            
+            try {
+                // Load student response from Object_46 (Activity Answers)
+                const fields = this.config.fields;
+                const objects = this.config.objects;
+                
+                let studentResponse = null;
+                let responseData = {};
+                let existingFeedback = '';
+                
+                try {
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
+                        type: 'GET',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey
+                        },
+                        data: {
+                            filters: JSON.stringify([
+                                { field: fields.answerStudentConnection, operator: 'is', value: studentId },
+                                { field: fields.answerActivityConnection, operator: 'is', value: activityId }
+                            ]),
+                            rows_per_page: 1
+                        }
+                    });
+                    
+                    if (response.records && response.records.length > 0) {
+                        studentResponse = response.records[0];
+                        
+                        // Parse the JSON response data
+                        if (studentResponse[fields.answerActivityJSON]) {
+                            try {
+                                responseData = JSON.parse(studentResponse[fields.answerActivityJSON]);
+                            } catch (e) {
+                                log('Error parsing response JSON:', e);
+                            }
+                        }
+                        
+                        // Get existing feedback if any
+                        existingFeedback = studentResponse[fields.answerStaffFeedback] || '';
+                    }
+                } catch (err) {
+                    log('No response found for this activity');
+                }
+                
+                // Create the feedback modal
+                const modalHtml = `
+                    <div id="activity-detail-modal" class="modal-overlay" style="display: flex;">
+                        <div class="modal feedback-modal">
+                            <div class="modal-header">
+                                <h2 class="modal-title">${this.escapeHtml(activity.ActivityName || activity.name)}</h2>
+                                <button class="modal-close" onclick="VESPAStaff.closeModal('activity-detail-modal')">×</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="feedback-container">
+                                    <!-- Student Info -->
+                                    <div class="feedback-student-info">
+                                        <span class="student-name">${this.escapeHtml(student.name)}</span>
+                                        <span class="activity-category ${(activity.VESPACategory || '').toLowerCase()}">${activity.VESPACategory}</span>
+                                        <span class="activity-level">Level ${activity.Level || '1'}</span>
+                                    </div>
+                                    
+                                    <!-- Student Responses Section -->
+                                    <div class="feedback-responses-section">
+                                        <h3>Student Responses</h3>
+                                        ${studentResponse ? `
+                                            <div class="student-responses">
+                                                ${Object.entries(responseData).map(([question, answer]) => `
+                                                    <div class="response-item">
+                                                        <div class="response-question">${this.escapeHtml(question)}</div>
+                                                        <div class="response-answer">${this.escapeHtml(answer || 'No response')}</div>
+                                                    </div>
+                                                `).join('')}
+                                                
+                                                ${studentResponse[fields.answerCompletionDate] ? `
+                                                    <div class="completion-info">
+                                                        <small>Completed on: ${new Date(studentResponse[fields.answerCompletionDate]).toLocaleDateString()}</small>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        ` : `
+                                            <div class="no-response-message">
+                                                No responses submitted yet for this activity.
+                                            </div>
+                                        `}
+                                    </div>
+                                    
+                                    <!-- Feedback Section -->
+                                    <div class="feedback-input-section">
+                                        <h3>Staff Feedback</h3>
+                                        <textarea 
+                                            id="feedback-text-input" 
+                                            class="feedback-textarea" 
+                                            placeholder="Enter your feedback for the student..."
+                                            rows="6">${this.escapeHtml(existingFeedback)}</textarea>
+                                        
+                                        <div class="feedback-actions">
+                                            <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}', '${studentResponse?.id || ''}')">
+                                                ${existingFeedback ? 'Update Feedback' : 'Save Feedback'}
+                                            </button>
+                                            <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('activity-detail-modal')">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add modal to body
+                $('body').append(modalHtml);
+                
+            } catch (err) {
+                error('Failed to load activity details:', err);
+                alert('Error loading activity details. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
+        }
+        
+        // Save feedback to Object_46 (Activity Answers) field_1734
+        async saveFeedback(activityId, studentId, responseId) {
+            const feedbackText = document.getElementById('feedback-text-input')?.value;
+            if (!feedbackText) {
+                alert('Please enter feedback before saving.');
+                return;
+            }
+            
+            this.showLoading();
+            
+            try {
+                const fields = this.config.fields;
+                const objects = this.config.objects;
+                
+                if (responseId) {
+                    // Update existing response record with feedback
+                    await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records/${responseId}`,
+                        type: 'PUT',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey,
+                            'Content-Type': 'application/json'
+                        },
+                        data: JSON.stringify({
+                            [fields.answerStaffFeedback]: feedbackText
+                        })
+                    });
+                    
+                    alert('Feedback saved successfully!');
+                } else {
+                    alert('No student response found for this activity. Student must complete the activity first.');
+                }
+                
+                this.closeModal('activity-detail-modal');
+                
+            } catch (err) {
+                error('Failed to save feedback:', err);
+                alert('Error saving feedback. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
+        }
+        
+        // Continue with existing viewActivityDetails code that was replaced
+        async viewActivityDetailsOld(activityId, studentId) {
+            // Find the activity in the current student's activities  
             const activity = this.currentStudentActivities?.find(a => a.id === activityId);
             if (!activity) {
                 // If not found in student activities, use the enhanced preview
