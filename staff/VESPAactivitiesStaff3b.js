@@ -192,11 +192,15 @@
                 }
             }
             
-            // Check if user has profiles array
-            if (!user.profiles) {
-                console.warn('User profiles not found, checking for roles directly');
-                user.profiles = [];
+            // Get roles from either user.roles or user.profiles (Knack uses different fields)
+            let userRoles = user.roles || user.profiles || [];
+            
+            // Also check if roles are in user.values.field_73 (as seen in GeneralHeader)
+            if (userRoles.length === 0 && user.values && user.values.field_73) {
+                userRoles = user.values.field_73;
             }
+            
+            console.log('User roles found:', userRoles);
             
             // Check each profile to find staff role
             const roleMapping = {
@@ -207,7 +211,7 @@
             };
             
             for (const [profile, role] of Object.entries(roleMapping)) {
-                if (user.profiles && user.profiles.includes(profile)) {
+                if (userRoles.includes(profile)) {
                     this.state.userRole = role;
                     
                     // Get the actual role record ID
@@ -220,6 +224,7 @@
             }
             
             if (!this.state.userRole) {
+                console.error('No staff role detected. User roles:', userRoles);
                 throw new Error('No staff role detected');
             }
         }
@@ -1387,39 +1392,37 @@
         }
     }
     
-    // Create global initializer function for the loader
-    window.initializeVESPAActivitiesStaff = function(config) {
-        console.log('VESPA Staff App v3.0 - Initializer called by loader');
-        
-        // Store config if provided
-        if (config) {
-            window.VESPA_ACTIVITIES_STAFF_CONFIG = config;
+    // Create and expose global instance (EXACTLY like original)
+    const staffApp = new VESPAStaffApp();
+    window.VESPAStaff = staffApp;
+    
+    // Expose initializer function for KnackAppLoader (EXACTLY like original)
+    window.initializeVESPAActivitiesStaff = function() {
+        const config = window.VESPA_ACTIVITIES_STAFF_CONFIG;
+        if (!config) {
+            console.error('VESPA Activities Staff config not found');
+            return;
         }
         
-        // Initialize the app
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                window.vespaStaffApp = new VESPAStaffApp();
-                window.vespaStaffApp.init();
-            });
-        } else {
-            window.vespaStaffApp = new VESPAStaffApp();
-            window.vespaStaffApp.init();
+        console.log('Initializing VESPA Activities Staff Management', config);
+        
+        // Hide data views immediately (use staff page views)
+        const viewsToHide = [CONFIG.views.activities, CONFIG.views.answers];
+        viewsToHide.forEach(viewId => {
+            const viewElement = document.querySelector(`#${viewId}`);
+            if (viewElement) {
+                viewElement.style.display = 'none';
+                console.log('Immediately hid view:', viewId);
+            }
+        });
+        
+        try {
+            // Initialize immediately like the original
+            staffApp.init();
+            console.log('VESPA Staff Activities initialized successfully');
+        } catch (err) {
+            console.error('Failed to initialize VESPA Staff Activities:', err);
         }
     };
-    
-    // Also support direct initialization if not loaded via loader
-    if (!window._loaderVersion) {
-        console.log('VESPA Staff App v3.0 - Direct initialization (no loader detected)');
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                window.vespaStaffApp = new VESPAStaffApp();
-                window.vespaStaffApp.init();
-            });
-        } else {
-            window.vespaStaffApp = new VESPAStaffApp();
-            window.vespaStaffApp.init();
-        }
-    }
     
 })();
