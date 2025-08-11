@@ -1554,6 +1554,11 @@
                     log('Container tagName:', this.container.tagName, 'ID:', this.container.id);
                     log('Container current content before (length):', this.container.innerHTML.length);
                     
+                    // Clean up any workspace elements that might be lingering
+                    const workspaceElements = document.querySelectorAll('.workspace-radical, .workspace-header-compact');
+                    workspaceElements.forEach(el => el.remove());
+                    log('Cleaned up', workspaceElements.length, 'workspace elements');
+                    
                     this.container.innerHTML = html;
                     
                     log('Container content after (length):', this.container.innerHTML.length);
@@ -2508,6 +2513,11 @@
 
         // Full-screen student workspace - RADICAL REDESIGN
         showStudentWorkspace(student, responses = [], progressByActivity = new Map()) {
+            // Clean up any existing list view elements
+            const listElements = document.querySelectorAll('.vespa-staff-container, .staff-header');
+            listElements.forEach(el => el.remove());
+            log('Cleaned up', listElements.length, 'list view elements before showing workspace');
+            
             const studentActivities = this.buildStudentActivityData(student, responses, progressByActivity);
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             
