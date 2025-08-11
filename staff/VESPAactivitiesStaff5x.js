@@ -140,6 +140,8 @@
     class VESPAStaffManager {
         constructor() {
             this.config = null;
+            this.loadStartTime = Date.now(); // Track when loading started
+            this.initializationComplete = false;
             this.state = {
                 currentView: 'list', // 'list' for page 1, 'workspace' for page 2
                 currentStudentId: null, // Track current student when on page 2
@@ -222,6 +224,9 @@
                 
                 // Setup event listeners
                 this.setupEventListeners();
+                
+                // Mark initialization as complete to allow viewStudent calls
+                this.initializationComplete = true;
                 
                 log('Staff Manager initialized successfully');
             } catch (err) {
@@ -2455,10 +2460,13 @@
         }
         
         async viewStudent(studentId) {
-            // Prevent automatic clicks during initialization
+            // Prevent automatic clicks during initialization (but allow after a short delay)
             if (!this.initializationComplete) {
-                log('Ignoring viewStudent call during initialization');
-                return;
+                const timeSinceLoad = Date.now() - (this.loadStartTime || 0);
+                if (timeSinceLoad < 2000) { // Block for first 2 seconds only
+                    log('Ignoring viewStudent call during initialization (too soon after load)');
+                    return;
+                }
             }
             
             const student = this.state.students.find(s => s.id === studentId);
