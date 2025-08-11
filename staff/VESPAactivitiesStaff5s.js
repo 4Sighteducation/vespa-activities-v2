@@ -1599,16 +1599,6 @@
                     <div class="staff-header-top">
                         <h1 class="staff-title">VESPA Activities Management</h1>
                         <div class="staff-actions">
-                            <div class="display-toggle">
-                                <button class="toggle-btn ${this.state.displayMode === 'activities' ? 'active' : ''}" 
-                                        onclick="VESPAStaff.setDisplayMode('activities')">
-                                    Activities
-                                </button>
-                                <button class="toggle-btn ${this.state.displayMode === 'scores' ? 'active' : ''}" 
-                                        onclick="VESPAStaff.setDisplayMode('scores')">
-                                    Scores
-                                </button>
-                            </div>
                             <button class="btn btn-secondary" onclick="VESPAStaff.exportReport()">
                                 📊 Export Report
                             </button>
@@ -1684,6 +1674,16 @@
                         <label><input type="checkbox" onchange="VESPAStaff.toggleSelectAll(this.checked)"> Select all (filtered)</label>
                         <button class="btn" onclick="VESPAStaff.clearSelection()">Clear selection</button>
                         <button class="btn btn-primary" onclick="VESPAStaff.openBulkAdd()">Add activities to selected</button>
+                        <div class="display-toggle">
+                            <button class="toggle-btn ${this.state.displayMode === 'activities' ? 'active' : ''}" 
+                                    onclick="VESPAStaff.setDisplayMode('activities')">
+                                Activities
+                            </button>
+                            <button class="toggle-btn ${this.state.displayMode === 'scores' ? 'active' : ''}" 
+                                    onclick="VESPAStaff.setDisplayMode('scores')">
+                                Scores
+                            </button>
+                        </div>
                         <span class="selection-count">${this.state.selectedStudents.size} selected</span>
                     </div>
                     <table class="student-table">
@@ -1771,8 +1771,11 @@
                         const totalCount = activities.length;
                         const score = vespaScores[cat] || 0;
                         
-                        // Generate activity list for tooltip
-                        const activityList = activities.map(a => `${a.completed ? '✅' : '⭕'} ${a.name}`).join('<br/>');
+                        // Generate activity list for tooltip (clean HTML tags)
+                        const activityList = activities.map(a => {
+                            const cleanName = this.stripHtml(a.name || '');
+                            return `${a.completed ? '✅' : '⭕'} ${cleanName}`;
+                        }).join('<br/>');
                         
                         if (this.state.displayMode === 'scores') {
                             // Show scores mode - current display
@@ -1801,7 +1804,7 @@
                             <button class="vespa-view-button view-btn" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
                                     title="View activities for this student">
-                                View
+                                👁️
                             </button>
                         </div>
                     </td>
