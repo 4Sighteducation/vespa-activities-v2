@@ -217,8 +217,12 @@
                 objects: CONFIG.objects
             };
             
-            // API-ONLY approach - view configuration not needed
-            log('Skipping view configuration - using API-only approach');
+            // Update CONFIG to use the values from KnackAppLoader (use correct keys; do not swap views)
+            if (this.config.views) {
+                CONFIG.views.container = this.config.views.richText || CONFIG.views.container;
+                CONFIG.views.activities = this.config.views.activities || CONFIG.views.activities;
+                CONFIG.views.answers = this.config.views.answers || CONFIG.views.answers;
+            }
             
             log('Using config:', this.config);
             
@@ -275,14 +279,15 @@
             });
         }
         
-        // Find container view (API-only approach)
+        // Find container view
         findContainer() {
-            // Try multiple selectors (no CONFIG.views dependency)
+            // Try multiple selectors
             const selectors = [
+                `#${CONFIG.views.container}`,
+                `.kn-view[data-view-key="${CONFIG.views.container}"]`,
                 '#view_3168',
                 '.kn-details',
-                '.kn-text',
-                '.kn-view'
+                '.kn-text'
             ];
             
             for (const selector of selectors) {
@@ -498,21 +503,79 @@
             const objects = this.config.objects;
             
             try {
-                // API-ONLY approach - no view dependencies needed
-                log('Loading students via API (no view scraping)...');
-                
-                // Build filters based on role
-                let filters = [];
-                const user = Knack.session.user;
-                const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
-                
-                log('Building filters for role:', this.state.currentRole.type);
-                log('User email:', userEmail);
-                
-                // Use role record ID for filtering, not email
-                const roleId = this.state.currentRole.data?.id;
-                
+                // First try to get data from the hidden student views for the current role
+                let studentViewId = null;
                 switch (this.state.currentRole.type) {
+                    case 'staffAdmin':
+                        studentViewId = 'view_3192';
+                        break;
+                    case 'tutor':
+                        studentViewId = 'view_3193';
+                        break;
+                    case 'headOfYear':
+                        studentViewId = 'view_3194';
+                        break;
+                    case 'subjectTeacher':
+                        studentViewId = 'view_3195';
+                        break;
+                    default:
+                        studentViewId = null;
+                }
+
+                // Prefer Knack.views data (works for both details and table views)
+                let parsedFromKnackViews = false;
+                if (studentViewId && Knack.views && Knack.views[studentViewId]) {
+                    const viewObj = Knack.views[studentViewId];
+                    const models = viewObj?.model?.data?.models;
+                    const attributes = viewObj?.model?.attributes;
+                    if (Array.isArray(models) && models.length > 0) {
+                        log(`Found ${models.length} student models in Knack.views for ${studentViewId}`);
+                        models.forEach(m => {
+                            const record = m.attributes || m;
+                            const student = this.parseStudentFromRecord(record);
+                            if (student) studentData.push(student);
+                        });
+                        parsedFromKnackViews = studentData.length > 0;
+                    } else if (attributes && Object.keys(attributes).length > 0) {
+                        log(`Found single student record in Knack.views for ${studentViewId}`);
+                        const student = this.parseStudentFromRecord(attributes);
+                        if (student) studentData.push(student);
+                        parsedFromKnackViews = studentData.length > 0;
+                    }
+                }
+
+                // Fallback: parse from DOM rows if present
+                if (!parsedFromKnackViews && studentViewId) {
+                    const viewData = $(`#${studentViewId}`).find('.kn-table tbody tr, .kn-list-table tbody tr, .kn-list-content .kn-list-item');
+                    if (viewData.length > 0) {
+                        log('Found student data in DOM, parsing...');
+                        viewData.each((index, row) => {
+                            const $row = $(row);
+                            const recordId = $row.data('record-id') || $row.attr('id');
+                            if (recordId) {
+                                const student = this.parseStudentFromRow($row);
+                                if (student) studentData.push(student);
+                            }
+                        });
+                    }
+                }
+
+                if (studentData.length === 0) {
+                    // Fall back to API call
+                    log('No view data found, making API call...');
+                    
+                    // Build filters based on role
+                    let filters = [];
+                    const user = Knack.session.user;
+                    const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
+                    
+                    log('Building filters for role:', this.state.currentRole.type);
+                    log('User email:', userEmail);
+                    
+                    // Use role record ID for filtering, not email
+                    const roleId = this.state.currentRole.data?.id;
+                    
+                    switch (this.state.currentRole.type) {
                         case 'staffAdmin':
                             // Staff admins should only see their assigned students
                             if (roleId && roleId !== 'test_id') {
@@ -625,10 +688,11 @@
                             }
                         });
                     }
-                    
-                    // If still no data, optionally create test data
-                    if (studentData.length === 0) {
-                        log('No students found via API');
+                }
+                
+                // If still no data, optionally create test data
+                if (studentData.length === 0) {
+                    log('No students found via API');
                     
                     // Only create test data if explicitly enabled
                     if (this.config.enableTestData) {
@@ -1323,24 +1387,57 @@
             ];
         }
         
-        // Load ALL activities using API-only approach (no view dependencies)
+        // Load all activities
         async loadActivities() {
-            log('Loading ALL activities via API (no view scraping)...');
+            log('Loading activities...');
             
             const activities = [];
             const objects = this.config.objects;
             
             try {
-                // Load JSON data for enrichment (optional)
+                // First try to load from JSON for complete data
                 await this.loadActivitiesFromJSON();
                 
-                // API-ONLY approach - load all activities with proper pagination
-                let allActivitiesLoaded = false;
-                let currentPage = 1;
-                const maxPages = 10; // Safety limit (10K activities max)
+                // Try to get data from the hidden view - check staff page views first
+                const possibleViewIds = [CONFIG.views.activities];
+                let viewData = $();
                 
-                while (!allActivitiesLoaded && currentPage <= maxPages) {
-                    log(`Loading activities page ${currentPage}...`);
+                for (const viewId of possibleViewIds) {
+                    const data = $(`#${viewId}`).find('.kn-list-table tbody tr, .kn-table tbody tr, .kn-list-content .kn-list-item');
+                    if (data.length > 0) {
+                        log(`Found ${data.length} items in ${viewId}`);
+                        viewData = data;
+                        break;
+                    }
+                }
+                
+                if (viewData.length > 0) {
+                    log(`Processing ${viewData.length} activity items from view`);
+                    viewData.each((index, row) => {
+                        const $row = $(row);
+                        const activity = this.parseActivityFromRow($row);
+                        if (activity) {
+                            // Try to match with JSON data for complete information
+                            if (this.state.activitiesData) {
+                                const jsonActivity = this.state.activitiesData.find(
+                                    a => a.Activity_id === activity.id || a.id === activity.id ||
+                                    a['Activities Name'] === activity.name || a.name === activity.name
+                                );
+                                if (jsonActivity) {
+                                    // Enrich with JSON data
+                                    activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
+                                    activity.media = jsonActivity.media;
+                                    activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
+                                    activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
+                                    activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
+                                }
+                            }
+                            activities.push(activity);
+                        }
+                    });
+                } else {
+                    // Fall back to API call
+                    log('No view data found, making API call for activities...');
                     
                     const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.activities}/records`,
@@ -1350,26 +1447,19 @@
                             'X-Knack-REST-API-Key': this.config.knackApiKey
                         },
                         data: {
-                            page: currentPage,
-                            rows_per_page: 1000,
-                            sort_field: 'field_1278', // Sort by activity name
-                            sort_order: 'asc'
+                            page: 1,
+                            rows_per_page: 1000
                         }
                     });
                     
-                    log(`Activities API Response page ${currentPage}:`, {
-                        total_records: response.total_records,
-                        current_page: response.current_page,
-                        total_pages: response.total_pages,
-                        records_count: response.records?.length || 0
-                    });
+                    log('Activities API Response:', response);
                     
                     // Process each activity record
                     if (response.records && response.records.length > 0) {
                         response.records.forEach((record) => {
                             const activity = this.parseActivityFromRecord(record);
                             if (activity) {
-                                // Enrich with JSON data if available
+                                // Try to match with JSON data
                                 if (this.state.activitiesData) {
                                     const jsonActivity = this.state.activitiesData.find(
                                         a => a.Activity_id === activity.id || a.id === activity.id
@@ -1377,6 +1467,7 @@
                                     if (jsonActivity) {
                                         activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
                                         activity.media = jsonActivity.media;
+                                        // Map extra fields when present
                                         activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
                                         activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
                                         activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
@@ -1385,14 +1476,6 @@
                                 activities.push(activity);
                             }
                         });
-                    }
-                    
-                    // Check if we need to load more pages
-                    if (response.current_page >= response.total_pages || !response.records || response.records.length === 0) {
-                        allActivitiesLoaded = true;
-                        log(`✅ All activities loaded via API. Total: ${activities.length} activities across ${currentPage} pages`);
-                    } else {
-                        currentPage++;
                     }
                 }
                 
@@ -2842,72 +2925,41 @@
             setTimeout(() => { if (el) el.style.display = 'none'; }, 6000);
         }
         
-        // Load student's activity responses with pagination (optimized for 26K+ records)
+        // Load student's activity responses
         async loadStudentResponses(studentId) {
             const fields = this.config.fields;
             const objects = this.config.objects;
             
             try {
-                log(`Loading responses for student: ${studentId}`);
-                const allResponses = [];
-                let currentPage = 1;
-                let hasMoreData = true;
-                const maxPages = 50; // Safety limit (50 * 1000 = 50K records max)
-                
-                // Use targeted filtering for better performance with large datasets
-                while (hasMoreData && currentPage <= maxPages) {
-                    log(`Loading student responses page ${currentPage}...`);
-                    
-                    const response = await $.ajax({
-                        url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
-                        type: 'GET',
-                        headers: {
-                            'X-Knack-Application-Id': this.config.knackAppId,
-                            'X-Knack-REST-API-Key': this.config.knackApiKey
-                        },
-                        data: {
-                            filters: JSON.stringify([{
-                                field: fields.answerStudentConnection,
-                                operator: 'is',
-                                value: studentId
-                            }]),
-                            page: currentPage,
-                            rows_per_page: 1000,
-                            sort_field: fields.answerCompletionDate || 'created_at',
-                            sort_order: 'desc' // Most recent first
-                        }
-                    });
-                    
-                    if (response.records && response.records.length > 0) {
-                        // Parse and add responses to collection
-                        const pageResponses = response.records.map(record => ({
-                            id: record.id,
-                            activityId: record[fields.answerActivityConnection] || record[fields.answerActivityConnection + '_raw']?.[0]?.id || record.field_1302_raw?.[0]?.id,
-                            activityJSON: record[fields.answerActivityJSON] || record.field_1300,
-                            completionDate: record[fields.answerCompletionDate],
-                            yearGroup: record[fields.answerYearGroup],
-                            group: record[fields.answerGroup],
-                            faculty: record[fields.answerFaculty],
-                            staffFeedback: record[fields.answerStaffFeedback] || ''
-                        }));
-                        
-                        allResponses.push(...pageResponses);
-                        
-                        log(`Loaded ${pageResponses.length} responses on page ${currentPage}. Total so far: ${allResponses.length}`);
-                        
-                        // Check if we need more pages
-                        if (response.current_page >= response.total_pages || response.records.length < 1000) {
-                            hasMoreData = false;
-                        } else {
-                            currentPage++;
-                        }
-                    } else {
-                        hasMoreData = false;
+                // API call to get activity answers for this student
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([{
+                            field: fields.answerStudentConnection,
+                            operator: 'is',
+                            value: studentId
+                        }]),
+                        page: 1,
+                        rows_per_page: 1000
                     }
-                }
+                });
                 
-                log(`Loaded ${allResponses.length} total responses for student ${studentId}`);
-                return allResponses;
+                // Parse and return responses
+                return response.records.map(record => ({
+                    id: record.id,
+                    activityId: record[fields.answerActivityConnection] || record[fields.answerActivityConnection + '_raw']?.[0]?.id || record.field_1302_raw?.[0]?.id,
+                    activityJSON: record[fields.answerActivityJSON] || record.field_1300,
+                    completionDate: record[fields.answerCompletionDate],
+                    yearGroup: record[fields.answerYearGroup],
+                    group: record[fields.answerGroup],
+                    faculty: record[fields.answerFaculty]
+                }));
                 
             } catch (err) {
                 error('Failed to load student responses:', err);
@@ -2948,11 +3000,20 @@
             }
         }
         
-        // Load activity questions from Object_45 using API-only approach
+        // Load activity questions from Object_45 using correct field mappings
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             try {
-                // API-ONLY approach - no view scraping
+                // Try scraping if present (harmless fallback)
+                const viewData = $(`#${CONFIG.views.activities}`).find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
+                if (viewData.length > 0) {
+                    const scraped = [];
+                    viewData.find('.question-item, .field_1279').each((index, elem) => {
+                        const $elem = $(elem);
+                        scraped.push({ id: `q_${index}`, question: $elem.text().trim(), type: 'text', options: '', order: index });
+                    });
+                    if (scraped.length > 0) return scraped;
+                }
 
                 // Filter Object_45 by connection to activity NAME (field_1286)
                 const activity = this.state.activities.find(a => a.id === activityId);
@@ -4821,8 +4882,15 @@
         
         log('Initializing VESPA Activities Staff Management', config);
         
-        // API-ONLY approach - no view dependencies needed
-        log('Using pure API approach - no view scraping required');
+        // Hide data views immediately (use staff page views)
+        const viewsToHide = [CONFIG.views.activities, CONFIG.views.answers];
+        viewsToHide.forEach(viewId => {
+            const viewElement = document.querySelector(`#${viewId}`);
+            if (viewElement) {
+                viewElement.style.display = 'none';
+                log('Immediately hid view:', viewId);
+            }
+        });
         
         try {
             // Initialize immediately like the student version
