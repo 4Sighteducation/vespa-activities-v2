@@ -63,15 +63,19 @@
             practiceScore: 'field_150',
             attitudeScore: 'field_151',
             
-            // Activity fields (Object_44)
-            activityName: 'field_1278',
-            activityVESPACategory: 'field_1285',
-            activityLevel: 'field_1295', // fallback
-            activityLevelAlt: 'field_3568', // preferred level field
-            activityScoreMoreThan: 'field_1287', // threshold: show if score is more than X
-            activityScoreLessEqual: 'field_1294', // threshold: show if score is <= Y
-            // Bespoke curriculum tags (CSV or multi-select style)
-            activityCurriculum: 'field_3584',
+                    // Activity fields (Object_44) - COMPLETE MAPPING
+        activityName: 'field_1278',
+        activityVESPACategory: 'field_1285',
+        activityLevel: 'field_1295', // fallback
+        activityLevelAlt: 'field_3568', // preferred level field
+        activityScoreMoreThan: 'field_1287', // threshold: show if score is more than X
+        activityScoreLessEqual: 'field_1294', // threshold: show if score is <= Y
+        // Bespoke curriculum tags (CSV or multi-select style)
+        activityCurriculum: 'field_3584',
+        // Additional activity fields
+        activityDescription: 'field_1134',
+        activityDuration: 'field_1135',
+        activityType: 'field_1133',
             
             // Activity Answers fields (Object_46)
             answerStudentName: 'field_1875',
@@ -431,8 +435,18 @@
                 // Load all activities FIRST so they're available for student parsing
                 await this.loadActivities();
                 
-                // Load students based on role
+                // CRITICAL: Create activitiesMap immediately after loading activities
+                this.activitiesMap = new Map();
+                this.state.activities.forEach(activity => {
+                    if (activity.id) {
+                        this.activitiesMap.set(activity.id, activity);
+                    }
+                });
+                log(`Created activitiesMap with ${this.activitiesMap.size} activities`);
+                
+                // Load students based on role (now activities are available for parsing)
                 await this.loadStudents();
+                
                 // Enrich list with in-progress activity IDs for All Activities count
                 try {
                     const map = await this.loadProgressActivitiesForStudents(this.state.students.map(s => s.id));
@@ -993,15 +1007,23 @@
                     prescribedActivityIds.forEach(activityId => {
                         const activity = this.activitiesMap.get(activityId);
                         if (activity) {
-                            const category = (activity.VESPACategory || '').toLowerCase();
+                            // Fix: Use consistent property name for category
+                            const category = (activity.category || activity.VESPACategory || '').toLowerCase();
                             if (categoryBreakdown[category]) {
                                 categoryBreakdown[category].push({
                                     id: activity.id,
-                                    name: activity.ActivityName || activity.name || 'Unnamed Activity',
+                                    name: activity.name || activity.ActivityName || 'Unnamed Activity',
                                     completed: finishedActivityIds.includes(activityId)
                                 });
                             }
+                        } else {
+                            log(`WARNING: Activity ${activityId} not found in activitiesMap`);
                         }
+                    });
+                } else {
+                    log('WARNING: activitiesMap not available or no prescribed activities', {
+                        hasActivitiesMap: !!this.activitiesMap,
+                        prescribedCount: prescribedActivityIds.length
                     });
                 }
                 
@@ -1505,15 +1527,6 @@
             }
             
             this.state.activities = activities;
-            
-            // Create a Map for quick activity lookups by ID
-            this.activitiesMap = new Map();
-            activities.forEach(activity => {
-                if (activity.id) {
-                    this.activitiesMap.set(activity.id, activity);
-                }
-            });
-            
             log(`Loaded ${activities.length} activities`);
         }
         
@@ -1593,6 +1606,9 @@
                 const rawCategory = this.getFieldValue(record, fields.activityVESPACategory, 'Unknown');
                 const category = this.stripHtml(rawCategory);
                 
+                // Also store as VESPACategory for consistency
+                const VESPACategory = category;
+                
                 // Prefer new level field if present
                 const levelValue = this.getFieldValue(record, fields.activityLevelAlt, this.getFieldValue(record, fields.activityLevel, '1'));
                 
@@ -1602,13 +1618,13 @@
                 }
                 
                 // Get additional fields and clean HTML if present
-                let rawDescription = this.getFieldValue(record, 'field_1134', ''); // Activity description
+                let rawDescription = this.getFieldValue(record, fields.activityDescription, ''); // Activity description
                 const description = this.stripHtml(rawDescription);
                 
-                const rawDuration = this.getFieldValue(record, 'field_1135', ''); // Activity duration
+                const rawDuration = this.getFieldValue(record, fields.activityDuration, ''); // Activity duration
                 const duration = this.stripHtml(rawDuration);
                 
-                const rawType = this.getFieldValue(record, 'field_1133', ''); // Activity type
+                const rawType = this.getFieldValue(record, fields.activityType, ''); // Activity type
                 const type = this.stripHtml(rawType);
                 
                 // Bespoke curriculum tags
@@ -1618,8 +1634,11 @@
                 const activity = {
                     id: record.id,
                     name: name,
+                    ActivityName: name, // For backward compatibility
                     category: category,
+                    VESPACategory: VESPACategory, // For backward compatibility
                     level: parseInt(levelValue) || 1,
+                    Level: parseInt(levelValue) || 1, // For backward compatibility
                     description: description,
                     duration: duration || 'N/A',
                     type: type || 'Activity',
@@ -1628,6 +1647,10 @@
                     scoreShowIfLessEqual: parseFloat(this.getFieldValue(record, fields.activityScoreLessEqual, '0')) || 0,
                     curriculums: curriculums
                 };
+                
+                if (this.config.debug) {
+                    log(`Parsed activity: ${name} (${record.id}) - Category: ${category}`);
+                }
                 
                 return activity;
             } catch (err) {
@@ -1950,22 +1973,49 @@
 
         // Selection helpers for bulk add
         toggleStudentSelection(studentId, checked) {
-            if (checked) this.state.selectedStudents.add(studentId); else this.state.selectedStudents.delete(studentId);
+            if (checked) {
+                this.state.selectedStudents.add(studentId);
+            } else {
+                this.state.selectedStudents.delete(studentId);
+            }
             const countBadge = document.querySelector('.selection-count');
             if (countBadge) countBadge.textContent = `${this.state.selectedStudents.size} selected`;
+            
+            // Update the table to reflect selection changes
+            this.updateSelectionUI();
         }
+        
+        updateSelectionUI() {
+            // Update individual checkboxes
+            document.querySelectorAll('input[type="checkbox"][onchange*="toggleStudentSelection"]').forEach(checkbox => {
+                const studentId = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
+                checkbox.checked = this.state.selectedStudents.has(studentId);
+            });
+            
+            // Update select all checkbox
+            const selectAllCheckbox = document.querySelector('input[type="checkbox"][onchange*="toggleSelectAll"]');
+            if (selectAllCheckbox) {
+                const totalVisible = this.state.filteredStudents.length;
+                const selectedVisible = this.state.filteredStudents.filter(s => this.state.selectedStudents.has(s.id)).length;
+                selectAllCheckbox.checked = totalVisible > 0 && selectedVisible === totalVisible;
+                selectAllCheckbox.indeterminate = selectedVisible > 0 && selectedVisible < totalVisible;
+            }
+        }
+        
         toggleSelectAll(checked) {
             if (checked) {
                 this.state.selectedStudents = new Set(this.state.filteredStudents.map(s => s.id));
             } else {
                 this.state.selectedStudents.clear();
             }
-            this.renderStudentTable();
+            this.updateSelectionUI();
         }
+        
         clearSelection() {
             this.state.selectedStudents.clear();
-            this.renderStudentTable();
+            this.updateSelectionUI();
         }
+        
         openBulkAdd() {
             if (this.state.selectedStudents.size === 0) {
                 alert('Select at least one student first');
@@ -2227,44 +2277,46 @@
             }
         }
 
-        // Build normalized activity dataset for a student with origin flags
+        // Build student activity data ONLY from Object_6 prescribed activities
         buildStudentActivityData(student, responses, progressByActivity = new Map()) {
-            const idFromNames = (student.prescribedActivities || []).map(name => {
-                const norm = (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
-                const act = this.state.activities.find(a => this.stripHtml(a.name).toLowerCase().trim().replace(/\s+/g, ' ') === norm);
-                return act?.id;
-            }).filter(Boolean);
-            const unionIds = new Set([
-                ...(student.prescribedActivityIds || []),
-                ...idFromNames,
-                ...(student.finishedActivities || []),
-                ...Array.from(progressByActivity.keys())
-            ]);
-
+            log(`Building student activity data for ${student.name}`);
+            log(`Prescribed activity IDs:`, student.prescribedActivityIds);
+            log(`Finished activity IDs:`, student.finishedActivities);
+            
             const entries = [];
-            for (const activityId of unionIds) {
-                const activity = this.state.activities.find(a => a.id === activityId);
-                if (!activity) continue;
-                const isCompleted = (student.finishedActivities || []).includes(activity.id);
-                const response = responses.find(r => r.activityId === activity.id);
-                const isPrescribed = (student.prescribedActivityIds || []).includes(activity.id);
-                const latestProgress = progressByActivity.get(activity.id);
+            
+            // ONLY use the student's prescribed activities from Object_6 field_1683
+            const prescribedActivityIds = student.prescribedActivityIds || [];
+            
+            prescribedActivityIds.forEach(activityId => {
+                const activity = this.activitiesMap?.get(activityId);
+                if (!activity) {
+                    log(`WARNING: Prescribed activity ${activityId} not found in activitiesMap`);
+                    return;
+                }
+                
+                const isCompleted = (student.finishedActivities || []).includes(activityId);
+                const response = responses.find(r => r.activityId === activityId);
+                const latestProgress = progressByActivity.get(activityId);
                 const selectedVia = latestProgress ? latestProgress[this.config.fields.progressSelectedVia] : '';
-                const isStaffAdded = !isPrescribed && selectedVia === 'staff_assigned';
+                const isStaffAdded = selectedVia === 'staff_assigned';
                 const isReportGenerated = selectedVia === 'report_generated';
-                const isSelfSelected = !isPrescribed && !isStaffAdded && !isReportGenerated;
+                const isSelfSelected = !isStaffAdded && !isReportGenerated;
+                
                 entries.push({
                     ...activity,
                     isCompleted,
                     response,
                     studentId: student.id,
                     questions: [],
-                    showPrescribedBadge: isPrescribed,
+                    showPrescribedBadge: true, // All these are prescribed
                     showStaffBadge: isStaffAdded,
                     showSelfBadge: isSelfSelected,
                     showReportBadge: isReportGenerated
                 });
-            }
+            });
+            
+            log(`Built ${entries.length} student activities from prescribed list`);
             return entries;
         }
 
@@ -2273,22 +2325,28 @@
             const studentActivities = this.buildStudentActivityData(student, responses, progressByActivity);
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             
-            // Group student activities by category
+            // Group student activities by category (these are from Object_6 prescribed list)
             const studentActivitiesByCategory = {};
             categories.forEach(cat => {
                 studentActivitiesByCategory[cat] = studentActivities.filter(a => 
-                    (a.VESPACategory || a.category || '').toLowerCase() === cat
+                    (a.category || a.VESPACategory || '').toLowerCase() === cat
                 );
             });
             
-            // Group all activities by category (excluding already assigned ones)
+            // Group ALL available activities by category (for assignment)
             const assignedActivityIds = new Set(studentActivities.map(a => a.id));
             const allActivitiesByCategory = {};
             categories.forEach(cat => {
                 allActivitiesByCategory[cat] = this.state.activities.filter(a => 
-                    !assignedActivityIds.has(a.id) && (a.VESPACategory || a.category || '').toLowerCase() === cat
+                    !assignedActivityIds.has(a.id) && (a.category || a.VESPACategory || '').toLowerCase() === cat
                 );
             });
+            
+            log(`Student activities by category:`, studentActivitiesByCategory);
+            log(`All activities by category:`, Object.keys(allActivitiesByCategory).map(cat => ({
+                category: cat,
+                count: allActivitiesByCategory[cat].length
+            })));
 
             const html = `
                 <div class="workspace-radical">
@@ -2296,6 +2354,9 @@
                     <div class="workspace-header-compact">
                         <button class="btn-back-compact" onclick="VESPAStaff.backToList()">
                             ← Back to List
+                        </button>
+                        <button class="btn-page-nav" onclick="VESPAStaff.render()" title="Go to Page 1">
+                            📊 Page 1
                         </button>
                         <div class="student-info-compact">
                             <h3>${this.escapeHtml(student.name)}</h3>
@@ -4198,12 +4259,24 @@
                                         <h3>Student Responses</h3>
                                         ${studentResponse ? `
                                             <div class="student-responses">
-                                                ${Object.entries(responseData).map(([question, answer]) => `
-                                                    <div class="response-item">
-                                                        <div class="response-question">${this.escapeHtml(question)}</div>
-                                                        <div class="response-answer">${this.escapeHtml(answer || 'No response')}</div>
-                                                    </div>
-                                                `).join('')}
+                                                ${Object.entries(responseData).map(([question, answer]) => {
+                                                    // Handle different answer types
+                                                    let displayAnswer = 'No response';
+                                                    if (answer !== null && answer !== undefined) {
+                                                        if (typeof answer === 'object') {
+                                                            displayAnswer = JSON.stringify(answer, null, 2);
+                                                        } else {
+                                                            displayAnswer = String(answer);
+                                                        }
+                                                    }
+                                                    
+                                                    return `
+                                                        <div class="response-item">
+                                                            <div class="response-question">${this.escapeHtml(question)}</div>
+                                                            <div class="response-answer">${this.escapeHtml(displayAnswer)}</div>
+                                                        </div>
+                                                    `;
+                                                }).join('')}
                                                 
                                                 ${studentResponse[fields.answerCompletionDate] ? `
                                                     <div class="completion-info">

@@ -657,6 +657,149 @@
     z-index: 1000;
 }
 
+/* Feedback Modal Styles */
+.feedback-modal {
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.feedback-container {
+    padding: 20px;
+}
+
+.feedback-student-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.feedback-student-info .student-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--primary-dark);
+}
+
+.feedback-student-info .activity-category {
+    padding: 4px 12px;
+    border-radius: 12px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.feedback-student-info .activity-category.vision { background: var(--vision); }
+.feedback-student-info .activity-category.effort { background: var(--effort); }
+.feedback-student-info .activity-category.systems { background: var(--systems); }
+.feedback-student-info .activity-category.practice { background: var(--practice); }
+.feedback-student-info .activity-category.attitude { background: var(--attitude); }
+
+.feedback-student-info .activity-level {
+    padding: 4px 8px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #475569;
+}
+
+.feedback-responses-section {
+    margin-bottom: 24px;
+}
+
+.feedback-responses-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin-bottom: 12px;
+}
+
+.student-responses {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.response-item {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.response-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.response-question {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.response-answer {
+    color: #555;
+    font-size: 14px;
+    line-height: 1.5;
+    padding-left: 12px;
+    border-left: 3px solid var(--primary);
+}
+
+.completion-info {
+    margin-top: 12px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.no-response-message {
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.feedback-input-section {
+    margin-top: 24px;
+}
+
+.feedback-input-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    margin-bottom: 12px;
+}
+
+.feedback-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d0d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 120px;
+}
+
+.feedback-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(7, 155, 170, 0.1);
+}
+
+.feedback-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
 .modal {
     background: var(--white);
     border-radius: 8px;
@@ -2635,7 +2778,8 @@
     height: 60px;
 }
 
-.btn-back-compact {
+.btn-back-compact,
+.btn-page-nav {
     background: transparent;
     border: 1px solid #d0d5db;
     padding: 6px 12px;
@@ -2644,12 +2788,26 @@
     cursor: pointer;
     color: #475569;
     transition: all 0.2s;
+    margin-right: 8px;
 }
 
-.btn-back-compact:hover {
+.btn-back-compact:hover,
+.btn-page-nav:hover {
     background: #f8f9fa;
     border-color: var(--primary);
     color: var(--primary);
+}
+
+.btn-page-nav {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.btn-page-nav:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: white;
 }
 
 .student-info-compact h3 {
