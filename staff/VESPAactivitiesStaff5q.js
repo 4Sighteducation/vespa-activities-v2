@@ -162,6 +162,7 @@
                 sortColumn: 'name',
                 sortDirection: 'asc',
                 isLoading: false,
+                displayMode: 'activities', // 'activities' or 'scores'
                 // Pagination state
                 pagination: {
                     currentPage: 1,
@@ -1598,6 +1599,16 @@
                     <div class="staff-header-top">
                         <h1 class="staff-title">VESPA Activities Management</h1>
                         <div class="staff-actions">
+                            <div class="display-toggle">
+                                <button class="toggle-btn ${this.state.displayMode === 'activities' ? 'active' : ''}" 
+                                        onclick="staffManager.setDisplayMode('activities')">
+                                    Activities
+                                </button>
+                                <button class="toggle-btn ${this.state.displayMode === 'scores' ? 'active' : ''}" 
+                                        onclick="staffManager.setDisplayMode('scores')">
+                                    Scores
+                                </button>
+                            </div>
                             <button class="btn btn-secondary" onclick="VESPAStaff.exportReport()">
                                 📊 Export Report
                             </button>
@@ -1683,10 +1694,6 @@
                                     onclick="VESPAStaff.sort('name')">
                                     Student Name
                                 </th>
-                                <th class="sortable ${this.getSortClass('progress')}" 
-                                    onclick="VESPAStaff.sort('progress')">
-                                    Progress
-                                </th>
                                 <!-- Combined VESPA Category Columns -->
                                 <th class="vespa-column vision">
                                     <div class="vespa-column-header">
@@ -1751,15 +1758,11 @@
             return `
                 <tr data-student-id="${student.id}">
                     <td><input type="checkbox" ${this.state.selectedStudents.has(student.id) ? 'checked' : ''} onchange="VESPAStaff.toggleStudentSelection('${student.id}', this.checked)"></td>
-                    <td>
+                    <td class="student-info-cell">
                         <div class="student-name">${student.name}</div>
                         <div class="student-email">${student.email}</div>
-                    </td>
-                    <td class="progress-cell">
-                        <div class="progress-container">
-                            <div class="progress-bar" title="${student.completedCount} of ${student.prescribedCount} curriculum activities completed">
-                                <div class="progress-fill" style="width: ${student.progress}%"></div>
-                            </div>
+                        <div class="student-progress-bar" title="${student.completedCount} of ${student.prescribedCount} curriculum activities completed">
+                            <div class="progress-fill" style="width: ${student.progress}%"></div>
                         </div>
                     </td>
                     ${categories.map(cat => {
@@ -1768,25 +1771,37 @@
                         const totalCount = activities.length;
                         const score = vespaScores[cat] || 0;
                         
-                        return `
-                            <td class="vespa-data-cell">
-                                <div class="vespa-combined-data">
+                        // Generate activity list for tooltip
+                        const activityList = activities.map(a => `${a.completed ? '✅' : '⭕'} ${a.name}`).join('<br/>');
+                        
+                        if (this.state.displayMode === 'scores') {
+                            // Show scores mode - current display
+                            return `
+                                <td class="vespa-data-cell">
                                     <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${score.toFixed(1)}/10">
                                         ${score.toFixed(1)}
                                     </div>
-                                    <div class="activity-count-display" title="${completedCount} of ${totalCount} ${cat} activities completed">
-                                        <span class="count-completed">${completedCount}</span>/<span class="count-total">${totalCount}</span>
+                                </td>
+                            `;
+                        } else {
+                            // Show activities mode - completed/total ratio with hover
+                            return `
+                                <td class="vespa-data-cell">
+                                    <div class="vespa-activity-display ${cat}" 
+                                         title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Activities:<br/>${activityList}"
+                                         data-tooltip-html="true">
+                                        <span class="activity-ratio">${completedCount}/${totalCount}</span>
                                     </div>
-                                </div>
-                            </td>
-                        `;
+                                </td>
+                            `;
+                        }
                     }).join('')}
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-action btn-primary" 
+                            <button class="vespa-view-button view-btn" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
                                     title="View activities for this student">
-                                👁️ View
+                                View
                             </button>
                         </div>
                     </td>
@@ -2009,6 +2024,56 @@
                     </div>
                 `;
             }
+        }
+        
+        // Show success modal
+        showSuccessModal(title, message, callback = null) {
+            const modalHtml = `
+                <div class="modal-overlay" id="success-modal" onclick="staffManager.closeSuccessModal()">
+                    <div class="modal-content success-modal" onclick="event.stopPropagation()">
+                        <div class="modal-header success-header">
+                            <div class="success-icon">✅</div>
+                            <h3>${title}</h3>
+                            <button class="modal-close" onclick="staffManager.closeSuccessModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p>${message}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="staffManager.closeSuccessModal()">OK</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to body
+            const modalElement = document.createElement('div');
+            modalElement.innerHTML = modalHtml;
+            document.body.appendChild(modalElement.firstElementChild);
+            
+            // Store callback for when modal is closed
+            this.successCallback = callback;
+        }
+        
+        closeSuccessModal() {
+            const modal = document.getElementById('success-modal');
+            if (modal) {
+                modal.remove();
+            }
+            
+            // Execute callback if provided
+            if (this.successCallback) {
+                this.successCallback();
+                this.successCallback = null;
+            }
+        }
+        
+        // Set display mode (activities or scores)
+        setDisplayMode(mode) {
+            if (mode !== 'activities' && mode !== 'scores') return;
+            
+            this.state.displayMode = mode;
+            this.render();
         }
         
         // Public methods (exposed to global scope for event handlers)
@@ -3430,7 +3495,7 @@
                     })
                 });
                 
-                alert('Activity re-assigned successfully');
+                this.showSuccessModal('Success', 'Activity re-assigned successfully');
                 
                 // Reload the modal
                 this.viewStudent(studentId);
@@ -3475,7 +3540,7 @@
                     data: JSON.stringify(feedbackData)
                 });
                 
-                alert('Feedback added successfully!');
+                this.showSuccessModal('Success', 'Feedback added successfully!');
                 
                 // Refresh the view
                 this.viewStudent(activity.studentId);
@@ -4169,7 +4234,7 @@
                         })
                     });
                     
-                    alert('Feedback saved successfully!');
+                    this.showSuccessModal('Success', 'Feedback saved successfully!');
                 } else {
                     alert('No student response found for this activity. Student must complete the activity first.');
                 }
@@ -4446,7 +4511,7 @@
                 
                 // Close the modal and show success
                 this.closeModal('activity-detail-modal');
-                alert('Activity marked as incomplete successfully');
+                this.showSuccessModal('Success', 'Activity marked as incomplete successfully');
                 
                 // Refresh student details
                 await this.viewStudent(studentId);
@@ -4468,7 +4533,7 @@
             }
             
             // TODO: Implement actual feedback saving via API
-            alert('Feedback saved successfully!');
+            this.showSuccessModal('Success', 'Feedback saved successfully!');
             this.closeModal('activity-detail-modal');
         }
         
@@ -4503,7 +4568,10 @@
                 
                 await Promise.all(updatePromises);
                 
-                alert(`Successfully assigned ${activityIds.length} activities to ${selectedStudents.length} student(s)`);
+                this.showSuccessModal(
+                    'Activities Assigned Successfully',
+                    `Successfully assigned ${activityIds.length} activities to ${selectedStudents.length} student(s)`
+                );
                 
                 // Refresh data
                 await this.loadData();
