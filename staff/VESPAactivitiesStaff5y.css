@@ -4326,13 +4326,9 @@
     padding: 40px 20px;
 }
 
-/* Workspace header - ensure it appears above general header */
+/* Workspace header - positioned as a section below general header */
 .workspace-header-compact {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 9999 !important;
+    position: relative;
     background: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-bottom: 1px solid #dee2e6;
@@ -4341,11 +4337,14 @@
     align-items: center;
     justify-content: space-between;
     height: 60px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    margin: 0 20px 20px 20px;
 }
 
-/* Adjust workspace content to account for fixed header */
+/* No need to adjust workspace content - it flows naturally */
 .workspace-content {
-    margin-top: 60px !important;
+    /* Remove the margin-top override */
 }
 
 /* Style workspace header elements */
