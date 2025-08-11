@@ -1525,17 +1525,53 @@
                 // Render the main list view (Page 1)
                 log('Rendering main list view');
                 try {
+                    log('Calling render helper methods...');
+                    const header = this.renderHeader();
+                    log('Header rendered, length:', header.length);
+                    
+                    const filterBar = this.renderFilterBar();
+                    log('Filter bar rendered, length:', filterBar.length);
+                    
+                    const studentTable = this.renderStudentTable();
+                    log('Student table rendered, length:', studentTable.length);
+                    
+                    const modals = this.renderModals();
+                    log('Modals rendered, length:', modals.length);
+                    
                     const html = `
                         <div class="vespa-staff-container">
-                            ${this.renderHeader()}
-                            ${this.renderFilterBar()}
-                            ${this.renderStudentTable()}
-                            ${this.renderModals()}
+                            ${header}
+                            ${filterBar}
+                            ${studentTable}
+                            ${modals}
                         </div>
                     `;
                     
                     log('HTML generated, setting container innerHTML');
+                    log('HTML content preview:', html.substring(0, 300) + '...');
+                    log('Container element:', this.container);
+                    log('Container tagName:', this.container.tagName, 'ID:', this.container.id);
+                    log('Container current content before (length):', this.container.innerHTML.length);
+                    
                     this.container.innerHTML = html;
+                    
+                    log('Container content after (length):', this.container.innerHTML.length);
+                    log('Container dimensions:', this.container.offsetHeight, 'x', this.container.offsetWidth);
+                    log('Container computed styles:');
+                    const computedStyle = window.getComputedStyle(this.container);
+                    log('- display:', computedStyle.display);
+                    log('- visibility:', computedStyle.visibility);
+                    log('- opacity:', computedStyle.opacity);
+                    log('- position:', computedStyle.position);
+                    log('- z-index:', computedStyle.zIndex);
+                    
+                    // Check if content was actually inserted
+                    const vespaContainer = this.container.querySelector('.vespa-staff-container');
+                    log('VESPA container found after insertion:', !!vespaContainer);
+                    if (vespaContainer) {
+                        log('VESPA container dimensions:', vespaContainer.offsetHeight, 'x', vespaContainer.offsetWidth);
+                    }
+                    
                     this.state.currentView = 'list';
                     log('Main list view rendered successfully');
                 } catch (renderError) {
