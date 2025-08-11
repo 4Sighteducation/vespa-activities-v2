@@ -1775,14 +1775,14 @@
                         const activityList = activities.map(a => {
                             const cleanName = this.stripHtml(a.name || '');
                             return `${a.completed ? '✅' : '⭕'} ${cleanName}`;
-                        }).join('<br/>');
+                        }).join('\n');
                         
                         if (this.state.displayMode === 'scores') {
                             // Show scores mode - current display
                             return `
                                 <td class="vespa-data-cell">
-                                    <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${score.toFixed(1)}/10">
-                                        ${score.toFixed(1)}
+                                    <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${Math.round(score)}/10">
+                                        ${Math.round(score)}
                                     </div>
                                 </td>
                             `;
@@ -1791,8 +1791,7 @@
                             return `
                                 <td class="vespa-data-cell">
                                     <div class="vespa-activity-display ${cat}" 
-                                         title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Activities:<br/>${activityList}"
-                                         data-tooltip-html="true">
+                                         title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Activities:&#10;${activityList}">
                                         <span class="activity-ratio">${completedCount}/${totalCount}</span>
                                     </div>
                                 </td>

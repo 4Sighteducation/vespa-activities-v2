@@ -3769,6 +3769,9 @@
 /* Student info cell with integrated progress bar */
 .student-info-cell {
     padding: 12px 16px !important;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
 }
 
 .student-name {
@@ -3944,16 +3947,32 @@
     display: none !important;
 }
 
-/* Ensure table layout adjusts properly */
-.student-table {
-    table-layout: auto;
-}
+/* Remove old table layout rule - using fixed layout below */
 
 .vespa-data-cell {
     text-align: center;
     vertical-align: middle;
     padding: 8px 4px;
-    width: 60px;
+    width: 70px;
+    min-width: 70px;
+}
+
+/* VIEW column styling */
+.student-table th:last-child {
+    text-align: center;
+    width: 70px;
+    min-width: 70px;
+}
+
+/* Table layout improvements */
+.student-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.student-table th:first-child {
+    width: 40px;
+    min-width: 40px;
 }
 
 /* Action buttons column */
