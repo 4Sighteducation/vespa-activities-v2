@@ -1212,13 +1212,13 @@
             
             const activities = [];
             const objects = this.config.objects;
+            let page = 1; // Moved to function scope
             
             try {
                 // First try to load from JSON for complete data
                 await this.loadActivitiesFromJSON();
                 
                 // Load all pages of activity data from API
-                let page = 1;
                 let hasMorePages = true;
                 
                 while (hasMorePages) {
@@ -1359,14 +1359,6 @@
                 
                 // Bespoke curriculum tags
                 const rawCurriculum = record[fields.activityCurriculum + '_raw'] || record[fields.activityCurriculum];
-                
-                // Debug check for method existence
-                if (typeof this.parseCurriculumTags !== 'function') {
-                    console.error('[VESPA Staff Debug] parseCurriculumTags method not found on this object:', this);
-                    console.error('[VESPA Staff Debug] Available methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this)));
-                    return null;
-                }
-                
                 const curriculums = this.parseCurriculumTags(rawCurriculum, category);
 
                 const activity = {
