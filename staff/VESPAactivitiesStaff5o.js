@@ -1502,7 +1502,13 @@
         
         // Main render function
         render() {
-            if (!this.container) return;
+            log('Render called - container exists:', !!this.container);
+            if (!this.container) {
+                error('Render failed: No container found');
+                return;
+            }
+            
+            log('Current view:', this.state.currentView, 'Student ID:', this.state.currentStudentId);
             
             // Check which view to render
             if (this.state.currentView === 'workspace' && this.state.currentStudentId) {
@@ -1517,17 +1523,24 @@
                 }
             } else {
                 // Render the main list view (Page 1)
-                const html = `
-                    <div class="vespa-staff-container">
-                        ${this.renderHeader()}
-                        ${this.renderFilterBar()}
-                        ${this.renderStudentTable()}
-                        ${this.renderModals()}
-                    </div>
-                `;
-                
-                this.container.innerHTML = html;
-                this.state.currentView = 'list';
+                log('Rendering main list view');
+                try {
+                    const html = `
+                        <div class="vespa-staff-container">
+                            ${this.renderHeader()}
+                            ${this.renderFilterBar()}
+                            ${this.renderStudentTable()}
+                            ${this.renderModals()}
+                        </div>
+                    `;
+                    
+                    log('HTML generated, setting container innerHTML');
+                    this.container.innerHTML = html;
+                    this.state.currentView = 'list';
+                    log('Main list view rendered successfully');
+                } catch (renderError) {
+                    error('Error in render process:', renderError);
+                }
             }
             
             // Inject styles if not already present
