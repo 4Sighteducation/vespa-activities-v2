@@ -3729,3 +3729,225 @@
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 13px;
   }
+
+/* ========================================
+   NEW UI IMPROVEMENTS - Toggle & Layout
+   ======================================== */
+
+/* Display toggle buttons */
+.display-toggle {
+    display: flex;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 4px;
+    margin-right: 12px;
+}
+
+.toggle-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.toggle-btn.active {
+    background: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+}
+
+/* Student info cell with integrated progress bar */
+.student-info-cell {
+    padding: 12px 16px !important;
+}
+
+.student-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #212529;
+    margin-bottom: 4px;
+}
+
+.student-email {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.student-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.student-progress-bar .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Activity display mode styling */
+.vespa-activity-display {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vespa-activity-display:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.vespa-activity-display.vision {
+    background: #ff8f00;
+    color: white;
+}
+
+.vespa-activity-display.effort {
+    background: #86b4f0;
+    color: white;
+}
+
+.vespa-activity-display.systems {
+    background: #72cb44;
+    color: white;
+}
+
+.vespa-activity-display.practice {
+    background: #7f31a4;
+    color: white;
+}
+
+.vespa-activity-display.attitude {
+    background: #f032e6;
+    color: white;
+}
+
+/* Score display mode styling (existing but refined) */
+.vespa-score-display {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vespa-score-display:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.vespa-score-display.vision {
+    background: #ff8f00;
+    color: white;
+}
+
+.vespa-score-display.effort {
+    background: #86b4f0;
+    color: white;
+}
+
+.vespa-score-display.systems {
+    background: #72cb44;
+    color: white;
+}
+
+.vespa-score-display.practice {
+    background: #7f31a4;
+    color: white;
+}
+
+.vespa-score-display.attitude {
+    background: #f032e6;
+    color: white;
+}
+
+/* View button styling to match score boxes */
+.vespa-view-button {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: #17a2b8;
+    color: white;
+    border: none;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vespa-view-button:hover {
+    background: #138496;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23,162,184,0.3);
+}
+
+/* Success modal styling */
+.success-modal {
+    max-width: 400px;
+    border-radius: 12px;
+}
+
+.success-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 12px 12px 0 0;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.success-icon {
+    font-size: 24px;
+}
+
+.success-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+/* Remove old progress column styles if they exist */
+.progress-cell {
+    display: none !important;
+}
+
+/* Ensure table layout adjusts properly */
+.student-table {
+    table-layout: auto;
+}
+
+.vespa-data-cell {
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 4px;
+}
