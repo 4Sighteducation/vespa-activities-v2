@@ -120,34 +120,10 @@
             feedbackType: 'field_3567'
         },
         
-        // View IDs (Staff page)
-        views: {
-            container: 'view_3179',
-            activities: 'view_3178',
-            answers: 'view_3177'
-        }
+        // View IDs removed - using direct API calls only
     };
 
-    // Immediately hide data views to prevent flash of content before init
-    (function injectImmediateHideStyles() {
-        try {
-            if (!document.getElementById('vespa-staff-immediate-hide')) {
-                const style = document.createElement('style');
-                style.id = 'vespa-staff-immediate-hide';
-                style.textContent = `
-                    #view_3177, #view_3178,
-                    #view_3192, #view_3193, #view_3194, #view_3195, #view_3196 {
-                        display: none !important;
-                        visibility: hidden !important;
-                        opacity: 0 !important;
-                        height: 0 !important;
-                        overflow: hidden !important;
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-        } catch (_) { /* no-op */ }
-    })();
+    // View hiding removed - using direct API calls only
     
     // Utility functions
     const log = (...args) => {
@@ -217,12 +193,7 @@
                 objects: CONFIG.objects
             };
             
-            // Update CONFIG to use the values from KnackAppLoader (use correct keys; do not swap views)
-            if (this.config.views) {
-                CONFIG.views.container = this.config.views.richText || CONFIG.views.container;
-                CONFIG.views.activities = this.config.views.activities || CONFIG.views.activities;
-                CONFIG.views.answers = this.config.views.answers || CONFIG.views.answers;
-            }
+            // CONFIG.views update removed - using direct API calls only
             
             log('Using config:', this.config);
             
@@ -281,13 +252,13 @@
         
         // Find container view
         findContainer() {
-            // Try multiple selectors
+            // Try multiple selectors (no longer dependent on CONFIG.views)
             const selectors = [
-                `#${CONFIG.views.container}`,
-                `.kn-view[data-view-key="${CONFIG.views.container}"]`,
-                '#view_3168',
+                '#view_3179',  // Staff page container
+                '#view_3168',  // Alternative container
                 '.kn-details',
-                '.kn-text'
+                '.kn-text',
+                '.kn-view'
             ];
             
             for (const selector of selectors) {
@@ -496,148 +467,88 @@
         
         // Load students based on current role
         async loadStudents() {
-            log('Loading students from Knack API...');
+            log('Loading students directly from Knack API...');
             
             const studentData = [];
             const fields = this.config.fields;
             const objects = this.config.objects;
             
             try {
-                // First try to get data from the hidden student views for the current role
-                let studentViewId = null;
+                // Build filters based on role
+                let filters = [];
+                const user = Knack.session.user;
+                const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
+                
+                log('Building filters for role:', this.state.currentRole.type);
+                log('User email:', userEmail);
+                
+                // Use role record ID for filtering, not email
+                const roleId = this.state.currentRole.data?.id;
+                
                 switch (this.state.currentRole.type) {
                     case 'staffAdmin':
-                        studentViewId = 'view_3192';
+                        if (roleId && roleId !== 'test_id') {
+                            filters.push({
+                                field: fields.studentStaffAdmins,
+                                operator: 'contains',
+                                value: roleId
+                            });
+                            log('Staff admin filter:', { field: fields.studentStaffAdmins, value: roleId });
+                        } else {
+                            log('WARNING: No role ID found for staff admin filter');
+                        }
                         break;
                     case 'tutor':
-                        studentViewId = 'view_3193';
+                        if (roleId && roleId !== 'test_id') {
+                            filters.push({
+                                field: fields.studentTutors,
+                                operator: 'contains',
+                                value: roleId
+                            });
+                            log('Tutor filter:', { field: fields.studentTutors, value: roleId });
+                        } else {
+                            log('WARNING: No role ID found for tutor filter');
+                        }
                         break;
                     case 'headOfYear':
-                        studentViewId = 'view_3194';
+                        if (roleId && roleId !== 'test_id') {
+                            filters.push({
+                                field: fields.studentHeadsOfYear,
+                                operator: 'contains',
+                                value: roleId
+                            });
+                            log('Head of year filter:', { field: fields.studentHeadsOfYear, value: roleId });
+                        } else {
+                            log('WARNING: No role ID found for head of year filter');
+                        }
                         break;
                     case 'subjectTeacher':
-                        studentViewId = 'view_3195';
+                        if (roleId && roleId !== 'test_id') {
+                            filters.push({
+                                field: fields.studentSubjectTeachers,
+                                operator: 'contains',
+                                value: roleId
+                            });
+                            log('Subject teacher filter:', { field: fields.studentSubjectTeachers, value: roleId });
+                        } else {
+                            log('WARNING: No role ID found for subject teacher filter');
+                        }
                         break;
-                    default:
-                        studentViewId = null;
                 }
-
-                // Prefer Knack.views data (works for both details and table views)
-                let parsedFromKnackViews = false;
-                if (studentViewId && Knack.views && Knack.views[studentViewId]) {
-                    const viewObj = Knack.views[studentViewId];
-                    const models = viewObj?.model?.data?.models;
-                    const attributes = viewObj?.model?.attributes;
-                    if (Array.isArray(models) && models.length > 0) {
-                        log(`Found ${models.length} student models in Knack.views for ${studentViewId}`);
-                        models.forEach(m => {
-                            const record = m.attributes || m;
-                            const student = this.parseStudentFromRecord(record);
-                            if (student) studentData.push(student);
-                        });
-                        parsedFromKnackViews = studentData.length > 0;
-                    } else if (attributes && Object.keys(attributes).length > 0) {
-                        log(`Found single student record in Knack.views for ${studentViewId}`);
-                        const student = this.parseStudentFromRecord(attributes);
-                        if (student) studentData.push(student);
-                        parsedFromKnackViews = studentData.length > 0;
-                    }
-                }
-
-                // Fallback: parse from DOM rows if present
-                if (!parsedFromKnackViews && studentViewId) {
-                    const viewData = $(`#${studentViewId}`).find('.kn-table tbody tr, .kn-list-table tbody tr, .kn-list-content .kn-list-item');
-                    if (viewData.length > 0) {
-                        log('Found student data in DOM, parsing...');
-                        viewData.each((index, row) => {
-                            const $row = $(row);
-                            const recordId = $row.data('record-id') || $row.attr('id');
-                            if (recordId) {
-                                const student = this.parseStudentFromRow($row);
-                                if (student) studentData.push(student);
-                            }
-                        });
-                    }
-                }
-
-                if (studentData.length === 0) {
-                    // Fall back to API call
-                    log('No view data found, making API call...');
+                
+                log('Final filters:', filters);
+                
+                // Load all pages of student data
+                let page = 1;
+                let hasMorePages = true;
+                
+                while (hasMorePages) {
+                    log(`Loading students page ${page}...`);
                     
-                    // Build filters based on role
-                    let filters = [];
-                    const user = Knack.session.user;
-                    const userEmail = user.email || user.values?.field_70?.email || user.values?.email?.email;
-                    
-                    log('Building filters for role:', this.state.currentRole.type);
-                    log('User email:', userEmail);
-                    
-                    // Use role record ID for filtering, not email
-                    const roleId = this.state.currentRole.data?.id;
-                    
-                    switch (this.state.currentRole.type) {
-                        case 'staffAdmin':
-                            // Staff admins should only see their assigned students
-                            if (roleId && roleId !== 'test_id') {
-                                filters.push({
-                                    field: fields.studentStaffAdmins,
-                                    operator: 'contains',
-                                    value: roleId  // Use role record ID, not email
-                                });
-                                log('Staff admin filter:', { field: fields.studentStaffAdmins, value: roleId });
-                            } else {
-                                log('WARNING: No role ID found for staff admin filter');
-                            }
-                            break;
-                        case 'tutor':
-                            if (roleId && roleId !== 'test_id') {
-                                filters.push({
-                                    field: fields.studentTutors,
-                                    operator: 'contains',
-                                    value: roleId  // Use role record ID, not email
-                                });
-                                log('Tutor filter:', { field: fields.studentTutors, value: roleId });
-                            } else {
-                                log('WARNING: No role ID found for tutor filter');
-                            }
-                            break;
-                        case 'headOfYear':
-                            if (roleId && roleId !== 'test_id') {
-                                filters.push({
-                                    field: fields.studentHeadsOfYear,
-                                    operator: 'contains',
-                                    value: roleId  // Use role record ID, not email
-                                });
-                                log('Head of Year filter:', { field: fields.studentHeadsOfYear, value: roleId });
-                            } else {
-                                log('WARNING: No role ID found for head of year filter');
-                            }
-                            break;
-                        case 'subjectTeacher':
-                            if (roleId && roleId !== 'test_id') {
-                                filters.push({
-                                    field: fields.studentSubjectTeachers,
-                                    operator: 'contains',
-                                    value: roleId  // Use role record ID, not email
-                                });
-                                log('Subject Teacher filter:', { field: fields.studentSubjectTeachers, value: roleId });
-                            } else {
-                                log('WARNING: No role ID found for subject teacher filter');
-                            }
-                            break;
-                    }
-                    
-                    log('Final filters:', filters);
-                    
-                    // For staff admins with potentially large student counts, load less initially
-                    const isStaffAdmin = this.state.currentRole.type === 'staffAdmin';
-                    const initialLoadSize = isStaffAdmin ? 50 : 200; // Load fewer for staff admins
-                    
-                    // Make API call to get students
                     const requestData = {
                         filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
-                        page: 1,
-                        rows_per_page: initialLoadSize,
+                        page: page,
+                        rows_per_page: 1000,
                         sort_field: 'field_90', // Sort by name
                         sort_order: 'asc'
                     };
@@ -655,38 +566,32 @@
                         data: requestData
                     });
                     
-                    log('API Response:', response);
+                    log(`Students API Response page ${page}:`, response);
                     log('Number of records returned:', response.records ? response.records.length : 0);
                     log('Total records available:', response.total_records);
-                    
-                    // Update pagination state
-                    this.state.pagination.totalRecords = response.total_records || 0;
-                    this.state.pagination.totalPages = response.total_pages || 1;
-                    this.state.pagination.currentPage = response.current_page || 1;
-                    this.state.pagination.hasMore = response.current_page < response.total_pages;
                     
                     // Process each student record
                     if (response.records && response.records.length > 0) {
                         response.records.forEach((record, index) => {
-                            if (index === 0) {
+                            if (page === 1 && index === 0) {
                                 log('Sample student record:', record);
-                                // Log all field keys to debug
                                 log('Student record fields:', Object.keys(record).filter(key => key.startsWith('field_')));
-                                // Log specific fields we're looking for
-                                const fields = this.config.fields;
                                 log(`${fields.studentName} (name):`, record[fields.studentName]);
                                 log(`${fields.studentEmail} (email):`, record[fields.studentEmail]); 
                                 log(`${fields.prescribedActivities} (prescribed):`, record[fields.prescribedActivities]);
                                 log(`${fields.finishedActivities} (finished):`, record[fields.finishedActivities]);
-                                // Also check for raw values
-                                log('field_90_raw:', record.field_90_raw);
-                                log('field_91_raw:', record.field_91_raw);
                             }
                             const student = this.parseStudentFromRecord(record);
                             if (student) {
                                 studentData.push(student);
                             }
                         });
+                        
+                        // Check if there are more pages
+                        hasMorePages = response.records.length === 1000;
+                        page++;
+                    } else {
+                        hasMorePages = false;
                     }
                 }
                 
@@ -694,7 +599,6 @@
                 if (studentData.length === 0) {
                     log('No students found via API');
                     
-                    // Only create test data if explicitly enabled
                     if (this.config.enableTestData) {
                         log('Creating test data (enableTestData is true)...');
                         for (let i = 0; i < 5; i++) {
@@ -706,7 +610,7 @@
                                 finishedActivities: ['Activity 1', 'Activity 2'],
                                 prescribedCount: 5,
                                 completedCount: 2,
-                                progress: 5,  // 2/40 * 100
+                                progress: 5,
                                 vespaScores: {
                                     vision: 7.5,
                                     effort: 8.0,
@@ -718,10 +622,8 @@
                         }
                     } else {
                         log('No test data created (enableTestData is false or undefined)');
-                        // Show helpful debug info
                         log('Current role:', this.state.currentRole);
                         log('Role ID used for filtering:', this.state.currentRole.data?.id);
-                        log('Filter field used:', fields.studentTutors);
                     }
                 }
                 
@@ -729,7 +631,6 @@
                 error('Failed to load students:', err);
                 log('Error details:', err.responseJSON || err.responseText || err);
                 
-                // Check if it's an API key/authentication issue
                 if (err.status === 401 || err.status === 403) {
                     error('Authentication error - check API keys');
                 }
@@ -755,94 +656,12 @@
                     });
                 }
             }
-            
-            // If we loaded from views, enrich with full records via API to ensure connection fields exist
-            try {
-                const idsToEnrich = studentData.map(s => s.id).filter(Boolean);
-                if (idsToEnrich.length > 0) {
-                    const orRules = idsToEnrich.map(id => ({ field: 'id', operator: 'is', value: id }));
-                    const filters = [{ match: 'or', rules: orRules }];
-                    const response = await $.ajax({
-                        url: `https://api.knack.com/v1/objects/${objects.student}/records`,
-                        type: 'GET',
-                        headers: {
-                            'X-Knack-Application-Id': this.config.knackAppId,
-                            'X-Knack-REST-API-Key': this.config.knackApiKey
-                        },
-                        data: { filters: JSON.stringify(filters), page: 1, rows_per_page: idsToEnrich.length }
-                    });
-                    const byId = new Map((response.records || []).map(r => [r.id, r]));
-                    // Re-parse prescribed/finished from full records
-                    this.state.activities = this.state.activities || [];
-                    for (let i = 0; i < studentData.length; i++) {
-                        const base = studentData[i];
-                        const full = byId.get(base.id);
-                        if (!full) continue;
-                        const enriched = this.parseStudentFromRecord(full);
-                        if (enriched) {
-                            // Preserve name/email if parse returns minimal
-                            enriched.name = enriched.name || base.name;
-                            enriched.email = enriched.email || base.email;
-                            studentData[i] = enriched;
-                        }
-                    }
-                }
-            } catch (enrichErr) {
-                log('Warning: enrich step failed, continuing with basic view data', enrichErr);
-            }
 
             this.state.students = studentData;
-            log(`Loaded ${studentData.length} students`);
+            log(`Loaded ${studentData.length} students across ${page - 1} pages`);
         }
         
-        // Parse student data from table row
-        parseStudentFromRow($row) {
-            try {
-                const fields = this.config.fields;
-                
-                // Extract data from row cells
-                const cells = $row.find('td');
-                let student = {
-                    id: $row.data('record-id') || $row.attr('id'),
-                    name: '',
-                    email: '',
-                    prescribedCount: 0,
-                    completedCount: 0,
-                    vespaScores: {
-                        vision: 0,
-                        effort: 0,
-                        systems: 0,
-                        practice: 0,
-                        attitude: 0
-                    }
-                };
-                
-                // Try to find fields in cells
-                cells.each((index, cell) => {
-                    const $cell = $(cell);
-                    const text = $cell.text().trim();
-                    
-                    // Look for student name (usually first cell)
-                    if (index === 0 && text) {
-                        student.name = text;
-                    }
-                    
-                    // Look for email
-                    if (text.includes('@')) {
-                        student.email = text;
-                    }
-                });
-                
-                // Calculate progress based on 40 activities baseline
-                const totalActivitiesBaseline = 40;
-                student.progress = Math.round((student.completedCount / totalActivitiesBaseline) * 100);
-                
-                return student;
-            } catch (err) {
-                error('Error parsing student from row:', err);
-                return null;
-            }
-        }
+        // parseStudentFromRow method removed - using direct API calls only
         
         // Helper to get field value (handles both direct and _raw fields)
         getFieldValue(record, fieldKey, defaultValue = '') {
@@ -1389,7 +1208,7 @@
         
         // Load all activities
         async loadActivities() {
-            log('Loading activities...');
+            log('Loading activities directly from Knack API...');
             
             const activities = [];
             const objects = this.config.objects;
@@ -1398,46 +1217,12 @@
                 // First try to load from JSON for complete data
                 await this.loadActivitiesFromJSON();
                 
-                // Try to get data from the hidden view - check staff page views first
-                const possibleViewIds = [CONFIG.views.activities];
-                let viewData = $();
+                // Load all pages of activity data from API
+                let page = 1;
+                let hasMorePages = true;
                 
-                for (const viewId of possibleViewIds) {
-                    const data = $(`#${viewId}`).find('.kn-list-table tbody tr, .kn-table tbody tr, .kn-list-content .kn-list-item');
-                    if (data.length > 0) {
-                        log(`Found ${data.length} items in ${viewId}`);
-                        viewData = data;
-                        break;
-                    }
-                }
-                
-                if (viewData.length > 0) {
-                    log(`Processing ${viewData.length} activity items from view`);
-                    viewData.each((index, row) => {
-                        const $row = $(row);
-                        const activity = this.parseActivityFromRow($row);
-                        if (activity) {
-                            // Try to match with JSON data for complete information
-                            if (this.state.activitiesData) {
-                                const jsonActivity = this.state.activitiesData.find(
-                                    a => a.Activity_id === activity.id || a.id === activity.id ||
-                                    a['Activities Name'] === activity.name || a.name === activity.name
-                                );
-                                if (jsonActivity) {
-                                    // Enrich with JSON data
-                                    activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
-                                    activity.media = jsonActivity.media;
-                                    activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
-                                    activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
-                                    activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
-                                }
-                            }
-                            activities.push(activity);
-                        }
-                    });
-                } else {
-                    // Fall back to API call
-                    log('No view data found, making API call for activities...');
+                while (hasMorePages) {
+                    log(`Loading activities page ${page}...`);
                     
                     const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.activities}/records`,
@@ -1447,27 +1232,28 @@
                             'X-Knack-REST-API-Key': this.config.knackApiKey
                         },
                         data: {
-                            page: 1,
+                            page: page,
                             rows_per_page: 1000
                         }
                     });
                     
-                    log('Activities API Response:', response);
+                    log(`Activities API Response page ${page}:`, response);
                     
                     // Process each activity record
                     if (response.records && response.records.length > 0) {
                         response.records.forEach((record) => {
                             const activity = this.parseActivityFromRecord(record);
                             if (activity) {
-                                // Try to match with JSON data
+                                // Try to match with JSON data for complete information
                                 if (this.state.activitiesData) {
                                     const jsonActivity = this.state.activitiesData.find(
-                                        a => a.Activity_id === activity.id || a.id === activity.id
+                                        a => a.Activity_id === activity.id || a.id === activity.id ||
+                                        a['Activities Name'] === activity.name || a.name === activity.name
                                     );
                                     if (jsonActivity) {
+                                        // Enrich with JSON data
                                         activity.hasBackgroundContent = !!(jsonActivity.background_content || jsonActivity.background);
                                         activity.media = jsonActivity.media;
-                                        // Map extra fields when present
                                         activity.level = parseInt((jsonActivity.Level || jsonActivity.level || '').toString().replace('Level ', '')) || activity.level;
                                         activity.scoreShowIfMoreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || activity.scoreShowIfMoreThan;
                                         activity.scoreShowIfLessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || activity.scoreShowIfLessEqual;
@@ -1476,50 +1262,56 @@
                                 activities.push(activity);
                             }
                         });
+                        
+                        // Check if there are more pages
+                        hasMorePages = response.records.length === 1000;
+                        page++;
+                    } else {
+                        hasMorePages = false;
                     }
                 }
                 
-                            // If still no activities but we have JSON data, use that
-            if (activities.length === 0) {
-                if (this.state.activitiesData && this.state.activitiesData.length > 0) {
-                    log('No activities from view/API, using JSON data...');
-                    this.state.activitiesData.forEach(jsonActivity => {
-                        const id = jsonActivity.Activity_id || jsonActivity.id;
-                        const name = jsonActivity['Activities Name'] || jsonActivity.field_1278 || jsonActivity.name;
-                        const category = jsonActivity['VESPA Category'] || jsonActivity.field_1285 || jsonActivity.category || 'General';
-                        const rawLevel = jsonActivity.Level || jsonActivity.field_3568 || jsonActivity.field_1295 || 1;
-                        const level = parseInt(rawLevel.toString().replace('Level ', '')) || 1;
-                        const moreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || 0;
-                        const lessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || 0;
-                        if (id && name) {
-                            activities.push({
-                                id,
-                                name,
-                                category,
-                                level,
-                                hasBackgroundContent: !!(jsonActivity.background_content || jsonActivity.background),
-                                media: jsonActivity.media,
-                                scoreShowIfMoreThan: moreThan,
-                                scoreShowIfLessEqual: lessEqual
-                            });
-                        }
-                    });
-                } else {
-                    // No JSON data either, use embedded activities directly
-                    log('No activities from any source, using embedded activities...');
-                    const embeddedActivities = this.getEmbeddedActivities();
-                    embeddedActivities.forEach(activity => {
-                        activities.push({
-                            id: activity.Activity_id,
-                            name: activity['Activities Name'],
-                            category: activity['VESPA Category'],
-                            level: parseInt(activity.Level?.replace('Level ', '')) || 1,
-                            hasBackgroundContent: !!activity.background_content,
-                            media: activity.media
+                // If still no activities but we have JSON data, use that
+                if (activities.length === 0) {
+                    if (this.state.activitiesData && this.state.activitiesData.length > 0) {
+                        log('No activities from API, using JSON data...');
+                        this.state.activitiesData.forEach(jsonActivity => {
+                            const id = jsonActivity.Activity_id || jsonActivity.id;
+                            const name = jsonActivity['Activities Name'] || jsonActivity.field_1278 || jsonActivity.name;
+                            const category = jsonActivity['VESPA Category'] || jsonActivity.field_1285 || jsonActivity.category || 'General';
+                            const rawLevel = jsonActivity.Level || jsonActivity.field_3568 || jsonActivity.field_1295 || 1;
+                            const level = parseInt(rawLevel.toString().replace('Level ', '')) || 1;
+                            const moreThan = parseFloat(jsonActivity.field_1287 || jsonActivity.scoreMoreThan || 0) || 0;
+                            const lessEqual = parseFloat(jsonActivity.field_1294 || jsonActivity.scoreLessEqual || 0) || 0;
+                            if (id && name) {
+                                activities.push({
+                                    id,
+                                    name,
+                                    category,
+                                    level,
+                                    hasBackgroundContent: !!(jsonActivity.background_content || jsonActivity.background),
+                                    media: jsonActivity.media,
+                                    scoreShowIfMoreThan: moreThan,
+                                    scoreShowIfLessEqual: lessEqual
+                                });
+                            }
                         });
-                    });
+                    } else {
+                        // No JSON data either, use embedded activities directly
+                        log('No activities from any source, using embedded activities...');
+                        const embeddedActivities = this.getEmbeddedActivities();
+                        embeddedActivities.forEach(activity => {
+                            activities.push({
+                                id: activity.Activity_id,
+                                name: activity['Activities Name'],
+                                category: activity['VESPA Category'],
+                                level: parseInt(activity.Level?.replace('Level ', '')) || 1,
+                                hasBackgroundContent: !!activity.background_content,
+                                media: activity.media
+                            });
+                        });
+                    }
                 }
-            }
                 
             } catch (err) {
                 error('Failed to load activities:', err);
@@ -1527,72 +1319,10 @@
             }
             
             this.state.activities = activities;
-            log(`Loaded ${activities.length} activities`);
+            log(`Loaded ${activities.length} activities across ${page - 1} pages`);
         }
         
-        // Parse activity data from table row
-        parseActivityFromRow($row) {
-            try {
-                // Get the record ID from row attributes
-                let activityId = $row.data('record-id') || $row.attr('id') || '';
-                
-                // Clean up the ID if it has a prefix like "row-"
-                if (activityId.startsWith('row-')) {
-                    activityId = activityId.substring(4);
-                }
-                
-                const cells = $row.find('td');
-                const activity = {
-                    id: activityId,
-                    name: '',
-                    category: 'Unknown',
-                    level: 1,
-                    duration: 'N/A',
-                    type: 'Activity'
-                };
-                
-                // Try to extract activity data from cells
-                cells.each((index, cell) => {
-                    const $cell = $(cell);
-                    const text = $cell.text().trim();
-                    
-                    // First cell is usually the activity name
-                    if (index === 0 && text) {
-                        activity.name = this.stripHtml(text);
-                    }
-                    
-                    // Look for category in cell classes or content
-                    const cellClass = $cell.attr('class') || '';
-                    if (cellClass.includes('field_1285') || cellClass.includes('category')) {
-                        activity.category = this.stripHtml(text);
-                    }
-                    
-                    // Look for level
-                    if (cellClass.includes('field_1295') || cellClass.includes('level')) {
-                        const levelMatch = text.match(/\d+/);
-                        if (levelMatch) {
-                            activity.level = parseInt(levelMatch[0]);
-                        }
-                    }
-                });
-                
-                // If category not found in cells, try to detect from name
-                if (activity.category === 'Unknown' && activity.name) {
-                    const nameUpper = activity.name.toUpperCase();
-                    if (nameUpper.includes('VISION')) activity.category = 'Vision';
-                    else if (nameUpper.includes('EFFORT')) activity.category = 'Effort';
-                    else if (nameUpper.includes('SYSTEM')) activity.category = 'Systems';
-                    else if (nameUpper.includes('PRACTICE')) activity.category = 'Practice';
-                    else if (nameUpper.includes('ATTITUDE')) activity.category = 'Attitude';
-                }
-                
-                log(`Parsed activity from row: ${activity.name} (${activity.id})`);
-                return activity;
-            } catch (err) {
-                error('Error parsing activity from row:', err);
-                return null;
-            }
-        }
+        // parseActivityFromRow method removed - using direct API calls only
         
         // Parse activity data from API record
         parseActivityFromRecord(record) {
@@ -3004,22 +2734,13 @@
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             try {
-                // Try scraping if present (harmless fallback)
-                const viewData = $(`#${CONFIG.views.activities}`).find(`.kn-list-item[data-activity-id="${activityId}"], .kn-table tbody tr[data-activity-id="${activityId}"]`);
-                if (viewData.length > 0) {
-                    const scraped = [];
-                    viewData.find('.question-item, .field_1279').each((index, elem) => {
-                        const $elem = $(elem);
-                        scraped.push({ id: `q_${index}`, question: $elem.text().trim(), type: 'text', options: '', order: index });
-                    });
-                    if (scraped.length > 0) return scraped;
-                }
-
                 // Filter Object_45 by connection to activity NAME (field_1286)
                 const activity = this.state.activities.find(a => a.id === activityId);
                 const activityName = activity ? activity.name : '';
                 if (!activityName) {
                     log('No activity name found for questions lookup');
+                    // Fallback to generated defaults
+                    return activity ? this.generateDefaultQuestions(activity) : [];
                 }
 
                 const response = await $.ajax({
@@ -4882,15 +4603,7 @@
         
         log('Initializing VESPA Activities Staff Management', config);
         
-        // Hide data views immediately (use staff page views)
-        const viewsToHide = [CONFIG.views.activities, CONFIG.views.answers];
-        viewsToHide.forEach(viewId => {
-            const viewElement = document.querySelector(`#${viewId}`);
-            if (viewElement) {
-                viewElement.style.display = 'none';
-                log('Immediately hid view:', viewId);
-            }
-        });
+        // View hiding removed - using direct API calls only
         
         try {
             // Initialize immediately like the student version
