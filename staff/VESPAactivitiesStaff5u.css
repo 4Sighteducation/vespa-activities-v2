@@ -4012,3 +4012,275 @@
     font-weight: 500;
     color: #6c757d;
 }
+
+/* ========================================
+   ACTIVITY SERIES MODAL STYLING
+   ======================================== */
+
+/* Activity Series button styling */
+.btn-activity-series {
+    background: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-activity-series:hover {
+    background: #5a359a;
+    transform: translateY(-1px);
+}
+
+/* Activity Series Modal */
+.activity-series-modal {
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.problems-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.problems-header p {
+    color: #6c757d;
+    margin: 8px 0 0 0;
+}
+
+.problems-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.problem-category {
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.category-header {
+    margin: 0;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+}
+
+.category-header.vision {
+    background: linear-gradient(135deg, #ff8f00 0%, #ff6f00 100%);
+}
+
+.category-header.effort {
+    background: linear-gradient(135deg, #86b4f0 0%, #5e9ceb 100%);
+}
+
+.category-header.systems {
+    background: linear-gradient(135deg, #72cb44 0%, #5cb85c 100%);
+}
+
+.category-header.practice {
+    background: linear-gradient(135deg, #7f31a4 0%, #6a1b9a 100%);
+}
+
+.category-header.attitude {
+    background: linear-gradient(135deg, #f032e6 0%, #e91e63 100%);
+}
+
+.category-icon {
+    font-size: 20px;
+}
+
+.problems-list {
+    padding: 0;
+}
+
+.problem-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f8f9fa;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.problem-item:hover {
+    background: #f8f9fa;
+    transform: translateX(4px);
+}
+
+.problem-item:last-child {
+    border-bottom: none;
+}
+
+.problem-text {
+    flex: 1;
+    color: #495057;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.problem-arrow {
+    color: #6c757d;
+    font-size: 18px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.problem-item:hover .problem-arrow {
+    color: #007bff;
+    transform: translateX(4px);
+}
+
+/* Activity Selection Modal */
+.activity-selection-modal {
+    max-width: 900px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.problem-context {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    border-left: 4px solid #007bff;
+}
+
+.problem-context p {
+    margin: 0;
+    color: #495057;
+}
+
+.activities-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.activities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.activity-card-compact {
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    padding: 16px;
+    background: white;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.activity-card-compact:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0,123,255,0.15);
+}
+
+.activity-card-compact input[type="checkbox"] {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.activity-info h4 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #212529;
+    padding-right: 30px;
+}
+
+.activity-category {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    margin: 0;
+}
+
+.activity-category.vision {
+    background: #ff8f00;
+}
+
+.activity-category.effort {
+    background: #86b4f0;
+}
+
+.activity-category.systems {
+    background: #72cb44;
+}
+
+.activity-category.practice {
+    background: #7f31a4;
+}
+
+.activity-category.attitude {
+    background: #f032e6;
+}
+
+.selection-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.main-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.no-recommendations {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 40px 20px;
+}
+
+/* Enhanced header actions */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search-activities-compact {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 200px;
+}
+
+.btn-clear-all-compact {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-clear-all-compact:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}

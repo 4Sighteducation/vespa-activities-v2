@@ -162,6 +162,7 @@
                 sortColumn: 'name',
                 sortDirection: 'asc',
                 isLoading: false,
+                displayMode: 'activities', // 'activities' or 'scores'
                 // Pagination state
                 pagination: {
                     currentPage: 1,
@@ -1673,6 +1674,16 @@
                         <label><input type="checkbox" onchange="VESPAStaff.toggleSelectAll(this.checked)"> Select all (filtered)</label>
                         <button class="btn" onclick="VESPAStaff.clearSelection()">Clear selection</button>
                         <button class="btn btn-primary" onclick="VESPAStaff.openBulkAdd()">Add activities to selected</button>
+                        <div class="display-toggle">
+                            <button class="toggle-btn ${this.state.displayMode === 'activities' ? 'active' : ''}" 
+                                    onclick="VESPAStaff.setDisplayMode('activities')">
+                                Activities
+                            </button>
+                            <button class="toggle-btn ${this.state.displayMode === 'scores' ? 'active' : ''}" 
+                                    onclick="VESPAStaff.setDisplayMode('scores')">
+                                Scores
+                            </button>
+                        </div>
                         <span class="selection-count">${this.state.selectedStudents.size} selected</span>
                     </div>
                     <table class="student-table">
@@ -1682,10 +1693,6 @@
                                 <th class="sortable ${this.getSortClass('name')}" 
                                     onclick="VESPAStaff.sort('name')">
                                     Student Name
-                                </th>
-                                <th class="sortable ${this.getSortClass('progress')}" 
-                                    onclick="VESPAStaff.sort('progress')">
-                                    Progress
                                 </th>
                                 <!-- Combined VESPA Category Columns -->
                                 <th class="vespa-column vision">
@@ -1751,15 +1758,11 @@
             return `
                 <tr data-student-id="${student.id}">
                     <td><input type="checkbox" ${this.state.selectedStudents.has(student.id) ? 'checked' : ''} onchange="VESPAStaff.toggleStudentSelection('${student.id}', this.checked)"></td>
-                    <td>
+                    <td class="student-info-cell">
                         <div class="student-name">${student.name}</div>
                         <div class="student-email">${student.email}</div>
-                    </td>
-                    <td class="progress-cell">
-                        <div class="progress-container">
-                            <div class="progress-bar" title="${student.completedCount} of ${student.prescribedCount} curriculum activities completed">
-                                <div class="progress-fill" style="width: ${student.progress}%"></div>
-                            </div>
+                        <div class="student-progress-bar" title="${student.completedCount} of ${student.prescribedCount} curriculum activities completed">
+                            <div class="progress-fill" style="width: ${student.progress}%"></div>
                         </div>
                     </td>
                     ${categories.map(cat => {
@@ -1768,25 +1771,39 @@
                         const totalCount = activities.length;
                         const score = vespaScores[cat] || 0;
                         
-                        return `
-                            <td class="vespa-data-cell">
-                                <div class="vespa-combined-data">
-                                    <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${score.toFixed(1)}/10">
-                                        ${score.toFixed(1)}
+                        // Generate activity list for tooltip (clean HTML tags)
+                        const activityList = activities.map(a => {
+                            const cleanName = this.stripHtml(a.name || '');
+                            return `${a.completed ? '✅' : '⭕'} ${cleanName}`;
+                        }).join('\n');
+                        
+                        if (this.state.displayMode === 'scores') {
+                            // Show scores mode - current display
+                            return `
+                                <td class="vespa-data-cell">
+                                    <div class="vespa-score-display ${cat}" title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Score: ${Math.round(score)}/10">
+                                        ${Math.round(score)}
                                     </div>
-                                    <div class="activity-count-display" title="${completedCount} of ${totalCount} ${cat} activities completed">
-                                        <span class="count-completed">${completedCount}</span>/<span class="count-total">${totalCount}</span>
+                                </td>
+                            `;
+                        } else {
+                            // Show activities mode - completed/total ratio with hover
+                            return `
+                                <td class="vespa-data-cell">
+                                    <div class="vespa-activity-display ${cat}" 
+                                         title="${cat.charAt(0).toUpperCase() + cat.slice(1)} Activities:&#10;${activityList}">
+                                        <span class="activity-ratio">${completedCount}/${totalCount}</span>
                                     </div>
-                                </div>
-                            </td>
-                        `;
+                                </td>
+                            `;
+                        }
                     }).join('')}
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-action btn-primary" 
+                            <button class="vespa-view-button view-btn" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
                                     title="View activities for this student">
-                                👁️ View
+                                👁️
                             </button>
                         </div>
                     </td>
@@ -2011,6 +2028,352 @@
             }
         }
         
+        // Show success modal
+        showSuccessModal(title, message, callback = null) {
+            const modalHtml = `
+                <div class="modal-overlay" id="success-modal" onclick="staffManager.closeSuccessModal()">
+                    <div class="modal-content success-modal" onclick="event.stopPropagation()">
+                        <div class="modal-header success-header">
+                            <div class="success-icon">✅</div>
+                            <h3>${title}</h3>
+                            <button class="modal-close" onclick="staffManager.closeSuccessModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p>${message}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="staffManager.closeSuccessModal()">OK</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to body
+            const modalElement = document.createElement('div');
+            modalElement.innerHTML = modalHtml;
+            document.body.appendChild(modalElement.firstElementChild);
+            
+            // Store callback for when modal is closed
+            this.successCallback = callback;
+        }
+        
+        closeSuccessModal() {
+            const modal = document.getElementById('success-modal');
+            if (modal) {
+                modal.remove();
+            }
+            
+            // Execute callback if provided
+            if (this.successCallback) {
+                this.successCallback();
+                this.successCallback = null;
+            }
+        }
+        
+        // Set display mode (activities or scores)
+        setDisplayMode(mode) {
+            if (mode !== 'activities' && mode !== 'scores') return;
+            
+            this.state.displayMode = mode;
+            this.render();
+        }
+        
+        // Show Activity Series modal for problem-based selection
+        async showActivitySeriesModal(studentId) {
+            try {
+                // Load problem mappings if not already loaded
+                if (!this.problemMappings) {
+                    await this.loadProblemMappings();
+                }
+                
+                const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
+                
+                const modalHtml = `
+                    <div class="modal-overlay" id="activity-series-modal" onclick="this.closeActivitySeriesModal()">
+                        <div class="modal-content activity-series-modal" onclick="event.stopPropagation()">
+                            <div class="modal-header">
+                                <h3>🎯 Activity Series - Problem-Based Selection</h3>
+                                <button class="modal-close" onclick="VESPAStaff.closeActivitySeriesModal()">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="problems-header">
+                                    <p>Select a challenge the student is facing to get targeted activity recommendations:</p>
+                                </div>
+                                
+                                <div class="problems-categories">
+                                    ${categories.map(category => `
+                                        <div class="problem-category">
+                                            <h4 class="category-header ${category.toLowerCase()}">
+                                                <span class="category-icon">${this.getCategoryEmoji(category.toLowerCase())}</span>
+                                                ${category}
+                                            </h4>
+                                            <div class="problems-list">
+                                                ${this.renderProblemsForCategory(category, studentId)}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add to body
+                const modalElement = document.createElement('div');
+                modalElement.innerHTML = modalHtml;
+                document.body.appendChild(modalElement.firstElementChild);
+                
+            } catch (err) {
+                error('Failed to show activity series modal:', err);
+                this.showSuccessModal('Error', 'Failed to load activity series. Please try again.');
+            }
+        }
+        
+        // Render problems for a specific category (converted to 3rd person)
+        renderProblemsForCategory(category, studentId) {
+            const problems = this.problemMappings?.[category] || [];
+            
+            return problems.map(problem => {
+                // Convert first person to third person
+                const thirdPersonText = this.convertToThirdPerson(problem.text);
+                
+                return `
+                    <div class="problem-item" onclick="VESPAStaff.selectProblemForStudent('${problem.id}', '${category}', '${studentId}')">
+                        <span class="problem-text">${thirdPersonText}</span>
+                        <span class="problem-arrow">→</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Convert first person problem text to third person
+        convertToThirdPerson(text) {
+            return text
+                .replace(/^I'm /g, 'Student is ')
+                .replace(/^I /g, 'Student ')
+                .replace(/ I /g, ' they ')
+                .replace(/\bmy\b/g, 'their')
+                .replace(/\bme\b/g, 'them')
+                .replace(/^I don't/g, 'Student doesn\'t')
+                .replace(/^I can't/g, 'Student can\'t')
+                .replace(/^I find/g, 'Student finds')
+                .replace(/^I struggle/g, 'Student struggles')
+                .replace(/^I often/g, 'Student often')
+                .replace(/^I rarely/g, 'Student rarely')
+                .replace(/^I tend/g, 'Student tends')
+                .replace(/^I avoid/g, 'Student avoids')
+                .replace(/^I put/g, 'Student puts')
+                .replace(/^I keep/g, 'Student keeps')
+                .replace(/^I leave/g, 'Student leaves')
+                .replace(/^I worry/g, 'Student worries')
+                .replace(/^I get/g, 'Student gets')
+                .replace(/^I tell/g, 'Student tells')
+                .replace(/^I haven't/g, 'Student hasn\'t');
+        }
+        
+        // Handle problem selection for student
+        async selectProblemForStudent(problemId, category, studentId) {
+            try {
+                // Find the problem details
+                const problem = this.problemMappings?.[category]?.find(p => p.id === problemId);
+                
+                if (!problem) {
+                    this.showSuccessModal('Error', 'Problem not found');
+                    return;
+                }
+                
+                // Find recommended activities by name
+                const recommendedActivityNames = problem.recommendedActivities || [];
+                const recommendedActivities = this.state.activities.filter(activity => 
+                    recommendedActivityNames.includes(activity.name)
+                );
+                
+                // Close the first modal
+                this.closeActivitySeriesModal();
+                
+                // Show activity selection modal
+                this.showActivitySelectionModal(problem, recommendedActivities, studentId);
+                
+            } catch (err) {
+                error('Failed to select problem:', err);
+                this.showSuccessModal('Error', 'Failed to load recommendations. Please try again.');
+            }
+        }
+        
+        // Show activity selection modal with Add All / Replace All options
+        showActivitySelectionModal(problem, activities, studentId) {
+            const thirdPersonText = this.convertToThirdPerson(problem.text);
+            
+            const modalHtml = `
+                <div class="modal-overlay" id="activity-selection-modal" onclick="this.closeActivitySelectionModal()">
+                    <div class="modal-content activity-selection-modal" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h3>💡 Recommended Activities</h3>
+                            <button class="modal-close" onclick="VESPAStaff.closeActivitySelectionModal()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="problem-context">
+                                <p><strong>For:</strong> "${thirdPersonText}"</p>
+                            </div>
+                            
+                            <div class="activities-selection">
+                                ${activities.length > 0 ? `
+                                    <div class="activities-grid">
+                                        ${activities.map((activity, index) => `
+                                            <div class="activity-card-compact" data-activity-id="${activity.id}">
+                                                <input type="checkbox" class="activity-checkbox" value="${activity.id}" checked>
+                                                <div class="activity-info">
+                                                    <h4>${activity.name}</h4>
+                                                    <p class="activity-category ${(activity.category || activity.VESPACategory || '').toLowerCase()}">
+                                                        ${(activity.category || activity.VESPACategory || '').charAt(0).toUpperCase() + (activity.category || activity.VESPACategory || '').slice(1)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                    
+                                    <div class="selection-actions">
+                                        <button class="btn btn-secondary" onclick="VESPAStaff.toggleAllActivities()">
+                                            Select All / None
+                                        </button>
+                                        <div class="main-actions">
+                                            <button class="btn btn-primary" onclick="VESPAStaff.addSelectedActivities('${studentId}')">
+                                                ➕ Add Selected
+                                            </button>
+                                            <button class="btn btn-warning" onclick="VESPAStaff.replaceAllActivities('${studentId}')">
+                                                🔄 Replace All
+                                            </button>
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <p class="no-recommendations">No specific activities found for this challenge. Try browsing all activities manually.</p>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to body
+            const modalElement = document.createElement('div');
+            modalElement.innerHTML = modalHtml;
+            document.body.appendChild(modalElement.firstElementChild);
+        }
+        
+        // Close activity series modal
+        closeActivitySeriesModal() {
+            const modal = document.getElementById('activity-series-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Close activity selection modal
+        closeActivitySelectionModal() {
+            const modal = document.getElementById('activity-selection-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        // Toggle all activity checkboxes
+        toggleAllActivities() {
+            const checkboxes = document.querySelectorAll('#activity-selection-modal .activity-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+            });
+        }
+        
+        // Add selected activities to student
+        async addSelectedActivities(studentId) {
+            const checkboxes = document.querySelectorAll('#activity-selection-modal .activity-checkbox:checked');
+            const selectedActivityIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedActivityIds.length === 0) {
+                this.showSuccessModal('No Selection', 'Please select at least one activity to add.');
+                return;
+            }
+            
+            try {
+                // Add activities to student
+                await this.updateStudentPrescribedActivities(studentId, selectedActivityIds, 'add');
+                
+                this.closeActivitySelectionModal();
+                this.showSuccessModal('Success', `Added ${selectedActivityIds.length} activities to student.`);
+                
+                // Refresh the workspace
+                await this.refreshStudentWorkspace(studentId);
+                
+            } catch (err) {
+                error('Failed to add activities:', err);
+                this.showSuccessModal('Error', 'Failed to add activities. Please try again.');
+            }
+        }
+        
+        // Replace all student activities with selected ones
+        async replaceAllActivities(studentId) {
+            const checkboxes = document.querySelectorAll('#activity-selection-modal .activity-checkbox:checked');
+            const selectedActivityIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (selectedActivityIds.length === 0) {
+                this.showSuccessModal('No Selection', 'Please select at least one activity to replace with.');
+                return;
+            }
+            
+            try {
+                // Replace all activities
+                await this.updateStudentPrescribedActivities(studentId, selectedActivityIds, 'replace');
+                
+                this.closeActivitySelectionModal();
+                this.showSuccessModal('Success', `Replaced all activities with ${selectedActivityIds.length} selected activities.`);
+                
+                // Refresh the workspace
+                await this.refreshStudentWorkspace(studentId);
+                
+            } catch (err) {
+                error('Failed to replace activities:', err);
+                this.showSuccessModal('Error', 'Failed to replace activities. Please try again.');
+            }
+        }
+        
+        // Load problem mappings from JSON file
+        async loadProblemMappings() {
+            try {
+                const response = await fetch('https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/vespa-problem-activity-mappings1a.json');
+                const data = await response.json();
+                this.problemMappings = data.problemMappings;
+                log('Problem mappings loaded:', this.problemMappings);
+            } catch (err) {
+                error('Failed to load problem mappings:', err);
+                // Fallback to empty mappings
+                this.problemMappings = {};
+            }
+        }
+        
+        // Get category emoji
+        getCategoryEmoji(category) {
+            const emojis = {
+                vision: '👁️',
+                effort: '💪',
+                systems: '⚙️',
+                practice: '🎯',
+                attitude: '🧠'
+            };
+            return emojis[category.toLowerCase()] || '📚';
+        }
+        
+        // Refresh student workspace after changes
+        async refreshStudentWorkspace(studentId) {
+            const student = this.state.students.find(s => s.id === studentId);
+            if (student) {
+                const responses = await this.loadStudentResponses(studentId);
+                const progressByActivity = await this.loadLatestProgressByActivity(studentId);
+                this.showStudentWorkspace(student, responses, progressByActivity);
+            }
+        }
+        
         // Public methods (exposed to global scope for event handlers)
         updateSearch(value) {
             this.state.filters.search = value;
@@ -2190,8 +2553,11 @@
                                    class="search-activities-compact" 
                                    placeholder="Search activities..."
                                    onkeyup="VESPAStaff.filterAllActivities(this.value)">
+                            <button class="btn-activity-series" onclick="VESPAStaff.showActivitySeriesModal('${student.id}')">
+                                🎯 Activity Series
+                            </button>
                             <button class="btn-clear-all-compact" onclick="VESPAStaff.confirmClearAll('${student.id}')">
-                                Clear All Activities
+                                🗑️ Clear All
                             </button>
                         </div>
                     </div>
@@ -3430,7 +3796,7 @@
                     })
                 });
                 
-                alert('Activity re-assigned successfully');
+                this.showSuccessModal('Success', 'Activity re-assigned successfully');
                 
                 // Reload the modal
                 this.viewStudent(studentId);
@@ -3475,7 +3841,7 @@
                     data: JSON.stringify(feedbackData)
                 });
                 
-                alert('Feedback added successfully!');
+                this.showSuccessModal('Success', 'Feedback added successfully!');
                 
                 // Refresh the view
                 this.viewStudent(activity.studentId);
@@ -4169,7 +4535,7 @@
                         })
                     });
                     
-                    alert('Feedback saved successfully!');
+                    this.showSuccessModal('Success', 'Feedback saved successfully!');
                 } else {
                     alert('No student response found for this activity. Student must complete the activity first.');
                 }
@@ -4446,7 +4812,7 @@
                 
                 // Close the modal and show success
                 this.closeModal('activity-detail-modal');
-                alert('Activity marked as incomplete successfully');
+                this.showSuccessModal('Success', 'Activity marked as incomplete successfully');
                 
                 // Refresh student details
                 await this.viewStudent(studentId);
@@ -4468,7 +4834,7 @@
             }
             
             // TODO: Implement actual feedback saving via API
-            alert('Feedback saved successfully!');
+            this.showSuccessModal('Success', 'Feedback saved successfully!');
             this.closeModal('activity-detail-modal');
         }
         
@@ -4503,7 +4869,10 @@
                 
                 await Promise.all(updatePromises);
                 
-                alert(`Successfully assigned ${activityIds.length} activities to ${selectedStudents.length} student(s)`);
+                this.showSuccessModal(
+                    'Activities Assigned Successfully',
+                    `Successfully assigned ${activityIds.length} activities to ${selectedStudents.length} student(s)`
+                );
                 
                 // Refresh data
                 await this.loadData();
@@ -4545,7 +4914,7 @@
         }
         
         // Update student's prescribed activities (field_1683) using connection IDs
-        async updateStudentPrescribedActivities(studentId, newActivityIds) {
+        async updateStudentPrescribedActivities(studentId, newActivityIds, mode = 'add') {
             const fields = this.config.fields;
             const objects = this.config.objects;
             
@@ -4557,8 +4926,14 @@
                 // Get current prescribed activity IDs
                 const currentIds = Array.isArray(student.prescribedActivityIds) ? student.prescribedActivityIds : [];
                 
-                // Combine with new IDs (avoid duplicates)
-                const allIds = [...new Set([...currentIds, ...newActivityIds])];
+                let finalIds;
+                if (mode === 'replace') {
+                    // Replace all activities with new ones
+                    finalIds = [...new Set(newActivityIds)];
+                } else {
+                    // Add mode (default) - combine with existing IDs (avoid duplicates)
+                    finalIds = [...new Set([...currentIds, ...newActivityIds])];
+                }
                 
                 // Update the student record
                 await $.ajax({
@@ -4570,15 +4945,15 @@
                         'Content-Type': 'application/json'
                     },
                     data: JSON.stringify({
-                        [fields.prescribedActivities]: allIds
+                        [fields.prescribedActivities]: finalIds
                     })
                 });
                 
                 // Update local state
-                student.prescribedActivityIds = allIds;
+                student.prescribedActivityIds = finalIds;
                 // Optionally refresh prescribedActivities names from activity list
                 const idToName = new Map(this.state.activities.map(a => [a.id, a.name]));
-                student.prescribedActivities = allIds.map(id => idToName.get(id) || id);
+                student.prescribedActivities = finalIds.map(id => idToName.get(id) || id);
                 
                 log(`Updated prescribed activities (IDs) for student ${student.name}`);
                 
