@@ -1389,6 +1389,50 @@
             }
         }
         
+        // Parse curriculum tags from raw field data
+        parseCurriculumTags(rawCurriculum, category) {
+            if (!rawCurriculum) return [];
+            
+            try {
+                // Handle different formats of curriculum data
+                let curriculums = [];
+                
+                if (typeof rawCurriculum === 'string') {
+                    // Handle CSV format or single value
+                    curriculums = rawCurriculum.split(',')
+                        .map(tag => tag.trim())
+                        .filter(tag => tag.length > 0);
+                } else if (Array.isArray(rawCurriculum)) {
+                    // Handle array format (multi-select field)
+                    curriculums = rawCurriculum
+                        .map(item => typeof item === 'object' && item.identifier ? item.identifier : String(item))
+                        .map(tag => String(tag).trim())
+                        .filter(tag => tag.length > 0);
+                } else if (typeof rawCurriculum === 'object' && rawCurriculum !== null) {
+                    // Handle object format (single select or other structure)
+                    if (rawCurriculum.identifier) {
+                        curriculums = [rawCurriculum.identifier];
+                    } else if (rawCurriculum.name) {
+                        curriculums = [rawCurriculum.name];
+                    } else {
+                        curriculums = [String(rawCurriculum)];
+                    }
+                } else {
+                    // Fallback: convert to string and split
+                    curriculums = String(rawCurriculum).split(',')
+                        .map(tag => tag.trim())
+                        .filter(tag => tag.length > 0);
+                }
+                
+                // Remove duplicates and sort
+                return [...new Set(curriculums)].sort();
+                
+            } catch (err) {
+                console.warn(`[VESPA Staff] Error parsing curriculum tags for category ${category}:`, err, rawCurriculum);
+                return [];
+            }
+        }
+        
         // Apply filters to student list
         applyFilters() {
             let filtered = [...this.state.students];
