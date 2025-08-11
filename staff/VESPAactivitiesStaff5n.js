@@ -472,6 +472,7 @@
             const studentData = [];
             const fields = this.config.fields;
             const objects = this.config.objects;
+            let page = 1; // Moved to function scope
             
             try {
                 // Build filters based on role
@@ -539,7 +540,6 @@
                 log('Final filters:', filters);
                 
                 // Load all pages of student data
-                let page = 1;
                 let hasMorePages = true;
                 
                 while (hasMorePages) {
