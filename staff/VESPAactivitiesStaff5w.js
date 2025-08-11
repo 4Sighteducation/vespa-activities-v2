@@ -2094,7 +2094,7 @@
                 const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
                 
                 const modalHtml = `
-                    <div class="modal-overlay" id="activity-series-modal" onclick="this.closeActivitySeriesModal()">
+                    <div class="modal-overlay" id="activity-series-modal" onclick="VESPAStaff.closeActivitySeriesModal()">
                         <div class="modal-content activity-series-modal" onclick="event.stopPropagation()">
                             <div class="modal-header">
                                 <h3>🎯 Activity Series - Problem-Based Selection</h3>
@@ -2127,6 +2127,15 @@
                 const modalElement = document.createElement('div');
                 modalElement.innerHTML = modalHtml;
                 document.body.appendChild(modalElement.firstElementChild);
+                
+                // Add ESC key support
+                const escapeHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeActivitySeriesModal();
+                        document.removeEventListener('keydown', escapeHandler);
+                    }
+                };
+                document.addEventListener('keydown', escapeHandler);
                 
             } catch (err) {
                 error('Failed to show activity series modal:', err);
@@ -2210,7 +2219,7 @@
             const thirdPersonText = this.convertToThirdPerson(problem.text);
             
             const modalHtml = `
-                <div class="modal-overlay" id="activity-selection-modal" onclick="this.closeActivitySelectionModal()">
+                <div class="modal-overlay" id="activity-selection-modal" onclick="VESPAStaff.closeActivitySelectionModal()">
                     <div class="modal-content activity-selection-modal" onclick="event.stopPropagation()">
                         <div class="modal-header">
                             <h3>💡 Recommended Activities</h3>
@@ -2263,6 +2272,15 @@
             const modalElement = document.createElement('div');
             modalElement.innerHTML = modalHtml;
             document.body.appendChild(modalElement.firstElementChild);
+            
+            // Add ESC key support
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeActivitySelectionModal();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
         }
         
         // Close activity series modal
@@ -2437,6 +2455,12 @@
         }
         
         async viewStudent(studentId) {
+            // Prevent automatic clicks during initialization
+            if (!this.initializationComplete) {
+                log('Ignoring viewStudent call during initialization');
+                return;
+            }
+            
             const student = this.state.students.find(s => s.id === studentId);
             if (!student) return;
             
