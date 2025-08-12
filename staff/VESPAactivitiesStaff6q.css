@@ -4913,3 +4913,110 @@
         grid-template-columns: 1fr !important;
     }
 }
+
+/* Enhanced Response Display Styles */
+.response-context {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #079baa;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #666;
+    line-height: 1.4;
+}
+
+.response-context h3, .response-context h4, .response-context h5 {
+    margin: 0 0 8px 0;
+    color: #079baa;
+}
+
+.response-context hr {
+    margin: 8px 0;
+    border: none;
+    height: 1px;
+    background: #ddd;
+}
+
+.response-item {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+.response-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.response-question {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 1em;
+}
+
+.response-answer {
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 12px;
+    color: #555;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.no-response-message {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.activity-questions-preview {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.activity-questions-preview h4 {
+    color: #079baa;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+.preview-question {
+    margin-bottom: 15px;
+    padding: 12px;
+    background: white;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+}
+
+.question-context {
+    background: #f8f9fa;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    color: #666;
+}
+
+.question-text {
+    font-weight: 500;
+    color: #333;
+}
+
+.completion-info {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    text-align: center;
+}
+
+.completion-info small {
+    color: #666;
+    font-style: italic;
+}
