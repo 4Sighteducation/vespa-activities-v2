@@ -4690,17 +4690,35 @@
                 log('Student response for feedback loading:', studentResponse);
                 log('Feedback field mapping:', this.config.fields.answerStaffFeedback);
                 
-                const existingFeedback = studentResponse?.[this.config.fields.answerStaffFeedback] || '';
-                const hasNewFeedback = studentResponse?.[this.config.fields.newFeedbackGiven] || false;
-                const feedbackRead = studentResponse?.[this.config.fields.feedbackRead] || false;
-                const lastFeedbackGiven = studentResponse?.[this.config.fields.lastFeedbackGiven] || '';
+                // Try multiple ways to get the feedback - the response might use different property names
+                const existingFeedback = studentResponse?.[this.config.fields.answerStaffFeedback] || 
+                                        studentResponse?.feedback || 
+                                        studentResponse?.field_1734 || 
+                                        '';
+                                        
+                const hasNewFeedback = studentResponse?.[this.config.fields.newFeedbackGiven] || 
+                                     studentResponse?.field_3651 === 'Yes' || 
+                                     false;
+                                     
+                const feedbackRead = studentResponse?.[this.config.fields.feedbackRead] || 
+                                   studentResponse?.field_3648 === 'Yes' || 
+                                   false;
+                                   
+                const lastFeedbackGiven = studentResponse?.[this.config.fields.lastFeedbackGiven] || 
+                                        studentResponse?.field_3649 || 
+                                        '';
                 
                 log('Extracted feedback info:', {
                     existingFeedback,
                     hasNewFeedback,
                     feedbackRead,
                     lastFeedbackGiven,
-                    responseId: studentResponse?.id
+                    responseId: studentResponse?.id,
+                    // Debug info
+                    rawFeedbackField: studentResponse?.[this.config.fields.answerStaffFeedback],
+                    rawFeedbackProperty: studentResponse?.feedback,
+                    rawField1734: studentResponse?.field_1734,
+                    allResponseKeys: studentResponse ? Object.keys(studentResponse) : []
                 });
                 
                 // Create the modal HTML - opens in current window, not new tab
