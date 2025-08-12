@@ -4667,21 +4667,23 @@
     font-weight: 600 !important;
 }
 
-/* Fixed height for student activities - max 4 activities per column */
+/* STUDENT ACTIVITIES COLUMNS - FIXED HEIGHT */
 .student-section .level-2-activities,
 .student-section .level-3-activities {
-    height: 120px !important; /* Fixed height for max 4 activities */
-    min-height: 120px !important;
-    max-height: 120px !important;
-    padding: 3px !important; /* increased from 2px */
+    height: 160px !important; /* Fixed height for student activities */
+    min-height: 160px !important;
+    max-height: 160px !important;
+    padding: 4px !important;
     overflow-y: auto !important;
 }
 
-/* All activities section can be flexible */
+/* ALL ACTIVITIES COLUMNS - FLEXIBLE HEIGHT */
 .all-section .level-2-activities,
 .all-section .level-3-activities {
-    min-height: 60px !important;
-    padding: 3px !important; /* increased from 2px */
+    min-height: 200px !important;
+    max-height: none !important;
+    padding: 4px !important;
+    overflow-y: visible !important;
 }
 
 /* Make activity cards 10% larger for better readability */
@@ -4787,9 +4789,43 @@
     margin: 0 !important;
 }
 
-/* Reduce top margin of workspace header */
+/* FIXED HEADER */
 .workspace-radical > div:first-child {
-    margin-top: 80px !important; /* reduced from 120px */
+    position: fixed !important;
+    top: 80px !important;
+    left: 20px !important;
+    right: 20px !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    height: 60px !important;
+    box-sizing: border-box !important;
+}
+
+/* OPTIMAL WORKSPACE LAYOUT */
+.workspace-content {
+    margin-top: 140px !important; /* Space for fixed header */
+    padding: 16px !important;
+    height: calc(100vh - 220px) !important; /* Full height minus header and margins */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    overflow: hidden !important;
+}
+
+/* STUDENT SECTION - FIXED COMPACT HEIGHT */
+.student-section {
+    flex-shrink: 0 !important;
+    height: 200px !important; /* Fixed height for student activities */
+    overflow: visible !important;
+    margin-bottom: 0 !important;
+}
+
+/* ALL ACTIVITIES - USE REMAINING SPACE */
+.all-section {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 300px !important;
+    margin-bottom: 0 !important;
 }
 
 /* Remove section headers to save space */
@@ -4801,6 +4837,44 @@
     font-size: 14px !important;
     margin: 0 !important;
     padding: 4px 0 !important;
+}
+
+/* RESPONSIVE BREAKPOINTS FOR DIFFERENT SCREEN HEIGHTS */
+@media (max-height: 900px) {
+    .workspace-content {
+        height: calc(100vh - 200px) !important;
+        margin-top: 120px !important;
+    }
+    .student-section {
+        height: 160px !important;
+    }
+    .student-section .level-2-activities,
+    .student-section .level-3-activities {
+        height: 120px !important;
+        min-height: 120px !important;
+        max-height: 120px !important;
+    }
+}
+
+@media (max-height: 700px) {
+    .workspace-content {
+        height: calc(100vh - 180px) !important;
+        margin-top: 100px !important;
+    }
+    .student-section {
+        height: 120px !important;
+    }
+    .student-section .level-2-activities,
+    .student-section .level-3-activities {
+        height: 90px !important;
+        min-height: 90px !important;
+        max-height: 90px !important;
+    }
+    .compact-activity-card {
+        min-height: 20px !important;
+        padding: 2px 4px !important;
+        font-size: 8px !important;
+    }
 }
 
 /* Make section divider smaller */
