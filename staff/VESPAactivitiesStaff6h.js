@@ -2846,7 +2846,7 @@
                                                      ondragover="event.preventDefault()"
                                                      ondragenter="event.currentTarget.classList.add('drag-over')"
                                                      ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                                    ${level2Activities.map(activity => 
+                                                    ${finalLevel2ActivitiesAll.map(activity => 
                                                         this.renderCompactActivityCard(activity, false, student.id, 'level2')
                                                     ).join('')}
                                                 </div>
@@ -2859,7 +2859,7 @@
                                                      ondragover="event.preventDefault()"
                                                      ondragenter="event.currentTarget.classList.add('drag-over')"
                                                      ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                                    ${level3Activities.map(activity => 
+                                                    ${level3ActivitiesAll.map(activity => 
                                                         this.renderCompactActivityCard(activity, false, student.id, 'level3')
                                                     ).join('')}
                                                 </div>
