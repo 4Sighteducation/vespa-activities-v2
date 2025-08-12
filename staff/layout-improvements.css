@@ -1,0 +1,28 @@
+/* LAYOUT IMPROVEMENTS - Fixed heights and better spacing */
+
+/* Fixed height container for student activities - ensures consistent layout */
+.student-section {
+    min-height: 180px !important;
+    max-height: 180px !important;
+}
+
+/* Ensure all activities section gets remaining space */
+.all-section {
+    flex: 1 !important;
+    overflow-y: auto !important;
+}
+
+/* Make section headers slightly larger for better readability */
+.section-header-compact h4 {
+    font-size: 15px !important;
+    padding: 5px 0 !important;
+    margin-bottom: 6px !important;
+}
+
+/* Workspace content layout */
+.workspace-content {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 200px) !important;
+    padding: 0 16px !important;
+}

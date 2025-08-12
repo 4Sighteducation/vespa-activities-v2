@@ -2991,12 +2991,13 @@
 .compact-activity-card.practice { background: var(--practice); }
 .compact-activity-card.attitude { background: var(--attitude); }
 
-/* Completed State - Greyed Out with strikethrough */
+/* Improved contrast for completed activities */
 .compact-activity-card.completed {
-    background: rgba(108, 117, 125, 0.2) !important;
-    opacity: 0.5 !important;
-    color: #6c757d !important;
-    border-color: rgba(108, 117, 125, 0.3) !important;
+    background: rgba(108, 117, 125, 0.3) !important; /* increased opacity */
+    opacity: 0.7 !important; /* increased from 0.5 for better readability */
+    color: #495057 !important; /* darker color for better contrast */
+    border-color: rgba(108, 117, 125, 0.5) !important; /* stronger border */
+    border-width: 2px !important;
 }
 
 .compact-activity-card:hover {
@@ -3035,7 +3036,8 @@
 
 .compact-activity-card.completed .activity-text {
     padding-left: 20px;
-    color: #6c757d !important;
+    color: #343a40 !important; /* much darker for better contrast */
+    font-weight: 700 !important; /* bolder text */
     /* Removed strikethrough */
 }
 
@@ -4617,16 +4619,16 @@
 
 /* COMPACT UI STYLES - Everything 50% smaller to fit on one screen */
 
-/* Make everything more compact */
+/* Make everything 10% larger and more readable */
 .category-section {
-    margin-bottom: 6px !important;
+    margin-bottom: 8px !important; /* increased from 6px */
     box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
 }
 
 .category-main-header {
-    padding: 3px 6px !important;
-    font-size: 12px !important;
-    min-height: 22px !important;
+    padding: 4px 8px !important; /* increased by ~10% */
+    font-size: 13px !important; /* increased from 12px */
+    min-height: 26px !important; /* increased from 22px */
     font-weight: 600 !important;
 }
 
@@ -4659,25 +4661,36 @@
 }
 
 .level-header {
-    padding: 2px 4px !important;
-    font-size: 10px !important;
-    min-height: 16px !important;
+    padding: 3px 5px !important; /* increased by ~10% */
+    font-size: 11px !important; /* increased from 10px */
+    min-height: 18px !important; /* increased from 16px */
     font-weight: 600 !important;
 }
 
-.level-2-activities,
-.level-3-activities {
-    min-height: 40px !important;
-    padding: 2px !important;
+/* Fixed height for student activities - max 4 activities per column */
+.student-section .level-2-activities,
+.student-section .level-3-activities {
+    height: 120px !important; /* Fixed height for max 4 activities */
+    min-height: 120px !important;
+    max-height: 120px !important;
+    padding: 3px !important; /* increased from 2px */
+    overflow-y: auto !important;
 }
 
-/* Make activity cards much more compact */
+/* All activities section can be flexible */
+.all-section .level-2-activities,
+.all-section .level-3-activities {
+    min-height: 60px !important;
+    padding: 3px !important; /* increased from 2px */
+}
+
+/* Make activity cards 10% larger for better readability */
 .compact-activity-card {
-    min-height: 20px !important;
-    padding: 2px 4px !important;
-    margin-bottom: 1px !important;
-    font-size: 9px !important;
-    line-height: 1.1 !important;
+    min-height: 24px !important; /* increased from 20px */
+    padding: 3px 5px !important; /* increased from 2px 4px */
+    margin-bottom: 2px !important; /* increased from 1px */
+    font-size: 10px !important; /* increased from 9px */
+    line-height: 1.2 !important; /* increased from 1.1 */
     width: 98% !important;
     box-sizing: border-box !important;
 }
@@ -4730,11 +4743,11 @@
 
 /* Bigger source circles for better visibility */
 .source-circle {
-    width: 10px !important;
-    height: 10px !important;
+    width: 12px !important; /* increased from 10px */
+    height: 12px !important; /* increased from 10px */
     top: 2px !important;
     left: 2px !important;
-    border: 1px solid white !important;
+    border: 2px solid white !important; /* stronger border */
 }
 
 .completion-flag {
@@ -4743,16 +4756,16 @@
 }
 
 .completion-flag img {
-    width: 12px !important;
-    height: 12px !important;
-    filter: brightness(1.5) contrast(1.2) !important;
+    width: 14px !important; /* increased from 12px */
+    height: 14px !important; /* increased from 12px */
+    filter: brightness(1.8) contrast(1.5) saturate(1.3) !important; /* much more visible */
 }
 
 .compact-activity-card .activity-text {
-    margin-left: 8px !important;
-    margin-right: 8px !important;
+    margin-left: 10px !important; /* increased from 8px */
+    margin-right: 10px !important; /* increased from 8px */
     font-weight: 600 !important;
-    line-height: 1.1 !important;
+    line-height: 1.2 !important; /* increased from 1.1 */
     color: #333 !important;
     text-shadow: 0 1px 1px rgba(255,255,255,0.5) !important;
 }
@@ -4769,9 +4782,14 @@
     gap: 0 !important;
 }
 
-/* Compact the main header */
+/* Reduce padding between navigation and student activities */
 .workspace-radical {
     margin: 0 !important;
+}
+
+/* Reduce top margin of workspace header */
+.workspace-radical > div:first-child {
+    margin-top: 80px !important; /* reduced from 120px */
 }
 
 /* Remove section headers to save space */

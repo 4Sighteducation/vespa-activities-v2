@@ -2559,6 +2559,27 @@
             });
             
             log(`Built ${entries.length} student activities from prescribed list`);
+            
+            // Enforce 40 activity limit for consistent UI layout
+            if (entries.length > 40) {
+                log(`WARNING: Student has ${entries.length} activities, limiting to 40 for UI consistency`);
+                // Keep completed activities and most recent ones
+                const completed = entries.filter(a => a.isCompleted);
+                const incomplete = entries.filter(a => !a.isCompleted);
+                
+                // If we have too many completed, keep the most recent 20
+                const maxCompleted = Math.min(completed.length, 20);
+                const maxIncomplete = 40 - maxCompleted;
+                
+                const limitedEntries = [
+                    ...completed.slice(0, maxCompleted),
+                    ...incomplete.slice(0, maxIncomplete)
+                ];
+                
+                log(`Limited to ${limitedEntries.length} activities (${maxCompleted} completed, ${limitedEntries.length - maxCompleted} incomplete)`);
+                return limitedEntries;
+            }
+            
             return entries;
         }
 
@@ -2641,7 +2662,7 @@
             const html = `
                 <div class="workspace-radical">
                     <!-- Header positioned below existing navigation -->
-                    <div style="background: white !important; padding: 15px 20px !important; margin: 120px 20px 20px 20px !important; border-radius: 8px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; display: flex !important; align-items: center !important; justify-content: space-between !important; border: 1px solid #dee2e6 !important; position: relative !important; z-index: 999998 !important; width: auto !important; height: auto !important; visibility: visible !important; opacity: 1 !important;">
+                    <div style="background: white !important; padding: 16px 22px !important; margin: 80px 20px 20px 20px !important; border-radius: 8px !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important; display: flex !important; align-items: center !important; justify-content: space-between !important; border: 1px solid #dee2e6 !important; position: relative !important; z-index: 999998 !important; width: auto !important; height: auto !important; visibility: visible !important; opacity: 1 !important;">
                         <div style="display: flex !important; gap: 10px !important; align-items: center !important;">
                             <button style="background: #007bff !important; color: white !important; border: none !important; padding: 8px 16px !important; border-radius: 4px !important; cursor: pointer !important; font-weight: 500 !important; visibility: visible !important; opacity: 1 !important;" onclick="VESPAStaff.backToList()">
                                 ← Back to List
@@ -2666,7 +2687,7 @@
                     </div>
                     
                     <!-- Main Content Area -->
-                    <div class="workspace-content">
+                    <div class="workspace-content" style="display: flex; flex-direction: column; height: calc(100vh - 200px); padding: 0 16px;">
                         <!-- Student Activities Section -->
                         <div class="student-section">
                             <div class="section-header-compact">
