@@ -2064,18 +2064,18 @@
         // Show success modal
         showSuccessModal(title, message, callback = null) {
             const modalHtml = `
-                <div class="modal-overlay" id="success-modal" onclick="staffManager.closeSuccessModal()">
+                <div class="modal-overlay" id="success-modal" onclick="VESPAStaff.closeSuccessModal()">
                     <div class="modal-content success-modal" onclick="event.stopPropagation()">
                         <div class="modal-header success-header">
                             <div class="success-icon">✅</div>
                             <h3>${title}</h3>
-                            <button class="modal-close" onclick="staffManager.closeSuccessModal()">&times;</button>
+                            <button class="modal-close" onclick="VESPAStaff.closeSuccessModal()">&times;</button>
                         </div>
                         <div class="modal-body">
                             <p>${message}</p>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-primary" onclick="staffManager.closeSuccessModal()">OK</button>
+                            <button class="btn btn-primary" onclick="VESPAStaff.closeSuccessModal()">OK</button>
                         </div>
                     </div>
                 </div>
@@ -4687,10 +4687,21 @@
                 }
                 
                 // Get existing feedback and tracking info
+                log('Student response for feedback loading:', studentResponse);
+                log('Feedback field mapping:', this.config.fields.answerStaffFeedback);
+                
                 const existingFeedback = studentResponse?.[this.config.fields.answerStaffFeedback] || '';
                 const hasNewFeedback = studentResponse?.[this.config.fields.newFeedbackGiven] || false;
                 const feedbackRead = studentResponse?.[this.config.fields.feedbackRead] || false;
                 const lastFeedbackGiven = studentResponse?.[this.config.fields.lastFeedbackGiven] || '';
+                
+                log('Extracted feedback info:', {
+                    existingFeedback,
+                    hasNewFeedback,
+                    feedbackRead,
+                    lastFeedbackGiven,
+                    responseId: studentResponse?.id
+                });
                 
                 // Create the modal HTML - opens in current window, not new tab
                 const modalHtml = `
@@ -4710,34 +4721,79 @@
                             <div class="modal-body" style="padding: 20px;">
                                 <div class="activity-detail-container">
                                     
-                                    <!-- Activity Questions Section -->
+                                    <!-- Activity Preview Section -->
                                     ${(() => {
-                                        // Filter questions to only show those that have responses
-                                        const allQuestions = this.allQuestionsCache || questions;
-                                        const responseQuestionIds = parsedResponses.map(r => r.questionId);
-                                        const relevantQuestions = allQuestions.filter(q => responseQuestionIds.includes(q.id));
-                                        
-                                        log(`Filtering questions: ${allQuestions.length} total, ${responseQuestionIds.length} response IDs, ${relevantQuestions.length} relevant questions`);
-                                        
-                                        return relevantQuestions.length > 0 ? `
-                                            <div class="activity-questions-section" style="margin-bottom: 30px;">
-                                                <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
-                                                <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
-                                                    ${relevantQuestions.map((q, index) => `
-                                                        <div class="question-item" style="margin-bottom: 12px; ${index < relevantQuestions.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
-                                                            <div class="question-text" style="font-weight: 500; color: #343a40; margin-bottom: 4px;">
-                                                                ${index + 1}. ${this.escapeHtml(q.question)}
-                                                            </div>
-                                                            ${q.type === 'multiple_choice' && q.options ? `
-                                                                <div class="question-options" style="font-size: 14px; color: #6c757d; margin-left: 16px;">
-                                                                    Options: ${this.escapeHtml(q.options)}
-                                                                </div>
-                                                            ` : ''}
+                                        return `
+                                            <div class="activity-preview-section" style="margin-bottom: 30px;">
+                                                <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">🎯 Activity Preview</h3>
+                                                <div class="activity-preview-content" style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+                                                    
+                                                    <!-- Activity Info -->
+                                                    <div class="activity-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                                                        <div class="info-item">
+                                                            <strong style="color: #495057;">Category:</strong> 
+                                                            <span style="color: #6c757d;">${activity.category || activity.VESPACategory || 'N/A'}</span>
                                                         </div>
-                                                    `).join('')}
+                                                        <div class="info-item">
+                                                            <strong style="color: #495057;">Level:</strong> 
+                                                            <span style="color: #6c757d;">Level ${activity.level || activity.Level || '2'}</span>
+                                                        </div>
+                                                        <div class="info-item">
+                                                            <strong style="color: #495057;">Duration:</strong> 
+                                                            <span style="color: #6c757d;">${activity.duration || '20-30 minutes'}</span>
+                                                        </div>
+                                                        <div class="info-item">
+                                                            <strong style="color: #495057;">Type:</strong> 
+                                                            <span style="color: #6c757d;">${activity.type || 'Reflection Activity'}</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Activity Description -->
+                                                    ${activity.description ? `
+                                                        <div class="activity-description" style="margin-bottom: 20px; padding: 16px; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                                                            <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 16px;">Description:</h4>
+                                                            <p style="margin: 0; color: #6c757d; line-height: 1.5;">${this.escapeHtml(activity.description)}</p>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    <!-- Action Buttons -->
+                                                    <div class="activity-actions" style="display: flex; gap: 12px; justify-content: center;">
+                                                        <button 
+                                                            onclick="VESPAStaff.viewEnhancedActivityPreview('${activityId}')" 
+                                                            style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                                                            onmouseover="this.style.backgroundColor='#0056b3'" 
+                                                            onmouseout="this.style.backgroundColor='#007bff'"
+                                                        >
+                                                            🎬 View Activity Slideshow
+                                                        </button>
+                                                        
+                                                        ${(() => {
+                                                            // Check if activity has PDF
+                                                            const activityData = this.getEmbeddedActivities().find(a => a.id === activityId);
+                                                            const hasPDF = activityData?.media?.pdf?.url;
+                                                            
+                                                            return hasPDF ? `
+                                                                <button 
+                                                                    onclick="window.open('${activityData.media.pdf.url}', '_blank')" 
+                                                                    style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                                                                    onmouseover="this.style.backgroundColor='#c82333'" 
+                                                                    onmouseout="this.style.backgroundColor='#dc3545'"
+                                                                >
+                                                                    📄 Download PDF
+                                                                </button>
+                                                            ` : `
+                                                                <button 
+                                                                    style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
+                                                                    disabled
+                                                                >
+                                                                    📄 No PDF Available
+                                                                </button>
+                                                            `;
+                                                        })()}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ` : '';
+                                        `;
                                     })()}
                                     
                                     <!-- Student Responses Section -->
@@ -4944,11 +5000,38 @@
         
         // Close activity detail modal and return to Page 2
         closeActivityDetailModal() {
+            log('Closing activity detail modal...');
+            
             const modal = document.getElementById('activity-detail-modal');
             if (modal) {
                 modal.remove();
+                log('Modal removed successfully');
+            } else {
+                log('No modal found to remove');
             }
-            // No need to reload - user stays on Page 2 (student workspace)
+            
+            // Check current state and ensure we're on the right view
+            log('Current state:', {
+                currentView: this.state.currentView,
+                currentStudentId: this.state.currentStudentId,
+                containerExists: !!this.findContainer()
+            });
+            
+            // If we're in student workspace view, ensure it's properly displayed
+            if (this.state.currentView === 'student' && this.state.currentStudentId) {
+                log('Refreshing student workspace view...');
+                // Re-render the current student view to ensure it's displayed properly
+                this.viewStudent(this.state.currentStudentId);
+            } else if (this.state.currentView === 'list') {
+                log('Refreshing list view...');
+                // Re-render the list view
+                this.render();
+            } else {
+                log('Unknown view state, defaulting to list view');
+                this.state.currentView = 'list';
+                this.state.currentStudentId = null;
+                this.render();
+            }
         }
         
         // Save feedback to Object_46 (Activity Answers) field_1734
