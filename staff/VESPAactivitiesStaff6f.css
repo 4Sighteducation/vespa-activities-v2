@@ -2991,10 +2991,12 @@
 .compact-activity-card.practice { background: var(--practice); }
 .compact-activity-card.attitude { background: var(--attitude); }
 
-/* Completed State - Greyed Out */
+/* Completed State - Greyed Out with strikethrough */
 .compact-activity-card.completed {
-    background: #9ca3af !important;
-    opacity: 0.8;
+    background: rgba(108, 117, 125, 0.2) !important;
+    opacity: 0.5 !important;
+    color: #6c757d !important;
+    border-color: rgba(108, 117, 125, 0.3) !important;
 }
 
 .compact-activity-card:hover {
@@ -3033,6 +3035,8 @@
 
 .compact-activity-card.completed .activity-text {
     padding-left: 20px;
+    text-decoration: line-through !important;
+    color: #6c757d !important;
 }
 
 /* Origin Indicators */
@@ -4611,8 +4615,174 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-/* Completed activity styling */
-.compact-activity-card.completed {
-    opacity: 0.85;
-    background: linear-gradient(45deg, transparent 0%, rgba(40,167,69,0.1) 100%);
+/* COMPACT UI STYLES - Everything 50% smaller to fit on one screen */
+
+/* Make everything more compact */
+.category-section {
+    margin-bottom: 6px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+}
+
+.category-main-header {
+    padding: 3px 6px !important;
+    font-size: 12px !important;
+    min-height: 22px !important;
+    font-weight: 600 !important;
+}
+
+/* Remove letters from theme headers - show just the name */
+.category-main-header .cat-icon {
+    display: none !important;
+}
+
+.level-header {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    min-height: 16px !important;
+    font-weight: 600 !important;
+}
+
+.level-2-activities,
+.level-3-activities {
+    min-height: 40px !important;
+    padding: 2px !important;
+}
+
+/* Make activity cards much more compact */
+.compact-activity-card {
+    min-height: 20px !important;
+    padding: 2px 4px !important;
+    margin-bottom: 1px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    width: 98% !important;
+    box-sizing: border-box !important;
+}
+
+/* Solid colors instead of translucent - more vibrant */
+.compact-activity-card.level-level2.vision { 
+    background: #ffb366 !important;
+    border-left: 2px solid #ff8f00 !important;
+}
+.compact-activity-card.level-level3.vision { 
+    background: #ff9933 !important;
+    border-left: 2px solid #e67e00 !important;
+}
+
+.compact-activity-card.level-level2.effort { 
+    background: #a6c8f0 !important;
+    border-left: 2px solid #86b4f0 !important;
+}
+.compact-activity-card.level-level3.effort { 
+    background: #86b4f0 !important;
+    border-left: 2px solid #6699e6 !important;
+}
+
+.compact-activity-card.level-level2.systems { 
+    background: #99e066 !important;
+    border-left: 2px solid #72cb44 !important;
+}
+.compact-activity-card.level-level3.systems { 
+    background: #72cb44 !important;
+    border-left: 2px solid #5cb032 !important;
+}
+
+.compact-activity-card.level-level2.practice { 
+    background: #b366cc !important;
+    border-left: 2px solid #7f31a4 !important;
+}
+.compact-activity-card.level-level3.practice { 
+    background: #9952b8 !important;
+    border-left: 2px solid #6b2d8a !important;
+}
+
+.compact-activity-card.level-level2.attitude { 
+    background: #ff66e6 !important;
+    border-left: 2px solid #f032e6 !important;
+}
+.compact-activity-card.level-level3.attitude { 
+    background: #f032e6 !important;
+    border-left: 2px solid #d929cc !important;
+}
+
+/* Smaller source circles and completion flags */
+.source-circle {
+    width: 6px !important;
+    height: 6px !important;
+    top: 1px !important;
+    left: 1px !important;
+    border: 1px solid white !important;
+}
+
+.completion-flag {
+    top: 1px !important;
+    right: 1px !important;
+}
+
+.completion-flag img {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+.compact-activity-card .activity-text {
+    margin-left: 8px !important;
+    margin-right: 8px !important;
+    font-weight: 500 !important;
+    line-height: 1.1 !important;
+}
+
+/* Make the overall grid more compact */
+.activities-by-category {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 4px !important;
+    margin-bottom: 8px !important;
+}
+
+.level-columns {
+    gap: 0 !important;
+}
+
+/* Compact the main header */
+.workspace-radical {
+    margin: 0 !important;
+}
+
+/* Remove section headers to save space */
+.section-header-compact {
+    margin-bottom: 4px !important;
+}
+
+.section-header-compact h4 {
+    font-size: 14px !important;
+    margin: 0 !important;
+    padding: 4px 0 !important;
+}
+
+/* Make section divider smaller */
+.section-divider {
+    height: 1px !important;
+    margin: 8px 0 !important;
+}
+
+/* Responsive - stack columns on smaller screens */
+@media (max-width: 1400px) {
+    .activities-by-category {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+@media (max-width: 1000px) {
+    .activities-by-category {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .level-columns {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .level-column {
+        border-right: none !important;
+        border-bottom: 1px solid #e0e0e0 !important;
+    }
 }

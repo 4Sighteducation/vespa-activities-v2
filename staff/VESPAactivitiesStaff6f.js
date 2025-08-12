@@ -2615,30 +2615,82 @@
                                     // Split activities by level (with proper type checking and fallback)
                                     const allCategoryActivities = studentActivitiesByCategory[category];
                                     
+                                    // Improved level filtering with multiple detection methods
                                     const level2Activities = allCategoryActivities.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2';
+                                        // Check field_3568 first (string format)
+                                        const field3568 = a.field_3568;
+                                        if (field3568) {
+                                            const levelStr = typeof field3568 === 'string' ? field3568 : String(field3568);
+                                            if (levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2' || levelStr === '2') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Check numeric level field
+                                        const numLevel = a.level;
+                                        if (typeof numLevel === 'number') {
+                                            return numLevel === 1 || numLevel === 2; // levels 1-2 = Level 2 in UI
+                                        }
+                                        
+                                        // Check string level field
+                                        const stringLevel = a.level;
+                                        if (typeof stringLevel === 'string') {
+                                            if (stringLevel.toLowerCase().includes('level 2') || stringLevel === '2') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Fallback based on activity patterns - basic activities go to Level 2
+                                        const activityText = (a.name || a.title || '').toLowerCase();
+                                        if (activityText.includes('basic') || activityText.includes('intro') || 
+                                            activityText.includes('foundation') || activityText.includes('start')) {
+                                            return true;
+                                        }
+                                        
+                                        // Final fallback: odd IDs go to Level 2
+                                        const activityId = a.id || '';
+                                        const numericId = parseInt(activityId.replace(/\D/g, '')) || 0;
+                                        return numericId % 2 === 1;
                                     });
                                     
                                     const level3Activities = allCategoryActivities.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3';
+                                        // Check field_3568 first (string format)
+                                        const field3568 = a.field_3568;
+                                        if (field3568) {
+                                            const levelStr = typeof field3568 === 'string' ? field3568 : String(field3568);
+                                            if (levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3' || levelStr === '3') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Check numeric level field
+                                        const numLevel = a.level;
+                                        if (typeof numLevel === 'number') {
+                                            return numLevel >= 3; // level 3+ = Level 3 in UI
+                                        }
+                                        
+                                        // Check string level field
+                                        const stringLevel = a.level;
+                                        if (typeof stringLevel === 'string') {
+                                            if (stringLevel.toLowerCase().includes('level 3') || stringLevel === '3') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Fallback based on activity patterns - advanced activities go to Level 3
+                                        const activityText = (a.name || a.title || '').toLowerCase();
+                                        if (activityText.includes('advanced') || activityText.includes('deep') || 
+                                            activityText.includes('complex') || activityText.includes('mastery')) {
+                                            return true;
+                                        }
+                                        
+                                        // Final fallback: even IDs go to Level 3
+                                        const activityId = a.id || '';
+                                        const numericId = parseInt(activityId.replace(/\D/g, '')) || 0;
+                                        return numericId % 2 === 0;
                                     });
                                     
-                                    // Fallback: if no activities have level data, put them all in Level 2
-                                    const unassignedActivities = allCategoryActivities.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return !levelStr.toLowerCase().includes('level 2') && 
-                                               !levelStr.toLowerCase().includes('level 3') && 
-                                               levelStr !== 'Level 2' && 
-                                               levelStr !== 'Level 3';
-                                    });
-                                    
-                                    // Add unassigned to Level 2 as fallback
-                                    const finalLevel2Activities = [...level2Activities, ...unassignedActivities];
+                                    const finalLevel2Activities = level2Activities;
                                     
                                     // Debug logging
                                     if (category === 'vision' && (finalLevel2Activities.length > 0 || level3Activities.length > 0)) {
@@ -2703,29 +2755,80 @@
                                     const allCategoryActivitiesAll = allActivitiesByCategory[category];
                                     
                                     const level2ActivitiesAll = allCategoryActivitiesAll.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2';
+                                        // Check field_3568 first (string format)
+                                        const field3568 = a.field_3568;
+                                        if (field3568) {
+                                            const levelStr = typeof field3568 === 'string' ? field3568 : String(field3568);
+                                            if (levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2' || levelStr === '2') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Check numeric level field
+                                        const numLevel = a.level;
+                                        if (typeof numLevel === 'number') {
+                                            return numLevel === 1 || numLevel === 2; // levels 1-2 = Level 2 in UI
+                                        }
+                                        
+                                        // Check string level field
+                                        const stringLevel = a.level;
+                                        if (typeof stringLevel === 'string') {
+                                            if (stringLevel.toLowerCase().includes('level 2') || stringLevel === '2') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Fallback based on activity patterns - basic activities go to Level 2
+                                        const activityText = (a.name || a.title || '').toLowerCase();
+                                        if (activityText.includes('basic') || activityText.includes('intro') || 
+                                            activityText.includes('foundation') || activityText.includes('start')) {
+                                            return true;
+                                        }
+                                        
+                                        // Final fallback: odd IDs go to Level 2
+                                        const activityId = a.id || '';
+                                        const numericId = parseInt(activityId.replace(/\D/g, '')) || 0;
+                                        return numericId % 2 === 1;
                                     });
                                     
                                     const level3ActivitiesAll = allCategoryActivitiesAll.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3';
+                                        // Check field_3568 first (string format)
+                                        const field3568 = a.field_3568;
+                                        if (field3568) {
+                                            const levelStr = typeof field3568 === 'string' ? field3568 : String(field3568);
+                                            if (levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3' || levelStr === '3') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Check numeric level field
+                                        const numLevel = a.level;
+                                        if (typeof numLevel === 'number') {
+                                            return numLevel >= 3; // level 3+ = Level 3 in UI
+                                        }
+                                        
+                                        // Check string level field
+                                        const stringLevel = a.level;
+                                        if (typeof stringLevel === 'string') {
+                                            if (stringLevel.toLowerCase().includes('level 3') || stringLevel === '3') {
+                                                return true;
+                                            }
+                                        }
+                                        
+                                        // Fallback based on activity patterns - advanced activities go to Level 3
+                                        const activityText = (a.name || a.title || '').toLowerCase();
+                                        if (activityText.includes('advanced') || activityText.includes('deep') || 
+                                            activityText.includes('complex') || activityText.includes('mastery')) {
+                                            return true;
+                                        }
+                                        
+                                        // Final fallback: even IDs go to Level 3
+                                        const activityId = a.id || '';
+                                        const numericId = parseInt(activityId.replace(/\D/g, '')) || 0;
+                                        return numericId % 2 === 0;
                                     });
                                     
-                                    // Fallback: if no activities have level data, put them all in Level 2
-                                    const unassignedActivitiesAll = allCategoryActivitiesAll.filter(a => {
-                                        const levelValue = a.field_3568 || a.level || '';
-                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
-                                        return !levelStr.toLowerCase().includes('level 2') && 
-                                               !levelStr.toLowerCase().includes('level 3') && 
-                                               levelStr !== 'Level 2' && 
-                                               levelStr !== 'Level 3';
-                                    });
-                                    
-                                    // Add unassigned to Level 2 as fallback
-                                    const finalLevel2ActivitiesAll = [...level2ActivitiesAll, ...unassignedActivitiesAll];
+                                    const finalLevel2ActivitiesAll = level2ActivitiesAll;
                                     
                                     return `
                                     <div class="category-section ${category}">
@@ -2809,7 +2912,7 @@
                      ondragstart="VESPAStaff.onDragStart(event, '${activity.id}', '${studentId}')"
                      onclick="VESPAStaff.showActivityDetails('${activity.id}', '${studentId}')"
                      title="${activityName}">
-                    ${isCompleted ? '<span class="completion-flag"><i class="fas fa-flag-checkered"></i></span>' : ''}
+                    ${isCompleted ? '<span class="completion-flag"><img src="https://raw.githubusercontent.com/4Sighteducation/vespa-activities-v2/main/shared/assets/flags.png" alt="Completed" style="width: 12px; height: 12px;"></span>' : ''}
                     ${sourceIndicator}
                     <span class="activity-text">${activityName}</span>
                     ${isStudent && isCompleted ? 
