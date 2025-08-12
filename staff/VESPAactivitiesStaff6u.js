@@ -92,6 +92,12 @@
             answerTutorConnection: 'field_1872',
             answerStaffAdminConnection: 'field_1873',
             
+            // New feedback tracking fields (Object_46)
+            newFeedbackGiven: 'field_3651',      // Boolean - set to true when new feedback is added
+            feedbackRead: 'field_3648',          // Boolean - set to true when student confirms feedback
+            lastFeedbackGiven: 'field_3649',     // Date/time - when new feedback was added
+            lastFeedbackRead: 'field_3650',      // Date/time - when feedback was read
+            
             // Activity Progress fields (Object_126)
             progressId: 'field_3535',
             progressName: 'field_3534',
@@ -1526,7 +1532,7 @@
         }
         
         // Main render function
-        render() {
+        async render() {
             log('Render called - container exists:', !!this.container);
             if (!this.container) {
                 error('Render failed: No container found');
@@ -1540,11 +1546,9 @@
                 // Re-render the workspace for the current student
                 const student = this.state.students.find(s => s.id === this.state.currentStudentId);
                 if (student) {
-                    this.loadStudentResponses(this.state.currentStudentId).then(responses => {
-                        this.loadLatestProgressByActivity(this.state.currentStudentId).then(progressByActivity => {
-                            this.showStudentWorkspace(student, responses, progressByActivity);
-                        });
-                    });
+                    const responses = await this.loadStudentResponses(this.state.currentStudentId);
+                    const progressByActivity = await this.loadLatestProgressByActivity(this.state.currentStudentId);
+                    await this.showStudentWorkspace(student, responses, progressByActivity);
                 }
             } else {
                 // Render the main list view (Page 1)
@@ -1723,6 +1727,7 @@
                                     onclick="VESPAStaff.sort('name')">
                                     Student Name
                                 </th>
+                                <th>View</th>
                                 <!-- Combined VESPA Category Columns -->
                                 <th class="vespa-column vision">
                                     <div class="vespa-column-header">
@@ -1754,7 +1759,6 @@
                                         <span>Attitude</span>
                                     </div>
                                 </th>
-                                <th>View</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1794,6 +1798,15 @@
                             <div class="progress-fill" style="width: ${student.progress}%"></div>
                         </div>
                     </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="vespa-view-button view-btn" 
+                                    onclick="VESPAStaff.viewStudent('${student.id}')"
+                                    title="View activities for this student">
+                                👁️
+                            </button>
+                        </div>
+                    </td>
                     ${categories.map(cat => {
                         const activities = categoryData[cat] || [];
                         const completedCount = activities.filter(a => a.completed).length;
@@ -1827,15 +1840,6 @@
                             `;
                         }
                     }).join('')}
-                    <td>
-                        <div class="action-buttons">
-                            <button class="vespa-view-button view-btn" 
-                                    onclick="VESPAStaff.viewStudent('${student.id}')"
-                                    title="View activities for this student">
-                                👁️
-                            </button>
-                        </div>
-                    </td>
                 </tr>
             `;
         }
@@ -2417,7 +2421,7 @@
             if (student) {
                 const responses = await this.loadStudentResponses(studentId);
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                this.showStudentWorkspace(student, responses, progressByActivity);
+                await this.showStudentWorkspace(student, responses, progressByActivity);
             }
         }
         
@@ -2468,7 +2472,7 @@
         
         switchRole(index) {
             this.state.currentRole = this.state.allRoles[parseInt(index)];
-            this.loadData().then(() => this.render());
+            this.loadData().then(async () => await this.render());
         }
         
         // Navigate back to the list view (Page 1)
@@ -2509,7 +2513,7 @@
                 this.state.currentStudentId = studentId;
                 
                 // Render full-screen workspace view (top/bottom)
-                this.showStudentWorkspace(student, responses, progressByActivity);
+                await this.showStudentWorkspace(student, responses, progressByActivity);
                 
             } catch (err) {
                 error('Failed to load student details:', err);
@@ -2520,7 +2524,7 @@
         }
 
         // Build student activity data ONLY from Object_6 prescribed activities
-        buildStudentActivityData(student, responses, progressByActivity = new Map()) {
+        buildStudentActivityData(student, responses, progressByActivity = new Map(), feedbackTracking = new Map()) {
             log(`Building student activity data for ${student.name}`);
             log(`Prescribed activity IDs:`, student.prescribedActivityIds);
             log(`Finished activity IDs:`, student.finishedActivities);
@@ -2545,9 +2549,14 @@
                 const isReportGenerated = selectedVia === 'report_generated';
                 const isSelfSelected = !isStaffAdded && !isReportGenerated;
                 
+                // Get feedback tracking info for this activity
+                const feedbackInfo = feedbackTracking.get(activityId);
+                
                 entries.push({
                     ...activity,
                     isCompleted,
+                    hasUnreadFeedback: feedbackInfo?.hasUnreadFeedback || false,
+                    feedbackGivenTime: feedbackInfo?.feedbackGivenTime || null,
                     response,
                     studentId: student.id,
                     questions: [],
@@ -2584,13 +2593,16 @@
         }
 
         // Full-screen student workspace - RADICAL REDESIGN
-        showStudentWorkspace(student, responses = [], progressByActivity = new Map()) {
+        async showStudentWorkspace(student, responses = [], progressByActivity = new Map()) {
             // Clean up any existing list view elements
             const listElements = document.querySelectorAll('.vespa-staff-container, .staff-header');
             listElements.forEach(el => el.remove());
             log('Cleaned up', listElements.length, 'list view elements before showing workspace');
             
-            const studentActivities = this.buildStudentActivityData(student, responses, progressByActivity);
+            // Load feedback tracking information for unread feedback notifications
+            const feedbackTracking = await this.loadStudentFeedbackTracking(student.id);
+            
+            const studentActivities = this.buildStudentActivityData(student, responses, progressByActivity, feedbackTracking);
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             
             // Group student activities by category (these are from Object_6 prescribed list)
@@ -2704,6 +2716,10 @@
                                     <span style="display: flex; align-items: center; gap: 4px;">
                                         <span class="source-circle staff" style="position: relative; top: auto; left: auto;"></span>
                                         Staff Added
+                                    </span>
+                                    <span style="display: flex; align-items: center; gap: 4px;">
+                                        <span class="source-circle feedback" style="position: relative; top: auto; left: auto;"></span>
+                                        Unread Feedback
                                     </span>
                                 </div>
                             </div>
@@ -2868,6 +2884,13 @@
                 }
             }
             
+            // Add feedback notification circle for unread feedback
+            let feedbackIndicator = '';
+            if (activity.hasUnreadFeedback) {
+                const feedbackTime = activity.feedbackGivenTime ? ` (${activity.feedbackGivenTime})` : '';
+                feedbackIndicator = `<span class="source-circle feedback" title="Unread feedback given${feedbackTime}"></span>`;
+            }
+            
             // Determine level class for styling variations
             const levelClass = level ? `level-${level}` : '';
             
@@ -2882,6 +2905,7 @@
                      title="${activityName}">
                     ${isCompleted ? '<span class="completion-flag"><img src="https://raw.githubusercontent.com/4Sighteducation/vespa-activities-v2/main/shared/assets/flags.png" alt="Completed" style="width: 12px; height: 12px;"></span>' : ''}
                     ${sourceIndicator}
+                    ${feedbackIndicator}
                     <span class="activity-text">${activityName}</span>
                     ${isStudent && isCompleted ? 
                         `<button class="btn-uncomplete-compact" 
@@ -3012,7 +3036,7 @@
             if (student) {
                 const responses = await this.loadStudentResponses(studentId);
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                this.showStudentWorkspace(student, responses, progressByActivity);
+                await this.showStudentWorkspace(student, responses, progressByActivity);
             }
         }
         
@@ -3029,7 +3053,7 @@
                 if (student) {
                     const responses = await this.loadStudentResponses(studentId);
                     const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                    this.showStudentWorkspace(student, responses, progressByActivity);
+                    await this.showStudentWorkspace(student, responses, progressByActivity);
                 }
             }
         }
@@ -3047,7 +3071,7 @@
                 if (student) {
                     const responses = await this.loadStudentResponses(studentId);
                     const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                    this.showStudentWorkspace(student, responses, progressByActivity);
+                    await this.showStudentWorkspace(student, responses, progressByActivity);
                 }
             }
         }
@@ -3067,7 +3091,7 @@
                 if (student) {
                     const responses = await this.loadStudentResponses(studentId);
                     const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                    this.showStudentWorkspace(student, responses, progressByActivity);
+                    await this.showStudentWorkspace(student, responses, progressByActivity);
                 }
             }
         }
@@ -3110,7 +3134,7 @@
                 // Refresh the workspace
                 const responses = await this.loadStudentResponses(studentId);
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                this.showStudentWorkspace(student, responses, progressByActivity);
+                await this.showStudentWorkspace(student, responses, progressByActivity);
                 
             } catch (err) {
                 error('Failed to toggle activity completion:', err);
@@ -3133,7 +3157,7 @@
                 if (student) {
                     const responses = await this.loadStudentResponses(studentId);
                     const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                    this.showStudentWorkspace(student, responses, progressByActivity);
+                    await this.showStudentWorkspace(student, responses, progressByActivity);
                 }
             }
         }
@@ -3194,7 +3218,7 @@
             if (student) {
                 const responses = await this.loadStudentResponses(studentId);
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
-                this.showStudentWorkspace(student, responses, progressByActivity);
+                await this.showStudentWorkspace(student, responses, progressByActivity);
             }
         }
         async clearCategory(studentId, category) {
@@ -3923,14 +3947,8 @@
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'none';
-                if (modalId === 'student-details-modal' || modalId === 'activity-detail-modal' || modalId === 'activity-preview-modal') {
+                if (modalId === 'student-details-modal') {
                     modal.remove();
-                }
-                
-                // If closing activity detail modal and we're in workspace view, ensure we stay in workspace
-                if (modalId === 'activity-detail-modal' && this.state.currentView === 'workspace' && this.state.currentStudentId) {
-                    // Don't need to re-render, just ensure we're still showing the workspace
-                    log('Activity detail modal closed, staying in workspace view');
                 }
             }
         }
@@ -4593,180 +4611,187 @@
             });
         }
         
-        // View activity details with questions and responses - RADICAL REDESIGN
+        // View activity details with questions and responses - COMPREHENSIVE REDESIGN
         async viewActivityDetails(activityId, studentId) {
             // Find the student and activity
             const student = this.state.students.find(s => s.id === studentId);
-            if (!student) return;
+            if (!student) {
+                alert('Student not found');
+                return;
+            }
             
             const activity = this.state.activities.find(a => a.id === activityId);
-            if (!activity) return;
+            if (!activity) {
+                alert('Activity not found');
+                return;
+            }
             
             this.showLoading();
             
             try {
-                // Load student response from Object_46 (Activity Answers)
-                const fields = this.config.fields;
-                const objects = this.config.objects;
+                // Load activity questions from Object_45
+                const questions = await this.loadActivityQuestions(activityId);
                 
-                let studentResponse = null;
-                let responseData = {};
-                let existingFeedback = '';
-                let questions = [];
+                // Load latest student response from Object_46 (Activity Answers)
+                const studentResponse = await this.loadLatestStudentActivityResponse(studentId, activityId);
                 
-                // First load the questions for this activity
-                try {
-                    questions = await this.loadActivityQuestions(activityId);
-                    log(`Loaded ${questions.length} questions for activity ${activityId}`);
-                } catch (err) {
-                    log('Failed to load questions:', err);
-                }
-                
-                // Then load student responses
-                try {
-                    const response = await $.ajax({
-                        url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
-                        type: 'GET',
-                        headers: {
-                            'X-Knack-Application-Id': this.config.knackAppId,
-                            'X-Knack-REST-API-Key': this.config.knackApiKey
-                        },
-                        data: {
-                            filters: JSON.stringify([
-                                { field: fields.answerStudentConnection, operator: 'is', value: studentId }
-                            ]),
-                            rows_per_page: 100
-                        }
-                    });
-                    
-                    // Find responses that contain answers for this activity
-                    if (response.records && response.records.length > 0) {
-                        for (const record of response.records) {
-                            if (record[fields.answerActivityJSON]) {
-                                try {
-                                    const parsedData = JSON.parse(record[fields.answerActivityJSON]);
-                                    
-                                    // Check if this record contains responses for our activity's questions
-                                    const hasMatchingQuestions = questions.some(q => parsedData[q.id]);
-                                    
-                                    if (hasMatchingQuestions) {
-                                        studentResponse = record;
-                                        
-                                        // Process the response data to match questions with answers
-                                        questions.forEach(question => {
-                                            if (parsedData[question.id]) {
-                                                const answerData = parsedData[question.id];
-                                                
-                                                // Extract the actual response value from cycle structure
-                                                let responseValue = 'No response';
-                                                if (answerData.cycle_1?.value !== undefined) {
-                                                    responseValue = answerData.cycle_1.value;
-                                                } else if (answerData.cycle_2?.value !== undefined) {
-                                                    responseValue = answerData.cycle_2.value;
-                                                } else if (typeof answerData === 'string') {
-                                                    responseValue = answerData;
-                                                }
-                                                
-                                                responseData[question.question || 'Question'] = responseValue;
-                                            }
-                                        });
-                                        
-                                        // Get existing feedback
-                                        existingFeedback = record[fields.answerStaffFeedback] || '';
-                                        break;
+                // Parse student responses and match with questions
+                let parsedResponses = [];
+                if (studentResponse && studentResponse.activityJSON) {
+                    try {
+                        const responseData = typeof studentResponse.activityJSON === 'string' 
+                            ? JSON.parse(studentResponse.activityJSON) 
+                            : studentResponse.activityJSON;
+                        
+                        if (responseData && typeof responseData === 'object') {
+                            // Extract responses based on different possible formats
+                            if (responseData.responses) {
+                                parsedResponses = responseData.responses;
+                            } else if (Array.isArray(responseData)) {
+                                parsedResponses = responseData;
+                            } else if (responseData.cycle_1 && responseData.cycle_1.value) {
+                                // Handle cycle format - extract the actual text value
+                                const responseText = typeof responseData.cycle_1.value === 'string' 
+                                    ? responseData.cycle_1.value 
+                                    : JSON.stringify(responseData.cycle_1.value);
+                                parsedResponses = [{ response: responseText }];
+                            } else {
+                                // Handle key-value pairs as individual responses
+                                parsedResponses = Object.entries(responseData).map(([key, value]) => {
+                                    // Extract actual response text from nested objects
+                                    let responseText = value;
+                                    if (value && typeof value === 'object') {
+                                        responseText = value.value || value.text || JSON.stringify(value);
                                     }
-                                } catch (e) {
-                                    log('Error parsing response JSON:', e);
-                                }
+                                    
+                                    // Find matching question by ID or key
+                                    const matchingQuestion = questions.find(q => q.id === key);
+                                    
+                                    return {
+                                        questionId: key,
+                                        questionText: matchingQuestion ? matchingQuestion.question : null,
+                                        response: responseText
+                                    };
+                                });
                             }
                         }
+                    } catch (e) {
+                        console.warn('Failed to parse student response JSON:', e);
+                        parsedResponses = [];
                     }
-                } catch (err) {
-                    log('No response found for this student');
                 }
                 
-                // Create the feedback modal
+                // Get existing feedback and tracking info
+                const existingFeedback = studentResponse?.[this.config.fields.answerStaffFeedback] || '';
+                const hasNewFeedback = studentResponse?.[this.config.fields.newFeedbackGiven] || false;
+                const feedbackRead = studentResponse?.[this.config.fields.feedbackRead] || false;
+                const lastFeedbackGiven = studentResponse?.[this.config.fields.lastFeedbackGiven] || '';
+                
+                // Create the modal HTML - opens in current window, not new tab
                 const modalHtml = `
-                    <div id="activity-detail-modal" class="modal-overlay" style="display: flex;">
-                        <div class="modal feedback-modal">
-                            <div class="modal-header">
-                                <h2 class="modal-title">${this.escapeHtml(activity.ActivityName || activity.name)}</h2>
-                                <button class="modal-close" onclick="VESPAStaff.closeModal('activity-detail-modal')">×</button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="feedback-container">
-                                    <!-- Student Info -->
-                                    <div class="feedback-student-info">
-                                        <span class="student-name">${this.escapeHtml(student.name)}</span>
-                                        <span class="activity-category ${(activity.VESPACategory || '').toLowerCase()}">${activity.VESPACategory}</span>
-                                        <span class="activity-level">Level ${activity.Level || '1'}</span>
+                    <div id="activity-detail-modal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999999;">
+                        <div class="modal activity-detail-modal" style="margin: auto; max-width: 900px; max-height: 90vh; overflow-y: auto; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #dee2e6; background: #f8f9fa; border-radius: 8px 8px 0 0;">
+                                <div>
+                                    <h2 class="modal-title" style="margin: 0; color: #343a40; font-size: 24px;">${this.escapeHtml(activity.name || activity.ActivityName)}</h2>
+                                    <div class="activity-meta" style="margin-top: 8px; display: flex; gap: 12px; align-items: center;">
+                                        <span class="student-name" style="font-weight: 600; color: #007bff;">${this.escapeHtml(student.name)}</span>
+                                        <span class="activity-category ${(activity.category || activity.VESPACategory || '').toLowerCase()}" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; background: #6c757d;">${activity.category || activity.VESPACategory || ''}</span>
+                                        <span class="activity-level" style="padding: 4px 8px; border-radius: 12px; font-size: 12px; background: #e9ecef; color: #495057;">Level ${activity.level || activity.Level || '2'}</span>
                                     </div>
+                                </div>
+                                <button class="modal-close" onclick="VESPAStaff.closeActivityDetailModal()" style="background: none; border: none; font-size: 28px; color: #6c757d; cursor: pointer; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">&times;</button>
+                            </div>
+                            <div class="modal-body" style="padding: 20px;">
+                                <div class="activity-detail-container">
+                                    
+                                    <!-- Activity Questions Section -->
+                                    ${questions.length > 0 ? `
+                                        <div class="activity-questions-section" style="margin-bottom: 30px;">
+                                            <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
+                                            <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
+                                                ${questions.map((q, index) => `
+                                                    <div class="question-item" style="margin-bottom: 12px; ${index < questions.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
+                                                        <div class="question-text" style="font-weight: 500; color: #343a40; margin-bottom: 4px;">
+                                                            ${index + 1}. ${this.escapeHtml(q.question)}
+                                                        </div>
+                                                        ${q.type === 'multiple_choice' && q.options ? `
+                                                            <div class="question-options" style="font-size: 14px; color: #6c757d; margin-left: 16px;">
+                                                                Options: ${this.escapeHtml(q.options)}
+                                                            </div>
+                                                        ` : ''}
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
                                     
                                     <!-- Student Responses Section -->
-                                    <div class="feedback-responses-section">
-                                        <h3>Student Responses</h3>
-                                        ${Object.keys(responseData).length > 0 ? `
-                                            <div class="student-responses">
-                                                ${Object.entries(responseData).map(([questionText, answer]) => {
-                                                    // Find the question object to get context
-                                                    const questionObj = questions.find(q => q.question === questionText);
-                                                    const context = questionObj?.context || '';
-                                                    
-                                                    // Clean up the answer display
-                                                    let displayAnswer = 'No response';
-                                                    if (answer !== null && answer !== undefined && String(answer).trim() !== '') {
-                                                        displayAnswer = String(answer).trim();
-                                                    }
-                                                    
-                                                    return `
-                                                        <div class="response-item">
-                                                            ${context ? `<div class="response-context">${context}</div>` : ''}
-                                                            <div class="response-question">${this.escapeHtml(questionText)}</div>
-                                                            <div class="response-answer">${this.escapeHtml(displayAnswer)}</div>
+                                    <div class="student-responses-section" style="margin-bottom: 30px;">
+                                        <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">💬 Student Responses</h3>
+                                        ${parsedResponses.length > 0 ? `
+                                            <div class="responses-list" style="background: #e8f4fd; padding: 16px; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                                                ${parsedResponses.map((response, index) => `
+                                                    <div class="response-item" style="margin-bottom: 16px; ${index < parsedResponses.length - 1 ? 'border-bottom: 1px solid #b8daff; padding-bottom: 16px;' : ''}">
+                                                        ${response.questionText ? `
+                                                            <div class="response-question" style="font-weight: 500; color: #495057; margin-bottom: 8px;">
+                                                                <strong>Q${index + 1}:</strong> ${this.escapeHtml(response.questionText)}
+                                                            </div>
+                                                        ` : response.question ? `
+                                                            <div class="response-question" style="font-weight: 500; color: #495057; margin-bottom: 8px;">
+                                                                <strong>Q${index + 1}:</strong> ${this.escapeHtml(response.question)}
+                                                            </div>
+                                                        ` : response.questionId ? `
+                                                            <div class="response-question" style="font-weight: 500; color: #6c757d; margin-bottom: 8px; font-style: italic;">
+                                                                Question ID: ${this.escapeHtml(response.questionId)}
+                                                            </div>
+                                                        ` : ''}
+                                                        <div class="response-content" style="background: white; padding: 12px; border-radius: 4px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #212529; border: 1px solid #b8daff;">
+                                                            <strong>Answer:</strong> ${this.escapeHtml(response.response || response.value || response)}
                                                         </div>
-                                                    `;
-                                                }).join('')}
-                                                
-                                                ${studentResponse && studentResponse[fields.answerCompletionDate] ? `
-                                                    <div class="completion-info">
-                                                        <small>Completed on: ${new Date(studentResponse[fields.answerCompletionDate]).toLocaleDateString()}</small>
                                                     </div>
-                                                ` : ''}
+                                                `).join('')}
                                             </div>
                                         ` : `
-                                            <div class="no-response-message">
-                                                <p>No responses submitted yet for this activity.</p>
-                                                ${questions.length > 0 ? `
-                                                    <div class="activity-questions-preview">
-                                                        <h4>Activity Questions:</h4>
-                                                        ${questions.slice(0, 3).map(q => `
-                                                            <div class="preview-question">
-                                                                ${q.context ? `<div class="question-context">${q.context}</div>` : ''}
-                                                                <div class="question-text">${this.escapeHtml(q.question || 'Question')}</div>
-                                                            </div>
-                                                        `).join('')}
-                                                        ${questions.length > 3 ? `<p><em>... and ${questions.length - 3} more questions</em></p>` : ''}
-                                                    </div>
-                                                ` : ''}
+                                            <div class="no-responses" style="background: #fff3cd; padding: 16px; border-radius: 6px; border-left: 4px solid #ffc107; color: #856404; text-align: center; font-style: italic;">
+                                                No responses found for this activity. Student has not completed this activity yet.
                                             </div>
                                         `}
                                     </div>
                                     
-                                    <!-- Feedback Section -->
-                                    <div class="feedback-input-section">
-                                        <h3>Staff Feedback</h3>
-                                        <textarea 
-                                            id="feedback-text-input" 
-                                            class="feedback-textarea" 
-                                            placeholder="Enter your feedback for the student..."
-                                            rows="6">${this.escapeHtml(existingFeedback)}</textarea>
+                                    <!-- Staff Feedback Section -->
+                                    <div class="feedback-section" style="background: #f1f8ff; padding: 20px; border-radius: 8px; border: 2px solid #007bff;">
+                                        <div class="feedback-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                            <h3 style="color: #495057; margin: 0; font-size: 18px;">✍️ Staff Feedback</h3>
+                                            ${hasNewFeedback && !feedbackRead ? `
+                                                <span class="feedback-status new" style="background: #dc3545; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">NEW FEEDBACK</span>
+                                            ` : feedbackRead ? `
+                                                <span class="feedback-status read" style="background: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">READ</span>
+                                            ` : ''}
+                                        </div>
                                         
-                                        <div class="feedback-actions">
-                                            <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}', '${studentResponse?.id || ''}')">
-                                                ${existingFeedback ? 'Update Feedback' : 'Save Feedback'}
-                                            </button>
-                                            <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('activity-detail-modal')">
+                                        ${lastFeedbackGiven ? `
+                                            <div class="feedback-meta" style="font-size: 12px; color: #6c757d; margin-bottom: 12px;">
+                                                Last feedback given: ${lastFeedbackGiven}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        <div class="feedback-input-container">
+                                            <textarea 
+                                                id="feedback-text-input" 
+                                                class="feedback-textarea" 
+                                                placeholder="Enter your feedback for the student here..."
+                                                rows="6"
+                                                style="width: 100%; padding: 12px; border: 2px solid #007bff; border-radius: 6px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.5; resize: vertical; min-height: 120px; background: white; box-sizing: border-box;"
+                                            >${this.escapeHtml(existingFeedback)}</textarea>
+                                        </div>
+                                        
+                                        <div class="feedback-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
+                                            <button class="btn btn-secondary" onclick="VESPAStaff.closeActivityDetailModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
                                                 Cancel
+                                            </button>
+                                            <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}', '${studentResponse?.id || ''}')" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                                ${existingFeedback ? '💾 Update Feedback' : '💾 Save Feedback'}
                                             </button>
                                         </div>
                                     </div>
@@ -4776,8 +4801,23 @@
                     </div>
                 `;
                 
-                // Add modal to body
-                $('body').append(modalHtml);
+                // Remove any existing modal first
+                const existingModal = document.getElementById('activity-detail-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Add modal to current page (not new window)
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Add escape key handler
+                const escapeHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeActivityDetailModal();
+                        document.removeEventListener('keydown', escapeHandler);
+                    }
+                };
+                document.addEventListener('keydown', escapeHandler);
                 
             } catch (err) {
                 error('Failed to load activity details:', err);
@@ -4785,6 +4825,116 @@
             } finally {
                 this.hideLoading();
             }
+        }
+        
+        // Load latest student activity response from Object_46 (Activity Answers)
+        async loadLatestStudentActivityResponse(studentId, activityId) {
+            const fields = this.config.fields;
+            const objects = this.config.objects;
+            
+            try {
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([
+                            { field: fields.answerStudentConnection, operator: 'is', value: studentId },
+                            { field: fields.answerActivityConnection, operator: 'is', value: activityId }
+                        ]),
+                        sort_field: 'created_at',
+                        sort_order: 'desc',
+                        rows_per_page: 1
+                    }
+                });
+                
+                if (response.records && response.records.length > 0) {
+                    const record = response.records[0];
+                    return {
+                        id: record.id,
+                        activityJSON: record[fields.answerActivityJSON],
+                        feedback: record[fields.answerStaffFeedback] || '',
+                        completionDate: record[fields.answerCompletionDate],
+                        [fields.newFeedbackGiven]: record[fields.newFeedbackGiven],
+                        [fields.feedbackRead]: record[fields.feedbackRead],
+                        [fields.lastFeedbackGiven]: record[fields.lastFeedbackGiven],
+                        [fields.lastFeedbackRead]: record[fields.lastFeedbackRead]
+                    };
+                }
+                
+                return null;
+            } catch (err) {
+                console.warn('Failed to load student response:', err);
+                return null;
+            }
+        }
+        
+        // Load feedback tracking information for all student activities
+        async loadStudentFeedbackTracking(studentId) {
+            const fields = this.config.fields;
+            const objects = this.config.objects;
+            
+            try {
+                // Get all activity responses for this student with feedback tracking info
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records`,
+                    type: 'GET',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey
+                    },
+                    data: {
+                        filters: JSON.stringify([
+                            { field: fields.answerStudentConnection, operator: 'is', value: studentId }
+                        ]),
+                        rows_per_page: 1000 // Get all responses for this student
+                    }
+                });
+                
+                // Create a map of activity ID to feedback tracking info
+                const feedbackMap = new Map();
+                
+                if (response.records && response.records.length > 0) {
+                    response.records.forEach(record => {
+                        const activityId = record[fields.answerActivityConnection] || 
+                                         record[fields.answerActivityConnection + '_raw']?.[0]?.id || 
+                                         record.field_1302_raw?.[0]?.id;
+                        
+                        if (activityId) {
+                            const feedbackGiven = record[fields.newFeedbackGiven] || false;
+                            const feedbackRead = record[fields.feedbackRead] || false;
+                            const feedbackGivenTime = record[fields.lastFeedbackGiven] || '';
+                            
+                            // Only include if feedback has been given but not read
+                            if (feedbackGiven && !feedbackRead) {
+                                feedbackMap.set(activityId, {
+                                    feedbackGiven: true,
+                                    feedbackRead: false,
+                                    feedbackGivenTime: feedbackGivenTime,
+                                    hasUnreadFeedback: true
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                return feedbackMap;
+            } catch (err) {
+                console.warn('Failed to load feedback tracking:', err);
+                return new Map();
+            }
+        }
+        
+        // Close activity detail modal and return to Page 2
+        closeActivityDetailModal() {
+            const modal = document.getElementById('activity-detail-modal');
+            if (modal) {
+                modal.remove();
+            }
+            // No need to reload - user stays on Page 2 (student workspace)
         }
         
         // Save feedback to Object_46 (Activity Answers) field_1734
@@ -4812,16 +4962,19 @@
                             'Content-Type': 'application/json'
                         },
                         data: JSON.stringify({
-                            [fields.answerStaffFeedback]: feedbackText
+                            [fields.answerStaffFeedback]: feedbackText.trim(),
+                            [fields.newFeedbackGiven]: true,        // Mark as new feedback given
+                            [fields.feedbackRead]: false,           // Reset read status
+                            [fields.lastFeedbackGiven]: new Date().toLocaleDateString('en-GB')  // Update last feedback date
                         })
                     });
                     
-                    this.showSuccessModal('Success', 'Feedback saved successfully!');
+                    this.showSuccessModal('Success', 'Feedback saved successfully! Student will be notified of new feedback.');
                 } else {
                     alert('No student response found for this activity. Student must complete the activity first.');
                 }
                 
-                this.closeModal('activity-detail-modal');
+                this.closeActivityDetailModal();
                 
             } catch (err) {
                 error('Failed to save feedback:', err);
@@ -5157,7 +5310,7 @@
                 
                 // Refresh data
                 await this.loadData();
-                this.render();
+                await this.render();
                 
             } catch (err) {
                 error('Failed to assign activities:', err);
