@@ -3443,16 +3443,8 @@
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             try {
-                const activity = this.state.activities.find(a => a.id === activityId);
-                const activityName = activity ? activity.name : '';
-                log(`Activity found: ${activity ? 'YES' : 'NO'}, Activity name: "${activityName}"`);
-                
-                if (!activityName) {
-                    log('No activity name found for questions lookup, using fallback');
-                    return activity ? this.generateDefaultQuestions(activity) : [];
-                }
-
-                log(`Searching Object_45 for questions with activity name: "${activityName}"`);
+                // First, try to load all questions from Object_45 and we'll match them by ID
+                log(`Loading all questions from Object_45 to match by ID`);
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/object_45/records`,
                     type: 'GET',
@@ -3461,40 +3453,43 @@
                         'X-Knack-REST-API-Key': this.config.knackApiKey
                     },
                     data: {
-                        filters: JSON.stringify([
-                            {
-                                field: 'field_1286', // connection to Activities by name
-                                operator: 'is',
-                                value: activityName
-                            }
-                        ]),
                         page: 1,
-                        rows_per_page: 200
+                        rows_per_page: 1000  // Load more questions to find matches
                     }
                 });
 
-                log(`Object_45 response: ${response.records ? response.records.length : 0} records found`);
+                log(`Object_45 response: ${response.records ? response.records.length : 0} total questions found`);
                 if (response.records && response.records.length > 0) {
                     log('Sample question record:', response.records[0]);
-                    const questions = response.records.map(record => ({
+                    
+                    // Parse all questions and store them
+                    const allQuestions = response.records.map(record => ({
                         id: record.id,
-                        question: this.stripHtml(record.field_1137 || record.field_1279 || ''),
+                        question: this.stripHtml(record.field_1279 || record.field_1137 || ''), // Use field_1279 first as specified
                         type: record.field_1138 || record.field_1290 || 'text',
                         options: record.field_1139 || record.field_1291 || '',
-                        order: parseInt(record.field_1140 || record.field_1303) || 0
-                    })).sort((a, b) => a.order - b.order);
-                    log(`Parsed ${questions.length} questions from Object_45`);
-                    return questions;
+                        order: parseInt(record.field_1140 || record.field_1303) || 0,
+                        activityConnection: record.field_1286 || '' // Store activity connection for debugging
+                    }));
+                    
+                    log(`Parsed ${allQuestions.length} questions from Object_45`);
+                    log('Sample parsed question:', allQuestions[0]);
+                    
+                    // Store all questions for later matching
+                    this.allQuestionsCache = allQuestions;
+                    
+                    // For now, return all questions - we'll match them in the response parsing
+                    return allQuestions;
                 } else {
                     log('No questions found in Object_45, using fallback default questions');
-                    const fallbackActivity = this.state.activities.find(a => a.id === activityId);
-                    return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
+                    const activity = this.state.activities.find(a => a.id === activityId);
+                    return activity ? this.generateDefaultQuestions(activity) : [];
                 }
             } catch (err) {
                 error('Failed to load activity questions:', err);
                 log('Error details:', err);
-                const fallbackActivity = this.state.activities.find(a => a.id === activityId);
-                return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
+                const activity = this.state.activities.find(a => a.id === activityId);
+                return activity ? this.generateDefaultQuestions(activity) : [];
             }
         }
         
@@ -4671,8 +4666,9 @@
                                     }
                                 }
                                 
-                                // Find matching question by ID
-                                const matchingQuestion = questions.find(q => q.id === questionId);
+                                // Find matching question by ID from all questions cache or current questions
+                                const allQuestions = this.allQuestionsCache || questions;
+                                const matchingQuestion = allQuestions.find(q => q.id === questionId);
                                 log(`Question ID: ${questionId}, Found question: ${matchingQuestion ? 'YES' : 'NO'}`, matchingQuestion);
                                 
                                 return {
@@ -4715,25 +4711,34 @@
                                 <div class="activity-detail-container">
                                     
                                     <!-- Activity Questions Section -->
-                                    ${questions.length > 0 ? `
-                                        <div class="activity-questions-section" style="margin-bottom: 30px;">
-                                            <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
-                                            <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
-                                                ${questions.map((q, index) => `
-                                                    <div class="question-item" style="margin-bottom: 12px; ${index < questions.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
-                                                        <div class="question-text" style="font-weight: 500; color: #343a40; margin-bottom: 4px;">
-                                                            ${index + 1}. ${this.escapeHtml(q.question)}
-                                                        </div>
-                                                        ${q.type === 'multiple_choice' && q.options ? `
-                                                            <div class="question-options" style="font-size: 14px; color: #6c757d; margin-left: 16px;">
-                                                                Options: ${this.escapeHtml(q.options)}
+                                    ${(() => {
+                                        // Filter questions to only show those that have responses
+                                        const allQuestions = this.allQuestionsCache || questions;
+                                        const responseQuestionIds = parsedResponses.map(r => r.questionId);
+                                        const relevantQuestions = allQuestions.filter(q => responseQuestionIds.includes(q.id));
+                                        
+                                        log(`Filtering questions: ${allQuestions.length} total, ${responseQuestionIds.length} response IDs, ${relevantQuestions.length} relevant questions`);
+                                        
+                                        return relevantQuestions.length > 0 ? `
+                                            <div class="activity-questions-section" style="margin-bottom: 30px;">
+                                                <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
+                                                <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
+                                                    ${relevantQuestions.map((q, index) => `
+                                                        <div class="question-item" style="margin-bottom: 12px; ${index < relevantQuestions.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
+                                                            <div class="question-text" style="font-weight: 500; color: #343a40; margin-bottom: 4px;">
+                                                                ${index + 1}. ${this.escapeHtml(q.question)}
                                                             </div>
-                                                        ` : ''}
-                                                    </div>
-                                                `).join('')}
+                                                            ${q.type === 'multiple_choice' && q.options ? `
+                                                                <div class="question-options" style="font-size: 14px; color: #6c757d; margin-left: 16px;">
+                                                                    Options: ${this.escapeHtml(q.options)}
+                                                                </div>
+                                                            ` : ''}
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ` : ''}
+                                        ` : '';
+                                    })()}
                                     
                                     <!-- Student Responses Section -->
                                     <div class="student-responses-section" style="margin-bottom: 30px;">
@@ -5289,16 +5294,75 @@
         }
         
         // Save feedback
-        async saveFeedback(activityId, studentId) {
-            const feedbackText = $('#feedback-text').val();
-            if (!feedbackText.trim()) {
-                alert('Please enter feedback before saving');
+        async saveFeedback(activityId, studentId, responseId) {
+            log(`Saving feedback for activity: ${activityId}, student: ${studentId}, response: ${responseId}`);
+            
+            // Try to get feedback from the correct input element
+            let feedbackTextElement = document.getElementById('feedback-text-input');
+            if (!feedbackTextElement) {
+                feedbackTextElement = document.getElementById('feedback-text');
+            }
+            
+            if (!feedbackTextElement) {
+                error('Feedback text input element not found');
+                alert('Error: Feedback input field not found.');
                 return;
             }
             
-            // TODO: Implement actual feedback saving via API
-            this.showSuccessModal('Success', 'Feedback saved successfully!');
-            this.closeModal('activity-detail-modal');
+            const feedbackText = feedbackTextElement.value;
+            log(`Feedback text: "${feedbackText}"`);
+            
+            if (!feedbackText || typeof feedbackText !== 'string' || !feedbackText.trim()) {
+                alert('Please enter feedback before saving.');
+                return;
+            }
+            
+            this.showLoading();
+            
+            try {
+                const fields = this.config.fields;
+                const objects = this.config.objects;
+                
+                log(`Using fields:`, fields);
+                log(`answerStaffFeedback field: ${fields.answerStaffFeedback}`);
+                
+                if (responseId) {
+                    const updateData = {
+                        [fields.answerStaffFeedback]: feedbackText.trim(),
+                        [fields.newFeedbackGiven]: true,        // Mark as new feedback given
+                        [fields.feedbackRead]: false,           // Reset read status
+                        [fields.lastFeedbackGiven]: new Date().toLocaleDateString('en-GB')  // Update last feedback date
+                    };
+                    
+                    log('Update data:', updateData);
+                    
+                    // Update existing response record with feedback
+                    const response = await $.ajax({
+                        url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records/${responseId}`,
+                        type: 'PUT',
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey,
+                            'Content-Type': 'application/json'
+                        },
+                        data: JSON.stringify(updateData)
+                    });
+                    
+                    log('Feedback save response:', response);
+                    this.showSuccessModal('Success', 'Feedback saved successfully! Student will be notified of new feedback.');
+                } else {
+                    alert('No student response found for this activity. Student must complete the activity first.');
+                }
+                
+                this.closeActivityDetailModal();
+                
+            } catch (err) {
+                error('Failed to save feedback:', err);
+                error('Error details:', err.responseText || err.message || err);
+                alert('Error saving feedback. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
         }
         
         async confirmAssignment() {
