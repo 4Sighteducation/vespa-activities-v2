@@ -2612,17 +2612,41 @@
                             </div>
                             <div class="activities-by-category student">
                                 ${categories.map(category => {
-                                    // Split activities by level (with proper type checking)
-                                    const level2Activities = studentActivitiesByCategory[category].filter(a => {
+                                    // Split activities by level (with proper type checking and fallback)
+                                    const allCategoryActivities = studentActivitiesByCategory[category];
+                                    
+                                    const level2Activities = allCategoryActivities.filter(a => {
                                         const levelValue = a.field_3568 || a.level || '';
                                         const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
                                         return levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2';
                                     });
-                                    const level3Activities = studentActivitiesByCategory[category].filter(a => {
+                                    
+                                    const level3Activities = allCategoryActivities.filter(a => {
                                         const levelValue = a.field_3568 || a.level || '';
                                         const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
                                         return levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3';
                                     });
+                                    
+                                    // Fallback: if no activities have level data, put them all in Level 2
+                                    const unassignedActivities = allCategoryActivities.filter(a => {
+                                        const levelValue = a.field_3568 || a.level || '';
+                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
+                                        return !levelStr.toLowerCase().includes('level 2') && 
+                                               !levelStr.toLowerCase().includes('level 3') && 
+                                               levelStr !== 'Level 2' && 
+                                               levelStr !== 'Level 3';
+                                    });
+                                    
+                                    // Add unassigned to Level 2 as fallback
+                                    const finalLevel2Activities = [...level2Activities, ...unassignedActivities];
+                                    
+                                    // Debug logging
+                                    if (category === 'vision' && (finalLevel2Activities.length > 0 || level3Activities.length > 0)) {
+                                        this.log('Level filtering debug for', category, '- L2:', finalLevel2Activities.length, 'L3:', level3Activities.length);
+                                        if (allCategoryActivities.length > 0) {
+                                            this.log('Sample activity level data:', allCategoryActivities[0].field_3568, allCategoryActivities[0].level);
+                                        }
+                                    }
                                     
                                     return `
                                     <div class="category-section ${category}">
@@ -2640,7 +2664,7 @@
                                                      ondragover="event.preventDefault()"
                                                      ondragenter="event.currentTarget.classList.add('drag-over')"
                                                      ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                                    ${level2Activities.map(activity => 
+                                                    ${finalLevel2Activities.map(activity => 
                                                         this.renderCompactActivityCard(activity, true, student.id, 'level2')
                                                     ).join('')}
                                                 </div>
@@ -2675,17 +2699,33 @@
                             </div>
                             <div class="activities-by-category all">
                                 ${categories.map(category => {
-                                    // Split all activities by level (with proper type checking)
-                                    const level2Activities = allActivitiesByCategory[category].filter(a => {
+                                    // Split all activities by level (with proper type checking and fallback)
+                                    const allCategoryActivitiesAll = allActivitiesByCategory[category];
+                                    
+                                    const level2ActivitiesAll = allCategoryActivitiesAll.filter(a => {
                                         const levelValue = a.field_3568 || a.level || '';
                                         const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
                                         return levelStr.toLowerCase().includes('level 2') || levelStr === 'Level 2';
                                     });
-                                    const level3Activities = allActivitiesByCategory[category].filter(a => {
+                                    
+                                    const level3ActivitiesAll = allCategoryActivitiesAll.filter(a => {
                                         const levelValue = a.field_3568 || a.level || '';
                                         const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
                                         return levelStr.toLowerCase().includes('level 3') || levelStr === 'Level 3';
                                     });
+                                    
+                                    // Fallback: if no activities have level data, put them all in Level 2
+                                    const unassignedActivitiesAll = allCategoryActivitiesAll.filter(a => {
+                                        const levelValue = a.field_3568 || a.level || '';
+                                        const levelStr = typeof levelValue === 'string' ? levelValue : String(levelValue || '');
+                                        return !levelStr.toLowerCase().includes('level 2') && 
+                                               !levelStr.toLowerCase().includes('level 3') && 
+                                               levelStr !== 'Level 2' && 
+                                               levelStr !== 'Level 3';
+                                    });
+                                    
+                                    // Add unassigned to Level 2 as fallback
+                                    const finalLevel2ActivitiesAll = [...level2ActivitiesAll, ...unassignedActivitiesAll];
                                     
                                     return `
                                     <div class="category-section ${category}">
