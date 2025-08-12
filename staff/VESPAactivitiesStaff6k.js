@@ -2581,12 +2581,55 @@
             });
             
             // Group ALL available activities by category (for assignment)
+            // Include completion history and questionnaire origin for ALL activities
             const assignedActivityIds = new Set(studentActivities.map(a => a.id));
+            const completedActivityIds = new Set(student.finishedActivities || []);
+            
+            // Get questionnaire-recommended activities (originally prescribed via report)
+            const questionnaireActivityIds = new Set();
+            const staffAddedActivityIds = new Set();
+            
+            if (student.prescribedActivityIds) {
+                // Check progress records to identify original source of each activity
+                student.prescribedActivityIds.forEach(activityId => {
+                    const latestProgress = progressByActivity.get(activityId);
+                    const selectedVia = latestProgress ? latestProgress[this.config.fields.progressSelectedVia] : '';
+                    
+                    if (selectedVia === 'staff_assigned') {
+                        staffAddedActivityIds.add(activityId);
+                    } else if (selectedVia === 'report_generated' || !selectedVia) {
+                        // Either explicitly from report or no source specified (assume questionnaire)
+                        questionnaireActivityIds.add(activityId);
+                    } else {
+                        // Default to questionnaire for other cases
+                        questionnaireActivityIds.add(activityId);
+                    }
+                });
+            }
+            
+            // Also check if there are any activities that were previously prescribed but removed
+            // These should maintain their original questionnaire status
+            if (student.previousPrescribedActivityIds) {
+                student.previousPrescribedActivityIds.forEach(activityId => {
+                    if (!assignedActivityIds.has(activityId)) {
+                        questionnaireActivityIds.add(activityId);
+                    }
+                });
+            }
+            
             const allActivitiesByCategory = {};
             categories.forEach(cat => {
-                allActivitiesByCategory[cat] = this.state.activities.filter(a => 
-                    !assignedActivityIds.has(a.id) && (a.category || a.VESPACategory || '').toLowerCase() === cat
-                );
+                allActivitiesByCategory[cat] = this.state.activities
+                    .filter(a => !assignedActivityIds.has(a.id) && (a.category || a.VESPACategory || '').toLowerCase() === cat)
+                    .map(activity => ({
+                        ...activity,
+                        // Persist completion status even if activity is no longer assigned
+                        isCompleted: completedActivityIds.has(activity.id),
+                        // Persist questionnaire badge for originally recommended activities
+                        showPrescribedBadge: questionnaireActivityIds.has(activity.id),
+                        showStaffBadge: false, // Will be set if re-added by staff
+                        showSelfBadge: false   // Will be set if re-added by student
+                    }));
             });
             
             log(`Student activities by category:`, studentActivitiesByCategory);
@@ -2939,9 +2982,12 @@
         
         // Quick add activity without drag
         async quickAddActivity(studentId, activityId) {
-            await this.addActivityToStudent(studentId, activityId);
-            // Refresh the workspace view
+            // Check if this activity was originally from questionnaire (should preserve that status)
             const student = this.state.students.find(s => s.id === studentId);
+            const wasOriginallyPrescribed = student && student.finishedActivities && student.finishedActivities.includes(activityId);
+            
+            await this.addActivityToStudent(studentId, activityId, wasOriginallyPrescribed);
+            // Refresh the workspace view
             if (student) {
                 const responses = await this.loadStudentResponses(studentId);
                 const progressByActivity = await this.loadLatestProgressByActivity(studentId);
@@ -3114,9 +3160,9 @@
         }
 
         // Actions for workspace
-        async addActivityToStudent(studentId, activityId) {
+        async addActivityToStudent(studentId, activityId, preserveOriginalSource = false) {
             await this.updateStudentPrescribedActivities(studentId, [activityId]);
-            await this.createAssignedProgressRecord(studentId, activityId);
+            await this.createAssignedProgressRecord(studentId, activityId, preserveOriginalSource);
         }
         async removeActivityFromStudent(studentId, activityId) {
             await this.removeFromStudentPrescribed(studentId, [activityId]);
@@ -5046,16 +5092,27 @@
         }
 
         // Create an assigned progress record (object_126) for origin tracing
-        async createAssignedProgressRecord(studentId, activityId) {
+        async createAssignedProgressRecord(studentId, activityId, preserveOriginalSource = false) {
             const o = this.config.objects;
             const f = this.config.fields;
             try {
+                // Check if this activity was originally from questionnaire
+                let selectedVia = 'staff_assigned'; // default for new additions
+                
+                if (preserveOriginalSource) {
+                    // Check if this activity was previously prescribed (likely from questionnaire)
+                    const student = this.state.students.find(s => s.id === studentId);
+                    if (student && student.prescribedActivityIds && student.prescribedActivityIds.includes(activityId)) {
+                        selectedVia = 'report_generated'; // Preserve questionnaire origin
+                    }
+                }
+                
                 const payload = {
                     [f.progressStudent]: studentId,
                     [f.progressActivity]: activityId,
                     [f.progressDateAssigned]: new Date().toISOString(),
                     [f.progressStatus]: 'assigned',
-                    [f.progressSelectedVia]: 'staff_assigned'
+                    [f.progressSelectedVia]: selectedVia
                 };
                 await $.ajax({
                     url: `https://api.knack.com/v1/objects/${o.activityProgress}/records`,
