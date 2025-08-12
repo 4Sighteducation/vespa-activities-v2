@@ -2769,13 +2769,19 @@
 
 /* Compact Header */
 .workspace-header-compact {
-    background: white;
-    padding: 12px 20px;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 60px;
+    background: white !important;
+    padding: 15px 20px !important;
+    margin: 120px 20px 20px 20px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border: 1px solid #dee2e6 !important;
+    position: relative !important;
+    z-index: 999998 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .btn-back-compact,
@@ -4326,20 +4332,21 @@
     padding: 40px 20px;
 }
 
-/* Workspace header - positioned as a section below general header */
+/* Workspace header - positioned below existing navigation */
 .workspace-header-compact {
-    position: relative;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-bottom: 1px solid #dee2e6;
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 60px;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    margin: 0 20px 20px 20px;
+    position: relative !important;
+    background: white !important;
+    padding: 15px 20px !important;
+    margin: 120px 20px 20px 20px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border: 1px solid #dee2e6 !important;
+    z-index: 999998 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* No need to adjust workspace content - it flows naturally */
