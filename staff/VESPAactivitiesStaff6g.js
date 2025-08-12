@@ -2694,9 +2694,9 @@
                                     
                                     // Debug logging
                                     if (category === 'vision' && (finalLevel2Activities.length > 0 || level3Activities.length > 0)) {
-                                        this.log('Level filtering debug for', category, '- L2:', finalLevel2Activities.length, 'L3:', level3Activities.length);
+                                        log('Level filtering debug for', category, '- L2:', finalLevel2Activities.length, 'L3:', level3Activities.length);
                                         if (allCategoryActivities.length > 0) {
-                                            this.log('Sample activity level data:', allCategoryActivities[0].field_3568, allCategoryActivities[0].level);
+                                            log('Sample activity level data:', allCategoryActivities[0].field_3568, allCategoryActivities[0].level);
                                         }
                                     }
                                     
