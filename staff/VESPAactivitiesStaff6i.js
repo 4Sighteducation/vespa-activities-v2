@@ -2609,6 +2609,20 @@
                         <div class="student-section">
                             <div class="section-header-compact">
                                 <h4>Student Activities</h4>
+                                <div class="notification-key" style="display: inline-flex; gap: 15px; margin-left: 20px; font-size: 10px; align-items: center;">
+                                    <span style="display: flex; align-items: center; gap: 4px;">
+                                        <span class="source-circle questionnaire" style="position: relative; top: auto; left: auto;"></span>
+                                        Questionnaire
+                                    </span>
+                                    <span style="display: flex; align-items: center; gap: 4px;">
+                                        <span class="source-circle student" style="position: relative; top: auto; left: auto;"></span>
+                                        Student Added
+                                    </span>
+                                    <span style="display: flex; align-items: center; gap: 4px;">
+                                        <span class="source-circle staff" style="position: relative; top: auto; left: auto;"></span>
+                                        Staff Added
+                                    </span>
+                                </div>
                             </div>
                             <div class="activities-by-category student">
                                 ${categories.map(category => {
@@ -2629,7 +2643,7 @@
                                         // Check numeric level field
                                         const numLevel = a.level;
                                         if (typeof numLevel === 'number') {
-                                            return numLevel === 1 || numLevel === 2; // levels 1-2 = Level 2 in UI
+                                            return numLevel === 1; // level 1 = Level 2 in UI
                                         }
                                         
                                         // Check string level field
@@ -2666,7 +2680,7 @@
                                         // Check numeric level field
                                         const numLevel = a.level;
                                         if (typeof numLevel === 'number') {
-                                            return numLevel >= 3; // level 3+ = Level 3 in UI
+                                            return numLevel >= 2; // level 2+ = Level 3 in UI
                                         }
                                         
                                         // Check string level field
@@ -2767,7 +2781,7 @@
                                         // Check numeric level field
                                         const numLevel = a.level;
                                         if (typeof numLevel === 'number') {
-                                            return numLevel === 1 || numLevel === 2; // levels 1-2 = Level 2 in UI
+                                            return numLevel === 1; // level 1 = Level 2 in UI
                                         }
                                         
                                         // Check string level field
@@ -2804,7 +2818,7 @@
                                         // Check numeric level field
                                         const numLevel = a.level;
                                         if (typeof numLevel === 'number') {
-                                            return numLevel >= 3; // level 3+ = Level 3 in UI
+                                            return numLevel >= 2; // level 2+ = Level 3 in UI
                                         }
                                         
                                         // Check string level field

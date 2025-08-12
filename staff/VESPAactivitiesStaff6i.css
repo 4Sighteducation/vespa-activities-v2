@@ -3035,8 +3035,8 @@
 
 .compact-activity-card.completed .activity-text {
     padding-left: 20px;
-    text-decoration: line-through !important;
     color: #6c757d !important;
+    /* Removed strikethrough */
 }
 
 /* Origin Indicators */
@@ -4635,6 +4635,29 @@
     display: none !important;
 }
 
+/* Centralize theme headers */
+.category-main-header {
+    text-align: center !important;
+    justify-content: center !important;
+}
+
+/* Remove grid lines for cleaner look */
+.category-section {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.level-column {
+    border: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+}
+
+/* Hide Level 2/3 headers but keep columns */
+.level-header {
+    display: none !important;
+}
+
 .level-header {
     padding: 2px 4px !important;
     font-size: 10px !important;
@@ -4705,12 +4728,12 @@
     border-left: 2px solid #d929cc !important;
 }
 
-/* Smaller source circles and completion flags */
+/* Bigger source circles for better visibility */
 .source-circle {
-    width: 6px !important;
-    height: 6px !important;
-    top: 1px !important;
-    left: 1px !important;
+    width: 10px !important;
+    height: 10px !important;
+    top: 2px !important;
+    left: 2px !important;
     border: 1px solid white !important;
 }
 
@@ -4720,15 +4743,18 @@
 }
 
 .completion-flag img {
-    width: 8px !important;
-    height: 8px !important;
+    width: 12px !important;
+    height: 12px !important;
+    filter: brightness(1.5) contrast(1.2) !important;
 }
 
 .compact-activity-card .activity-text {
     margin-left: 8px !important;
     margin-right: 8px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     line-height: 1.1 !important;
+    color: #333 !important;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.5) !important;
 }
 
 /* Make the overall grid more compact */
@@ -4765,24 +4791,28 @@
     margin: 8px 0 !important;
 }
 
-/* Responsive - stack columns on smaller screens */
-@media (max-width: 1400px) {
+/* Improved responsive - keep columns on laptops, stack only on mobile */
+@media (max-width: 1200px) {
     .activities-by-category {
         grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
     }
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
     .activities-by-category {
         grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+}
+
+/* Stack only on mobile */
+@media (max-width: 600px) {
+    .activities-by-category {
+        grid-template-columns: 1fr !important;
     }
     
     .level-columns {
         grid-template-columns: 1fr !important;
-    }
-    
-    .level-column {
-        border-right: none !important;
-        border-bottom: 1px solid #e0e0e0 !important;
     }
 }
