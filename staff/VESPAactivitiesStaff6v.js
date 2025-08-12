@@ -3443,15 +3443,16 @@
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             try {
-                // Filter Object_45 by connection to activity NAME (field_1286)
                 const activity = this.state.activities.find(a => a.id === activityId);
                 const activityName = activity ? activity.name : '';
+                log(`Activity found: ${activity ? 'YES' : 'NO'}, Activity name: "${activityName}"`);
+                
                 if (!activityName) {
-                    log('No activity name found for questions lookup');
-                    // Fallback to generated defaults
+                    log('No activity name found for questions lookup, using fallback');
                     return activity ? this.generateDefaultQuestions(activity) : [];
                 }
 
+                log(`Searching Object_45 for questions with activity name: "${activityName}"`);
                 const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/object_45/records`,
                     type: 'GET',
@@ -3472,21 +3473,26 @@
                     }
                 });
 
+                log(`Object_45 response: ${response.records ? response.records.length : 0} records found`);
                 if (response.records && response.records.length > 0) {
-                    return response.records.map(record => ({
+                    log('Sample question record:', response.records[0]);
+                    const questions = response.records.map(record => ({
                         id: record.id,
                         question: this.stripHtml(record.field_1137 || record.field_1279 || ''),
                         type: record.field_1138 || record.field_1290 || 'text',
                         options: record.field_1139 || record.field_1291 || '',
                         order: parseInt(record.field_1140 || record.field_1303) || 0
                     })).sort((a, b) => a.order - b.order);
+                    log(`Parsed ${questions.length} questions from Object_45`);
+                    return questions;
+                } else {
+                    log('No questions found in Object_45, using fallback default questions');
+                    const fallbackActivity = this.state.activities.find(a => a.id === activityId);
+                    return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
                 }
-
-                // Fallback to generated defaults
-                const fallbackActivity = this.state.activities.find(a => a.id === activityId);
-                return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
             } catch (err) {
                 error('Failed to load activity questions:', err);
+                log('Error details:', err);
                 const fallbackActivity = this.state.activities.find(a => a.id === activityId);
                 return fallbackActivity ? this.generateDefaultQuestions(fallbackActivity) : [];
             }
@@ -4639,41 +4645,44 @@
                 let parsedResponses = [];
                 if (studentResponse && studentResponse.activityJSON) {
                     try {
+                        log('Raw student response JSON:', studentResponse.activityJSON);
                         const responseData = typeof studentResponse.activityJSON === 'string' 
                             ? JSON.parse(studentResponse.activityJSON) 
                             : studentResponse.activityJSON;
                         
+                        log('Parsed response data:', responseData);
+                        
                         if (responseData && typeof responseData === 'object') {
-                            // Extract responses based on different possible formats
-                            if (responseData.responses) {
-                                parsedResponses = responseData.responses;
-                            } else if (Array.isArray(responseData)) {
-                                parsedResponses = responseData;
-                            } else if (responseData.cycle_1 && responseData.cycle_1.value) {
-                                // Handle cycle format - extract the actual text value
-                                const responseText = typeof responseData.cycle_1.value === 'string' 
-                                    ? responseData.cycle_1.value 
-                                    : JSON.stringify(responseData.cycle_1.value);
-                                parsedResponses = [{ response: responseText }];
-                            } else {
-                                // Handle key-value pairs as individual responses
-                                parsedResponses = Object.entries(responseData).map(([key, value]) => {
-                                    // Extract actual response text from nested objects
-                                    let responseText = value;
-                                    if (value && typeof value === 'object') {
-                                        responseText = value.value || value.text || JSON.stringify(value);
+                            // Handle key-value pairs where keys are question IDs
+                            parsedResponses = Object.entries(responseData).map(([questionId, responseObj]) => {
+                                // Extract actual response text from nested objects
+                                let responseText = responseObj;
+                                
+                                // Handle the cycle_1.value format
+                                if (responseObj && typeof responseObj === 'object') {
+                                    if (responseObj.cycle_1 && responseObj.cycle_1.value) {
+                                        responseText = responseObj.cycle_1.value;
+                                    } else if (responseObj.value) {
+                                        responseText = responseObj.value;
+                                    } else if (responseObj.text) {
+                                        responseText = responseObj.text;
+                                    } else {
+                                        responseText = JSON.stringify(responseObj);
                                     }
-                                    
-                                    // Find matching question by ID or key
-                                    const matchingQuestion = questions.find(q => q.id === key);
-                                    
-                                    return {
-                                        questionId: key,
-                                        questionText: matchingQuestion ? matchingQuestion.question : null,
-                                        response: responseText
-                                    };
-                                });
-                            }
+                                }
+                                
+                                // Find matching question by ID
+                                const matchingQuestion = questions.find(q => q.id === questionId);
+                                log(`Question ID: ${questionId}, Found question: ${matchingQuestion ? 'YES' : 'NO'}`, matchingQuestion);
+                                
+                                return {
+                                    questionId: questionId,
+                                    questionText: matchingQuestion ? matchingQuestion.question : null,
+                                    response: responseText
+                                };
+                            });
+                            
+                            log(`Parsed ${parsedResponses.length} responses with question matching`);
                         }
                     } catch (e) {
                         console.warn('Failed to parse student response JSON:', e);
@@ -4939,8 +4948,19 @@
         
         // Save feedback to Object_46 (Activity Answers) field_1734
         async saveFeedback(activityId, studentId, responseId) {
-            const feedbackText = document.getElementById('feedback-text-input')?.value;
-            if (!feedbackText) {
+            log(`Saving feedback for activity: ${activityId}, student: ${studentId}, response: ${responseId}`);
+            
+            const feedbackTextElement = document.getElementById('feedback-text-input');
+            if (!feedbackTextElement) {
+                error('Feedback text input element not found');
+                alert('Error: Feedback input field not found.');
+                return;
+            }
+            
+            const feedbackText = feedbackTextElement.value;
+            log(`Feedback text: "${feedbackText}"`);
+            
+            if (!feedbackText || typeof feedbackText !== 'string' || !feedbackText.trim()) {
                 alert('Please enter feedback before saving.');
                 return;
             }
@@ -4951,9 +4971,21 @@
                 const fields = this.config.fields;
                 const objects = this.config.objects;
                 
+                log(`Using fields:`, fields);
+                log(`answerStaffFeedback field: ${fields.answerStaffFeedback}`);
+                
                 if (responseId) {
+                    const updateData = {
+                        [fields.answerStaffFeedback]: feedbackText.trim(),
+                        [fields.newFeedbackGiven]: true,        // Mark as new feedback given
+                        [fields.feedbackRead]: false,           // Reset read status
+                        [fields.lastFeedbackGiven]: new Date().toLocaleDateString('en-GB')  // Update last feedback date
+                    };
+                    
+                    log('Update data:', updateData);
+                    
                     // Update existing response record with feedback
-                    await $.ajax({
+                    const response = await $.ajax({
                         url: `https://api.knack.com/v1/objects/${objects.activityAnswers}/records/${responseId}`,
                         type: 'PUT',
                         headers: {
@@ -4961,14 +4993,10 @@
                             'X-Knack-REST-API-Key': this.config.knackApiKey,
                             'Content-Type': 'application/json'
                         },
-                        data: JSON.stringify({
-                            [fields.answerStaffFeedback]: feedbackText.trim(),
-                            [fields.newFeedbackGiven]: true,        // Mark as new feedback given
-                            [fields.feedbackRead]: false,           // Reset read status
-                            [fields.lastFeedbackGiven]: new Date().toLocaleDateString('en-GB')  // Update last feedback date
-                        })
+                        data: JSON.stringify(updateData)
                     });
                     
+                    log('Feedback save response:', response);
                     this.showSuccessModal('Success', 'Feedback saved successfully! Student will be notified of new feedback.');
                 } else {
                     alert('No student response found for this activity. Student must complete the activity first.');
@@ -4978,6 +5006,7 @@
                 
             } catch (err) {
                 error('Failed to save feedback:', err);
+                error('Error details:', err.responseText || err.message || err);
                 alert('Error saving feedback. Please try again.');
             } finally {
                 this.hideLoading();
