@@ -2699,7 +2699,7 @@
                     </div>
                     
                     <!-- Main Content Area -->
-                    <div class="workspace-content" style="display: flex; flex-direction: column; height: calc(100vh - 200px); padding: 0 16px;">
+                    <div class="workspace-content" style="display: flex; flex-direction: column; min-height: calc(100vh - 200px); max-height: calc(100vh - 150px); overflow-y: auto; padding: 0 16px;">
                         <!-- Student Activities Section -->
                         <div class="student-section">
                             <div class="section-header-compact">
@@ -4874,13 +4874,43 @@
                                             >${this.escapeHtml(existingFeedback)}</textarea>
                                         </div>
                                         
-                                        <div class="feedback-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: flex-end;">
-                                            <button class="btn btn-secondary" onclick="VESPAStaff.closeActivityDetailModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                                                Cancel
-                                            </button>
-                                            <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}', '${studentResponse?.id || ''}')" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
-                                                ${existingFeedback ? '💾 Update Feedback' : '💾 Save Feedback'}
-                                            </button>
+                                        <div class="feedback-actions" style="margin-top: 16px; display: flex; gap: 12px; justify-content: space-between; align-items: center;">
+                                            <!-- Completion Status Actions -->
+                                            <div class="completion-actions" style="display: flex; gap: 8px;">
+                                                ${(() => {
+                                                    // Check if activity is completed
+                                                    const student = this.state.students.find(s => s.id === studentId);
+                                                    const isCompleted = student?.finishedActivities?.includes(activityId) || false;
+                                                    
+                                                    return isCompleted ? `
+                                                        <button 
+                                                            onclick="VESPAStaff.markActivityIncomplete('${activityId}', '${studentId}')" 
+                                                            style="padding: 8px 16px; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px;"
+                                                            title="Mark this activity as incomplete"
+                                                        >
+                                                            ⏳ Mark Incomplete
+                                                        </button>
+                                                    ` : `
+                                                        <button 
+                                                            onclick="VESPAStaff.markActivityComplete('${activityId}', '${studentId}')" 
+                                                            style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px;"
+                                                            title="Mark this activity as complete"
+                                                        >
+                                                            ✅ Mark Complete
+                                                        </button>
+                                                    `;
+                                                })()}
+                                            </div>
+                                            
+                                            <!-- Feedback Actions -->
+                                            <div class="feedback-buttons" style="display: flex; gap: 12px;">
+                                                <button class="btn btn-secondary" onclick="VESPAStaff.closeActivityDetailModal()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                                    Cancel
+                                                </button>
+                                                <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}', '${studentResponse?.id || ''}')" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                                                    ${existingFeedback ? '💾 Update Feedback' : '💾 Save Feedback'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -5016,7 +5046,7 @@
             }
         }
         
-        // Close activity detail modal and return to Page 2
+        // Close activity detail modal and return to Page 2 (student workspace)
         closeActivityDetailModal() {
             log('Closing activity detail modal...');
             
@@ -5035,17 +5065,14 @@
                 containerExists: !!this.findContainer()
             });
             
-            // If we're in student workspace view, ensure it's properly displayed
-            if (this.state.currentView === 'student' && this.state.currentStudentId) {
-                log('Refreshing student workspace view...');
-                // Re-render the current student view to ensure it's displayed properly
+            // Always return to student workspace view when closing activity detail modal
+            // The modal should only be opened from the student workspace, so we should return there
+            if (this.state.currentStudentId) {
+                log('Returning to student workspace view for student:', this.state.currentStudentId);
+                this.state.currentView = 'student';
                 this.viewStudent(this.state.currentStudentId);
-            } else if (this.state.currentView === 'list') {
-                log('Refreshing list view...');
-                // Re-render the list view
-                this.render();
             } else {
-                log('Unknown view state, defaulting to list view');
+                log('No current student ID found, defaulting to list view');
                 this.state.currentView = 'list';
                 this.state.currentStudentId = null;
                 this.render();
@@ -5327,6 +5354,69 @@
             setTimeout(() => {
                 $('#feedback-text').focus();
             }, 300);
+        }
+        
+        // Mark activity as complete
+        async markActivityComplete(activityId, studentId) {
+            if (!confirm('Are you sure you want to mark this activity as complete?')) {
+                return;
+            }
+            
+            const student = this.state.students.find(s => s.id === studentId);
+            if (!student) {
+                alert('Student not found');
+                return;
+            }
+            
+            this.showLoading();
+            
+            try {
+                // Add activity ID to finishedActivities if not already there
+                if (!Array.isArray(student.finishedActivities)) student.finishedActivities = [];
+                if (!student.finishedActivities.includes(activityId)) {
+                    student.finishedActivities.push(activityId);
+                }
+                
+                // Ensure activity ID is in prescribed IDs
+                if (!Array.isArray(student.prescribedActivityIds)) student.prescribedActivityIds = [];
+                if (!student.prescribedActivityIds.includes(activityId)) {
+                    student.prescribedActivityIds.push(activityId);
+                }
+                
+                // Update the student record
+                const updateData = {};
+                updateData[this.config.fields.finishedActivities] = student.finishedActivities.join(',');
+                updateData[this.config.fields.prescribedActivities] = student.prescribedActivityIds;
+                
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/${this.config.objects.student}/records/${studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': this.config.knackAppId,
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(updateData)
+                });
+                
+                // Update local state
+                const studentIndex = this.state.students.findIndex(s => s.id === studentId);
+                if (studentIndex !== -1) {
+                    this.state.students[studentIndex].finishedActivities = student.finishedActivities;
+                    this.state.students[studentIndex].prescribedActivityIds = student.prescribedActivityIds;
+                }
+                
+                this.showSuccessModal('Success', 'Activity marked as complete successfully!');
+                
+                // Refresh the modal to show updated status
+                this.closeActivityDetailModal();
+                
+            } catch (err) {
+                error('Failed to mark activity as complete:', err);
+                alert('Error marking activity as complete. Please try again.');
+            } finally {
+                this.hideLoading();
+            }
         }
         
         // Mark activity as incomplete
