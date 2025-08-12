@@ -2584,9 +2584,6 @@
                             <button style="background: #007bff !important; color: white !important; border: none !important; padding: 8px 16px !important; border-radius: 4px !important; cursor: pointer !important; font-weight: 500 !important; visibility: visible !important; opacity: 1 !important;" onclick="VESPAStaff.backToList()">
                                 ← Back to List
                             </button>
-                            <button style="background: #28a745 !important; color: white !important; border: none !important; padding: 8px 16px !important; border-radius: 4px !important; cursor: pointer !important; font-weight: 500 !important; visibility: visible !important; opacity: 1 !important;" onclick="VESPAStaff.render()" title="Go to Page 1">
-                                📊 Page 1
-                            </button>
                         </div>
                         <div style="flex: 1 !important; text-align: center !important;">
                             <div style="font-weight: 600 !important; font-size: 18px !important; color: #212529 !important; margin: 0 !important; visibility: visible !important; opacity: 1 !important;">${this.escapeHtml(student.name)}</div>
@@ -2614,25 +2611,55 @@
                                 <h4>Student Activities</h4>
                             </div>
                             <div class="activities-by-category student">
-                                ${categories.map(category => `
-                                    <div class="category-column ${category}">
-                                        <div class="column-header-compact ${category}">
+                                ${categories.map(category => {
+                                    // Split activities by level
+                                    const level2Activities = studentActivitiesByCategory[category].filter(a => 
+                                        (a.field_3568 || a.level || '').toLowerCase().includes('level 2') || 
+                                        (a.field_3568 || a.level || '') === 'Level 2'
+                                    );
+                                    const level3Activities = studentActivitiesByCategory[category].filter(a => 
+                                        (a.field_3568 || a.level || '').toLowerCase().includes('level 3') || 
+                                        (a.field_3568 || a.level || '') === 'Level 3'
+                                    );
+                                    
+                                    return `
+                                    <div class="category-section ${category}">
+                                        <div class="category-main-header ${category}">
                                             <span class="cat-icon">${this.getCategoryIcon(category)}</span>
                                             <span>${category.charAt(0).toUpperCase() + category.slice(1)}</span>
                                             <span class="count">${studentActivitiesByCategory[category].length}</span>
                                         </div>
-                                        <div class="column-activities-compact" 
-                                             id="student-${category}"
-                                             ondrop="VESPAStaff.onDropToStudentCategory(event, '${student.id}', '${category}')" 
-                                             ondragover="event.preventDefault()"
-                                             ondragenter="event.currentTarget.classList.add('drag-over')"
-                                             ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                            ${studentActivitiesByCategory[category].map(activity => 
-                                                this.renderCompactActivityCard(activity, true, student.id)
-                                            ).join('')}
+                                        <div class="level-columns">
+                                            <div class="level-column level-2">
+                                                <div class="level-header">Level 2</div>
+                                                <div class="column-activities-compact level-2-activities" 
+                                                     id="student-${category}-level2"
+                                                     ondrop="VESPAStaff.onDropToStudentCategory(event, '${student.id}', '${category}')" 
+                                                     ondragover="event.preventDefault()"
+                                                     ondragenter="event.currentTarget.classList.add('drag-over')"
+                                                     ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                                    ${level2Activities.map(activity => 
+                                                        this.renderCompactActivityCard(activity, true, student.id, 'level2')
+                                                    ).join('')}
+                                                </div>
+                                            </div>
+                                            <div class="level-column level-3">
+                                                <div class="level-header">Level 3</div>
+                                                <div class="column-activities-compact level-3-activities" 
+                                                     id="student-${category}-level3"
+                                                     ondrop="VESPAStaff.onDropToStudentCategory(event, '${student.id}', '${category}')" 
+                                                     ondragover="event.preventDefault()"
+                                                     ondragenter="event.currentTarget.classList.add('drag-over')"
+                                                     ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                                    ${level3Activities.map(activity => 
+                                                        this.renderCompactActivityCard(activity, true, student.id, 'level3')
+                                                    ).join('')}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </div>
                         </div>
                         
@@ -2645,25 +2672,55 @@
                                 <h4>All Activities</h4>
                             </div>
                             <div class="activities-by-category all">
-                                ${categories.map(category => `
-                                    <div class="category-column ${category}">
-                                        <div class="column-header-compact ${category}">
+                                ${categories.map(category => {
+                                    // Split all activities by level
+                                    const level2Activities = allActivitiesByCategory[category].filter(a => 
+                                        (a.field_3568 || a.level || '').toLowerCase().includes('level 2') || 
+                                        (a.field_3568 || a.level || '') === 'Level 2'
+                                    );
+                                    const level3Activities = allActivitiesByCategory[category].filter(a => 
+                                        (a.field_3568 || a.level || '').toLowerCase().includes('level 3') || 
+                                        (a.field_3568 || a.level || '') === 'Level 3'
+                                    );
+                                    
+                                    return `
+                                    <div class="category-section ${category}">
+                                        <div class="category-main-header ${category}">
                                             <span class="cat-icon">${this.getCategoryIcon(category)}</span>
                                             <span>${category.charAt(0).toUpperCase() + category.slice(1)}</span>
                                             <span class="count">${allActivitiesByCategory[category].length}</span>
                                         </div>
-                                        <div class="column-activities-compact" 
-                                             id="all-${category}"
-                                             ondrop="VESPAStaff.onDropToAllCategory(event, '${student.id}', '${category}')" 
-                                             ondragover="event.preventDefault()"
-                                             ondragenter="event.currentTarget.classList.add('drag-over')"
-                                             ondragleave="event.currentTarget.classList.remove('drag-over')">
-                                            ${allActivitiesByCategory[category].map(activity => 
-                                                this.renderCompactActivityCard(activity, false, student.id)
-                                            ).join('')}
+                                        <div class="level-columns">
+                                            <div class="level-column level-2">
+                                                <div class="level-header">Level 2</div>
+                                                <div class="column-activities-compact level-2-activities" 
+                                                     id="all-${category}-level2"
+                                                     ondrop="VESPAStaff.onDropToAllCategory(event, '${student.id}', '${category}')" 
+                                                     ondragover="event.preventDefault()"
+                                                     ondragenter="event.currentTarget.classList.add('drag-over')"
+                                                     ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                                    ${level2Activities.map(activity => 
+                                                        this.renderCompactActivityCard(activity, false, student.id, 'level2')
+                                                    ).join('')}
+                                                </div>
+                                            </div>
+                                            <div class="level-column level-3">
+                                                <div class="level-header">Level 3</div>
+                                                <div class="column-activities-compact level-3-activities" 
+                                                     id="all-${category}-level3"
+                                                     ondrop="VESPAStaff.onDropToAllCategory(event, '${student.id}', '${category}')" 
+                                                     ondragover="event.preventDefault()"
+                                                     ondragenter="event.currentTarget.classList.add('drag-over')"
+                                                     ondragleave="event.currentTarget.classList.remove('drag-over')">
+                                                    ${level3Activities.map(activity => 
+                                                        this.renderCompactActivityCard(activity, false, student.id, 'level3')
+                                                    ).join('')}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </div>
                         </div>
                     </div>
@@ -2679,21 +2736,28 @@
         }
         
         // Render compact activity card for the radical redesign
-        renderCompactActivityCard(activity, isStudent, studentId) {
+        renderCompactActivityCard(activity, isStudent, studentId, level = null) {
             const isCompleted = activity.isCompleted || false;
             const category = (activity.VESPACategory || activity.category || '').toLowerCase();
             const activityName = this.escapeHtml(activity.ActivityName || activity.name || 'Unnamed');
             
-            // Determine origin for student activities
-            let originIndicator = '';
+            // Determine activity source for colored notification circles
+            let sourceIndicator = '';
             if (isStudent) {
-                if (activity.showPrescribedBadge) originIndicator = 'Q';
-                else if (activity.showStaffBadge) originIndicator = 'T';
-                else if (activity.showSelfBadge) originIndicator = 'S';
+                if (activity.showPrescribedBadge) {
+                    sourceIndicator = '<span class="source-circle questionnaire" title="Added via questionnaire"></span>';
+                } else if (activity.showSelfBadge) {
+                    sourceIndicator = '<span class="source-circle student" title="Added by student"></span>';
+                } else if (activity.showStaffBadge) {
+                    sourceIndicator = '<span class="source-circle staff" title="Added by staff"></span>';
+                }
             }
             
+            // Determine level class for styling variations
+            const levelClass = level ? `level-${level}` : '';
+            
             return `
-                <div class="compact-activity-card ${category} ${isCompleted ? 'completed' : ''}" 
+                <div class="compact-activity-card ${category} ${levelClass} ${isCompleted ? 'completed' : ''}" 
                      draggable="true"
                      data-activity-id="${activity.id}"
                      data-student-id="${studentId}"
@@ -2701,8 +2765,8 @@
                      ondragstart="VESPAStaff.onDragStart(event, '${activity.id}', '${studentId}')"
                      onclick="VESPAStaff.showActivityDetails('${activity.id}', '${studentId}')"
                      title="${activityName}">
-                    ${isCompleted ? '<span class="completion-icon">✓</span>' : ''}
-                    ${originIndicator ? `<span class="origin-indicator">${originIndicator}</span>` : ''}
+                    ${isCompleted ? '<span class="completion-flag"><i class="fas fa-flag-checkered"></i></span>' : ''}
+                    ${sourceIndicator}
                     <span class="activity-text">${activityName}</span>
                     ${isStudent && isCompleted ? 
                         `<button class="btn-uncomplete-compact" 
