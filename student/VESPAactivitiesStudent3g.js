@@ -976,9 +976,14 @@
         
         getIntroContent() {
             // Get activity data from the new JSON structure
-            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
+            const activityData = window.vespaActivitiesData?.[this.activity.id];
             const slidesSrc = activityData?.slidesUrl || '';
             const hasSlides = !!slidesSrc;
+            
+            // Debug logging
+            console.log('[INTRO] Activity ID:', this.activity.id);
+            console.log('[INTRO] Activity Data:', activityData);
+            console.log('[INTRO] Slides URL:', slidesSrc);
             
             return `
                 <div class="stage-content intro-content">
@@ -1034,7 +1039,11 @@
         
         getLearnContent() {
             // Get activity data from the new JSON structure
-            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
+            const activityData = window.vespaActivitiesData?.[this.activity.id];
+            
+            // Debug logging
+            console.log('[LEARN] Activity ID:', this.activity.id);
+            console.log('[LEARN] Activity Data:', activityData);
             
             // Extract media URLs from the new JSON structure
             const slidesSrc = activityData?.slidesUrl || '';
