@@ -1093,7 +1093,7 @@
                     ${hasBackgroundInfo ? `
                         <div class="learn-background-section">
                             <div class="background-info-content">
-                                ${backgroundInfo}
+                                ${this.filterBrokenImages(backgroundInfo)}
                             </div>
                         </div>
                     ` : ''}
@@ -1379,6 +1379,32 @@
             return iframeContent || '';
         }
         
+        filterBrokenImages(htmlContent) {
+            if (!htmlContent) return '';
+            
+            // Parse HTML string and filter out images from broken domains
+            let filteredContent = htmlContent;
+            
+            // Find all img tags
+            const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
+            const matches = [...htmlContent.matchAll(imgRegex)];
+            
+            matches.forEach(match => {
+                const fullImgTag = match[0];
+                const imgSrc = match[1];
+                
+                // Check if image is from a broken domain
+                if (isImageUrlBroken(imgSrc)) {
+                    // Replace with placeholder
+                    const placeholder = '<div class="image-placeholder" style="background: #f0f0f0; padding: 20px; text-align: center; color: #666; border-radius: 8px; margin: 10px 0;">🖼️ Image unavailable</div>';
+                    filteredContent = filteredContent.replace(fullImgTag, placeholder);
+                    log(`Filtered broken image: ${imgSrc}`);
+                }
+            });
+            
+            return filteredContent;
+        }
+        
         getActivityObjective() {
             if (this.activity.instructions) {
                 return this.activity.instructions.substring(0, 100) + '...';
@@ -1627,20 +1653,26 @@
                 </div>
             `;
             
-            // Optimize Google Slides URLs for faster loading
+            // Fix and optimize Google URLs
             let optimizedSrc = src;
-            if (type === 'slides' && src.includes('docs.google.com/presentation')) {
-                // Parse the URL
-                const url = new URL(src);
-                
-                // Add performance-optimizing parameters
-                url.searchParams.set('rm', 'minimal'); // Remove UI for faster load
-                url.searchParams.set('start', 'false'); // Don't auto-start
-                url.searchParams.set('loop', 'false'); // Don't loop
-                url.searchParams.set('delayms', '60000'); // 60 second delay between slides
-                
-                optimizedSrc = url.toString();
-                log(`Optimized slides URL: ${optimizedSrc}`);
+            if (src && src.includes('docs.google.com')) {
+                // Fix Google Slides URLs
+                if (src.includes('/presentation/')) {
+                    // Extract presentation ID and rebuild clean URL
+                    const presentationMatch = src.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+                    if (presentationMatch) {
+                        // Use clean embed URL without rm=minimal (causes CSP issues)
+                        optimizedSrc = `https://docs.google.com/presentation/d/${presentationMatch[1]}/embed?start=false&loop=false&delayms=60000`;
+                        log(`Fixed Google Slides URL: ${optimizedSrc}`);
+                    }
+                }
+            } else if (src && src.includes('drive.google.com')) {
+                // Fix Google Drive video URLs
+                const driveMatch = src.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+                if (driveMatch) {
+                    optimizedSrc = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+                    log(`Fixed Google Drive URL: ${optimizedSrc}`);
+                }
             }
             
             // Create and insert iframe with trust signals
@@ -1653,11 +1685,13 @@
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             iframe.style.cssText = 'width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0;';
             
-            // Additional performance attributes for Google Slides
-            if (type === 'slides') {
-                iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+            // Additional attributes for Google content
+            if (type === 'slides' || optimizedSrc.includes('google.com')) {
+                // Don't use sandbox for Google content - it causes CSP issues
                 iframe.setAttribute('frameborder', '0');
                 iframe.setAttribute('allowtransparency', 'true');
+                // Add credentialless for cross-origin isolation
+                iframe.setAttribute('credentialless', 'true');
             }
             
             // Add load event listener
@@ -2119,6 +2153,21 @@
 
     // Global image queue manager
     const imageQueueManager = new ImageQueueManager(3);
+    
+    // List of known broken/dead domains to filter out
+    const BROKEN_IMAGE_DOMAINS = [
+        'danicaexplainsitall.com',
+        'www.theschoolrun.com',
+        '461200-1444427-raikfcquaxqncofqfm.stackpathdns.com',
+        'raikfcquaxqncofqfm.stackpathdns.com'
+    ];
+    
+    // Function to check if image URL is from a broken domain
+    function isImageUrlBroken(url) {
+        if (!url) return true;
+        const urlLower = url.toLowerCase();
+        return BROKEN_IMAGE_DOMAINS.some(domain => urlLower.includes(domain));
+    }
     
     // Main application class
     class VESPAActivitiesApp {
