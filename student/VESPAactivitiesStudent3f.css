@@ -2180,6 +2180,86 @@ body {
     padding-bottom: 129.41%; /* 8.5:11 aspect ratio */
 }
 
+/* Introduction page slideshow */
+.intro-slideshow-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 12px;
+}
+
+.intro-media-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.intro-slideshow-embed .responsive-embed {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.intro-slideshow-embed iframe {
+    background: white;
+}
+
+/* Learn page embedded video */
+.learn-video-section {
+    margin-bottom: 30px;
+}
+
+.learn-video-embed .responsive-embed {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.learn-video-embed iframe {
+    background: black;
+}
+
+/* Learn page background info */
+.learn-background-section {
+    margin: 30px 0;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+}
+
+.learn-background-section .background-info-content {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--gray-700);
+}
+
+/* Learn page PDF section */
+.learn-pdf-section {
+    margin-top: 30px;
+}
+
+.learn-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 15px;
+}
+
+.learn-pdf-section .pdf-embed {
+    padding-bottom: 75%; /* Shorter aspect ratio for PDF in learn page */
+    max-height: 600px;
+}
+
+.learn-pdf-section iframe {
+    background: white;
+    border: 1px solid var(--gray-200);
+}
+
 @media (max-width: 768px) {
     .activity-slideshow iframe[src*="docs.google.com/presentation"] {
         min-height: 300px !important;
@@ -2188,6 +2268,34 @@ body {
     
     #pdf-panel iframe {
         min-height: 400px !important;
+    }
+    
+    /* Mobile adjustments for intro slideshow */
+    .intro-slideshow-section {
+        padding: 15px;
+        margin-top: 20px;
+    }
+    
+    .intro-media-title {
+        font-size: 1rem;
+    }
+    
+    /* Mobile adjustments for learn page */
+    .learn-video-section {
+        margin-bottom: 20px;
+    }
+    
+    .learn-background-section {
+        margin: 20px 0;
+        padding: 15px;
+    }
+    
+    .learn-pdf-section {
+        margin-top: 20px;
+    }
+    
+    .learn-pdf-section .pdf-embed {
+        padding-bottom: 100%; /* Square aspect ratio on mobile */
     }
 }
 

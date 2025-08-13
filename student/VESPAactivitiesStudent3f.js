@@ -975,6 +975,11 @@
         }
         
         getIntroContent() {
+            // Get activity data from the new JSON structure
+            const activityData = window.vespaActivitiesData?.[this.activity.activityId];
+            const slidesSrc = activityData?.slidesUrl || '';
+            const hasSlides = !!slidesSrc;
+            
             return `
                 <div class="stage-content intro-content">
                     <div class="stage-header">
@@ -999,6 +1004,24 @@
                             <p>${this.activity.level === 'Level 3' ? 15 : 10} points</p>
                         </div>
                     </div>
+                    
+                    ${hasSlides ? `
+                        <div class="intro-slideshow-section">
+                            <h3 class="intro-media-title">Preview Slides</h3>
+                            <div class="intro-slideshow-embed">
+                                <div class="responsive-embed">
+                                    <iframe 
+                                        src="${slidesSrc}" 
+                                        frameborder="0" 
+                                        allowfullscreen="true" 
+                                        mozallowfullscreen="true" 
+                                        webkitallowfullscreen="true"
+                                        loading="lazy">
+                                    </iframe>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                     
                     <div class="stage-navigation">
                         <button class="primary-btn next-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('learn')">
@@ -1035,82 +1058,53 @@
                 <div class="stage-content learn-content">
                     <div class="stage-header">
                         <h2>Learn & Explore</h2>
-                        <p class="stage-description">Review the slides and watch any videos to understand the activity.</p>
+                        <p class="stage-description">Review the materials below to understand the activity.</p>
                     </div>
                     
-                    ${hasSlides || hasVideo || hasPDF || hasBackgroundInfo ? `
-                        <div class="media-tabs">
-                            ${hasSlides ? '<button class="media-tab active" data-media="slides">📊 Slides</button>' : ''}
-                            ${hasVideo ? `<button class="media-tab ${!hasSlides ? 'active' : ''}" data-media="video">📺 Video</button>` : ''}
-                            ${hasPDF ? `<button class="media-tab ${!hasSlides && !hasVideo ? 'active' : ''}" data-media="pdf">📄 PDF</button>` : ''}
-                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasSlides && !hasVideo && !hasPDF ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
+                    ${hasVideo ? `
+                        <div class="learn-video-section">
+                            <div class="learn-video-embed">
+                                <div class="responsive-embed">
+                                    <iframe 
+                                        src="${videoSrc}" 
+                                        frameborder="0" 
+                                        allowfullscreen="true" 
+                                        mozallowfullscreen="true" 
+                                        webkitallowfullscreen="true"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        loading="lazy">
+                                    </iframe>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="media-content">
-                            ${hasSlides ? `
-                                <div class="media-panel active" id="slides-panel">
-                                    <div class="responsive-embed" data-iframe-src="${slidesSrc}">
-                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('slides', '${slidesSrc}')">
-                                            <div class="placeholder-content">
-                                                <div class="placeholder-icon">📊</div>
-                                                <h3>Google Slides Presentation</h3>
-                                                <p>Click to load presentation</p>
-                                                <button class="load-media-btn">
-                                                    <span class="play-icon">▶</span> Load Slides
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            ${hasVideo ? `
-                                <div class="media-panel ${!hasSlides ? 'active' : ''}" id="video-panel">
-                                    <div class="responsive-embed" data-iframe-src="${videoSrc}">
-                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('video', '${videoSrc}')">
-                                            <div class="placeholder-content">
-                                                <div class="placeholder-icon">📺</div>
-                                                <h3>Video Content</h3>
-                                                <p>Click to load video</p>
-                                                <button class="load-media-btn">
-                                                    <span class="play-icon">▶</span> Play Video
-                                                </button>
-                                            </div>
-                                            ${videoSrc.includes('youtube') ? `
-                                                <img class="video-thumbnail" src="https://img.youtube.com/vi/${videoSrc.match(/embed\/([^?]+)/)?.[1] || ''}/mqdefault.jpg" alt="Video thumbnail" onerror="this.style.display='none'">
-                                            ` : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            ${hasPDF ? `
-                                <div class="media-panel ${!hasSlides && !hasVideo ? 'active' : ''}" id="pdf-panel">
-                                    <div class="responsive-embed" data-iframe-src="${pdfUrl}">
-                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('pdf', '${pdfUrl}')">
-                                            <div class="placeholder-content">
-                                                <div class="placeholder-icon">📄</div>
-                                                <h3>Activity PDF</h3>
-                                                <p>Click to load PDF document</p>
-                                                <button class="load-media-btn">
-                                                    <span class="play-icon">📖</span> View PDF
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : ''}
-                            ${hasBackgroundInfo ? `
-                                <div class="media-panel ${!hasSlides && !hasVideo && !hasPDF ? 'active' : ''}" id="background-panel">
-                                    <div class="background-info-content">
-                                        ${backgroundInfo}
-                                    </div>
-                                </div>
-                            ` : ''}
+                    ` : ''}
+                    
+                    ${hasBackgroundInfo ? `
+                        <div class="learn-background-section">
+                            <div class="background-info-content">
+                                ${backgroundInfo}
+                            </div>
                         </div>
-                    ` : `
+                    ` : ''}
+                    
+                    ${hasPDF ? `
+                        <div class="learn-pdf-section">
+                            <h3 class="learn-section-title">📄 Additional Resources</h3>
+                            <div class="responsive-embed pdf-embed">
+                                <iframe 
+                                    src="${pdfUrl}" 
+                                    frameborder="0"
+                                    loading="lazy">
+                                </iframe>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${!hasVideo && !hasBackgroundInfo && !hasPDF ? `
                         <div class="text-content">
-                            <p>Content coming soon...</p>
+                            <p style="text-align: center; color: #666;">No learning materials available for this activity.</p>
                         </div>
-                    `}
+                    ` : ''}
                     
                     <div class="stage-navigation">
                         <button class="secondary-btn prev-stage-btn" onclick="window.vespaActivityRenderer.handleStageNavigation('intro')">
