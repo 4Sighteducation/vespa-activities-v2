@@ -2141,6 +2141,8 @@ body {
     height: auto;
     aspect-ratio: 16/9;
     border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Responsive container for embeds */
@@ -2168,10 +2170,24 @@ body {
     max-height: 600px !important;
 }
 
+/* PDF embed styles */
+#pdf-panel iframe {
+    min-height: 500px !important;
+    aspect-ratio: 8.5/11; /* Standard US Letter aspect ratio */
+}
+
+#pdf-panel .responsive-embed {
+    padding-bottom: 129.41%; /* 8.5:11 aspect ratio */
+}
+
 @media (max-width: 768px) {
     .activity-slideshow iframe[src*="docs.google.com/presentation"] {
         min-height: 300px !important;
         max-height: 400px !important;
+    }
+    
+    #pdf-panel iframe {
+        min-height: 400px !important;
     }
 }
 

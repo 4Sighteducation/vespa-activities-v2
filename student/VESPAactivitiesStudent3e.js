@@ -1010,20 +1010,25 @@
         }
         
         getLearnContent() {
-            // Get clean URLs from loaded JSON data
+            // Get activity data from the new JSON structure
             const activityData = window.vespaActivitiesData?.[this.activity.activityId];
-            const videoSrc = activityData?.videoUrl || '';
-            const slidesSrc = activityData?.slidesUrl || '';
-            const backgroundInfo = this.activity.slideshow || '';
             
-            // Use clean URLs directly - no parameters!
+            // Extract media URLs from the new JSON structure
+            const slidesSrc = activityData?.slidesUrl || '';
+            const videoSrc = activityData?.videoUrl || '';
+            const pdfUrl = activityData?.pdfUrl || '';
+            const backgroundInfo = activityData?.backgroundInfo || this.activity.slideshow || '';
+            
+            // Store clean URLs for later use
             this._mediaIframes = { 
                 video: videoSrc,
-                slides: slidesSrc
+                slides: slidesSrc,
+                pdf: pdfUrl
             };
             
-            const hasVideo = !!videoSrc;
             const hasSlides = !!slidesSrc;
+            const hasVideo = !!videoSrc;
+            const hasPDF = !!pdfUrl;
             const hasBackgroundInfo = backgroundInfo && backgroundInfo.trim() !== '';
             
             return `
@@ -1033,11 +1038,12 @@
                         <p class="stage-description">Review the slides and watch any videos to understand the activity.</p>
                     </div>
                     
-                    ${hasSlides || hasVideo || hasBackgroundInfo ? `
+                    ${hasSlides || hasVideo || hasPDF || hasBackgroundInfo ? `
                         <div class="media-tabs">
                             ${hasSlides ? '<button class="media-tab active" data-media="slides">📊 Slides</button>' : ''}
                             ${hasVideo ? `<button class="media-tab ${!hasSlides ? 'active' : ''}" data-media="video">📺 Video</button>` : ''}
-                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasSlides && !hasVideo ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
+                            ${hasPDF ? `<button class="media-tab ${!hasSlides && !hasVideo ? 'active' : ''}" data-media="pdf">📄 PDF</button>` : ''}
+                            ${hasBackgroundInfo ? `<button class="media-tab ${!hasSlides && !hasVideo && !hasPDF ? 'active' : ''}" data-media="background">📖 Background Info</button>` : ''}
                         </div>
                         
                         <div class="media-content">
@@ -1076,8 +1082,24 @@
                                     </div>
                                 </div>
                             ` : ''}
+                            ${hasPDF ? `
+                                <div class="media-panel ${!hasSlides && !hasVideo ? 'active' : ''}" id="pdf-panel">
+                                    <div class="responsive-embed" data-iframe-src="${pdfUrl}">
+                                        <div class="media-placeholder" onclick="window.vespaActivityRenderer.loadIframe('pdf', '${pdfUrl}')">
+                                            <div class="placeholder-content">
+                                                <div class="placeholder-icon">📄</div>
+                                                <h3>Activity PDF</h3>
+                                                <p>Click to load PDF document</p>
+                                                <button class="load-media-btn">
+                                                    <span class="play-icon">📖</span> View PDF
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
                             ${hasBackgroundInfo ? `
-                                <div class="media-panel ${!hasSlides && !hasVideo ? 'active' : ''}" id="background-panel">
+                                <div class="media-panel ${!hasSlides && !hasVideo && !hasPDF ? 'active' : ''}" id="background-panel">
                                     <div class="background-info-content">
                                         ${backgroundInfo}
                                     </div>
@@ -1589,10 +1611,13 @@
             }
             
             // Show loading state
+            const loadingText = type === 'slides' ? 'presentation' : 
+                               type === 'video' ? 'video' : 
+                               type === 'pdf' ? 'PDF document' : 'content';
             embedContainer.innerHTML = `
                 <div class="iframe-loading-overlay">
                     <div class="loading-spinner"></div>
-                    <p>Loading ${type === 'slides' ? 'presentation' : 'video'}...</p>
+                    <p>Loading ${loadingText}...</p>
                 </div>
             `;
             
@@ -4309,8 +4334,9 @@
         
         async loadActivitiesJson() {
             try {
-                const jsonUrl = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activities1e.json';
-                log('Loading activities1e.json from:', jsonUrl);
+                // Use the new activity_json_final1a.json file configured in KnackAppLoader
+                const jsonUrl = this.config.activityContentUrl || 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activity_json_final1a.json';
+                log('Loading activity_json_final1a.json from:', jsonUrl);
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
@@ -4335,24 +4361,30 @@
                         data.forEach(activity => {
                             if (activity.Activity_id) {
                                 window.vespaActivitiesData[activity.Activity_id] = {
-                                    videoUrl: activity.media?.video?.url || '',
-                                    slidesUrl: activity.media?.slides?.url || '',
-                                    media: activity.media // Store full media object for future use
+                                    // Media URLs from the new JSON structure
+                                    slidesUrl: activity.slidesUrl || '',
+                                    videoUrl: activity.videoUrl || '',
+                                    pdfUrl: activity.pdfUrl || '',
+                                    backgroundInfo: activity.backgroundInfo || '',
+                                    additionalInfo: activity.additionalInfo || '',
+                                    objective: activity.objective || '',
+                                    // Keep full activity data for reference
+                                    fullData: activity
                                 };
                             }
                         });
                         log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities`);
                     } else {
-                        console.error('activities1e.json did not return an array:', data);
+                        console.error('activity_json_final1a.json did not return an array:', data);
                     }
                     
-                    log('activities1e.json loaded successfully', window.vespaActivitiesData);
+                    log('activity_json_final1a.json loaded successfully', window.vespaActivitiesData);
                 } else {
-                    console.error('Failed to load activities1e.json - HTTP status:', response.status);
+                    console.error('Failed to load activity_json_final1a.json - HTTP status:', response.status);
                     window.vespaActivitiesData = {};
                 }
             } catch (error) {
-                console.error('Error loading activities1e.json:', error);
+                console.error('Error loading activity_json_final1a.json:', error);
                 // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }
