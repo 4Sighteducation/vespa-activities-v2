@@ -4992,7 +4992,7 @@
                                                     ${additionalData.pdfUrl ? `
                                                         <div class="pdf-action" style="text-align: center; margin-bottom: 20px;">
                                                             <button 
-                                                                onclick="VESPAStaff.openPDFModal('${additionalData.pdfUrl}', '${this.escapeHtml(activity.name)}')" 
+                                                                onclick="VESPAStaff.openPDFModal('${additionalData.pdfUrl}', ${JSON.stringify(activity.name || 'Activity PDF')})" 
                                                                 style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
                                                                 onmouseover="this.style.backgroundColor='#c82333'" 
                                                                 onmouseout="this.style.backgroundColor='#dc3545'"
