@@ -2031,6 +2031,29 @@
         
         // Setup event listeners
         setupEventListeners() {
+            // PDF Modal trigger event listener
+            document.addEventListener('click', (e) => {
+                console.log('[VESPA Staff] Click detected on element:', e.target);
+                console.log('[VESPA Staff] Element classes:', e.target.classList);
+                
+                if (e.target.classList.contains('pdf-modal-trigger')) {
+                    console.log('[VESPA Staff] PDF modal trigger clicked!');
+                    const pdfUrl = e.target.getAttribute('data-pdf-url');
+                    const activityName = e.target.getAttribute('data-activity-name');
+                    console.log('[VESPA Staff] PDF URL:', pdfUrl);
+                    console.log('[VESPA Staff] Activity Name:', activityName);
+                    
+                    if (pdfUrl) {
+                        console.log('[VESPA Staff] Calling openPDFModal...');
+                        this.openPDFModal(pdfUrl, activityName);
+                    } else {
+                        console.log('[VESPA Staff] No PDF URL found!');
+                    }
+                } else {
+                    console.log('[VESPA Staff] Not a PDF modal trigger');
+                }
+            });
+            
             // Close modals on outside click
             document.addEventListener('click', (e) => {
                 if (e.target.classList.contains('modal-overlay')) {
@@ -3997,8 +4020,15 @@
         openPDFModal(pdfUrl, activityName) {
             console.log('[VESPA Staff] Opening PDF modal with URL:', pdfUrl);
             
+            // Close the activity modal first to avoid stacking
+            const activityModal = document.getElementById('activity-detail-modal');
+            if (activityModal) {
+                console.log('[VESPA Staff] Closing activity modal to show PDF modal');
+                activityModal.style.display = 'none';
+            }
+            
             const modalHtml = `
-                <div id="pdf-modal" class="pdf-modal" style="display: block;">
+                <div id="pdf-modal" class="pdf-modal" style="display: block; z-index: 15000;">
                     <div class="pdf-modal-content">
                         <div class="pdf-modal-header">
                             <h3 class="pdf-modal-title">${this.escapeHtml(activityName || 'Activity PDF')}</h3>
@@ -4088,6 +4118,13 @@
             const modal = document.getElementById('pdf-modal');
             if (modal) {
                 modal.remove();
+            }
+            
+            // Restore the activity modal if it exists
+            const activityModal = document.getElementById('activity-detail-modal');
+            if (activityModal) {
+                console.log('[VESPA Staff] Restoring activity modal after PDF close');
+                activityModal.style.display = 'flex';
             }
         }
         
@@ -4992,7 +5029,9 @@
                                                     ${additionalData.pdfUrl ? `
                                                         <div class="pdf-action" style="text-align: center; margin-bottom: 20px;">
                                                             <button 
-                                                                onclick="VESPAStaff.openPDFModal('${additionalData.pdfUrl}', ${JSON.stringify(activity.name || 'Activity PDF')})" 
+                                                                class="pdf-modal-trigger"
+                                                                data-pdf-url="${additionalData.pdfUrl}" 
+                                                                data-activity-name="${this.escapeHtml(activity.name || 'Activity PDF')}"
                                                                 style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
                                                                 onmouseover="this.style.backgroundColor='#c82333'" 
                                                                 onmouseout="this.style.backgroundColor='#dc3545'"
@@ -5352,206 +5391,8 @@
             }
         }
         
-        // Continue with existing viewActivityDetails code that was replaced
-        async viewActivityDetailsOld(activityId, studentId) {
-            // Find the activity in the current student's activities  
-            const activity = this.currentStudentActivities?.find(a => a.id === activityId);
-            if (!activity) {
-                // If not found in student activities, use the enhanced preview
-                return this.viewEnhancedActivityPreview(activityId);
-            }
-            
-            this.showLoading();
-            
-            try {
-                // Load questions if not already loaded
-                if (!activity.questions || activity.questions.length === 0) {
-                    activity.questions = await this.loadActivityQuestions(activityId);
-                }
-                
-                // Store questions for time calculation
-                this.currentActivityQuestions = activity.questions;
-                
-                // Load additional activity data (Object_44 fields) if available
-                const additionalData = await this.loadActivityAdditionalData(activityId);
-                
-                // Parse student responses if available
-                let studentResponses = {};
-                if (activity.response && activity.response.activityJSON) {
-                    try {
-                        studentResponses = JSON.parse(activity.response.activityJSON);
-                    } catch (e) {
-                        log('Error parsing student responses:', e);
-                    }
-                }
-                
-                // Create the detailed view modal
-                const modalHtml = `
-                    <div id="activity-detail-modal" class="modal-overlay" style="display: flex;">
-                        <div class="modal large-modal activity-preview-modal">
-                            <div class="modal-header">
-                                <h2 class="modal-title">${this.escapeHtml(activity.name)}</h2>
-                                <button class="modal-close" onclick="VESPAStaff.closeModal('activity-detail-modal')">×</button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="activity-detail-container">
-                                    <!-- Activity Overview -->
-                                    <div class="activity-overview-section">
-                                        <div class="activity-badges">
-                                            <span class="category-badge ${activity.category.toLowerCase()}">${activity.category}</span>
-                                            <span class="level-badge">Level ${activity.level || '1'}</span>
-                                            ${activity.duration ? `<span class="level-badge">${activity.duration}</span>` : ''}
-                                            ${activity.isCompleted ? 
-                                                `<span class="status-badge active">✓ Completed</span>` :
-                                                `<span class="status-badge pending">Not Started</span>`
-                                            }
-                                        </div>
-                                        
-                                        <div class="activity-overview-cards">
-                                            <div class="overview-card">
-                                                <span class="overview-icon">🎯</span>
-                                                <h4>Learning Objective</h4>
-                                                <p>${additionalData.objective || activity.description || 'Develop key skills'}</p>
-                                            </div>
-                                            <div class="overview-card">
-                                                <span class="overview-icon">⏱️</span>
-                                                <h4>Time Needed</h4>
-                                                <p>Approximately ${additionalData.timeMinutes} minutes</p>
-                                            </div>
-                                            <div class="overview-card">
-                                                <span class="overview-icon">⭐</span>
-                                                <h4>Points Available</h4>
-                                                <p>${activity.level === 3 ? 15 : 10} points</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Background Info Tab -->
-                                        <div class="activity-content-tabs">
-                                            <div class="content-tab-buttons">
-                                                <button id="tab-btn-questions" class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('questions', event)">Questions ${activity.questions ? `(${activity.questions.length})` : ''}</button>
-                                                ${activity.isCompleted ? `<button id=\"tab-btn-responses\" class=\"content-tab-btn\" onclick=\"VESPAStaff.switchActivityTab('responses', event)\">Responses</button>` : ''}
-                                                <button id="tab-btn-background" class="content-tab-btn" onclick="VESPAStaff.switchActivityTab('background', event)">Background</button>
-                                            </div>
-                                        
-                                        <!-- Background Content -->
-                                        <div id="background-content-tab" class="content-tab-panel" style="display:none;">
-                                            <div class="background-info-section">
-                                                ${additionalData.backgroundInfo || additionalData.additionalInfo ? `
-                                                    ${additionalData.backgroundInfo ? `
-                                                        <div class="background-info-content">
-                                                            <h4>Background Information</h4>
-                                                            ${additionalData.backgroundInfo}
-                                                        </div>
-                                                    ` : ''}
-                                                    
-                                                    ${additionalData.additionalInfo ? `
-                                                        <div class="additional-info-content">
-                                                            <h4>Additional Resources</h4>
-                                                            ${additionalData.additionalInfo}
-                                                        </div>
-                                                    ` : ''}
-                                                    
-                                                    ${additionalData.pdfUrl ? `
-                                                        <div class="pdf-download-section">
-                                                            <a href="${additionalData.pdfUrl}" target="_blank" class="pdf-download-btn">
-                                                                <span class="pdf-icon">📄</span>
-                                                                Download Activity PDF
-                                                            </a>
-                                                        </div>
-                                                    ` : ''}
-                                                ` : `
-                                                    <p class="no-content-message">No background information available for this activity.</p>
-                                                `}
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Questions Content -->
-                                        <div id="questions-content-tab" class="content-tab-panel" style="display:none;">
-                                            <div class="questions-list-section">
-                                                <h3>Activity Questions</h3>
-                                        ${activity.questions && activity.questions.length > 0 ? `
-                                                    <div class="questions-list-preview">
-                                                ${activity.questions.map((q, index) => `
-                                                            <div class="question-preview-block">
-                                                        <div class="question-header">
-                                                            <span class="question-number">Question ${index + 1}</span>
-                                                            ${q.type ? `<span class="question-type">${q.type}</span>` : ''}
-                                                        </div>
-                                                                <div class="question-text-preview">${this.escapeHtml(q.question || '')}</div>
-                                                        ${q.options ? `
-                                                                    <div class="question-options-preview">
-                                                                <strong>Options:</strong> ${this.escapeHtml(q.options)}
-                                                            </div>
-                                                        ` : ''}
-                                                            </div>
-                                                        `).join('')}
-                                                    </div>
-                                                ` : '<p class="no-questions">No questions available for this activity.</p>'}
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Student Responses Content (only if completed) -->
-                                        ${activity.isCompleted ? `
-                                        <div id="responses-content-tab" class="content-tab-panel" style="display:none;">
-                                            <div class="responses-section">
-                                                <h3>Student Responses</h3>
-                                                ${activity.questions && activity.questions.length > 0 ? `
-                                                    <div class="responses-list">
-                                                        ${activity.questions.map((q, index) => `
-                                                            <div class="question-response-block">
-                                                                <div class="question-header">
-                                                                    <span class="question-number">Question ${index + 1}</span>
-                                                                </div>
-                                                                <div class="question-text-for-response">${this.escapeHtml(q.question || '')}</div>
-                                                        <div class="student-response-block ${studentResponses[q.id] || studentResponses[q.question] ? 'has-response' : 'no-response'}">
-                                                            <div class="response-label">Student Response:</div>
-                                                            <div class="response-text">
-                                                                        ${studentResponses[q.id] || studentResponses[q.question] || 'No response provided'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                `).join('')}
-                                    </div>
-                                    
-                                                    <!-- Feedback Section -->
-                                        <div class="feedback-section">
-                                            <h3>Staff Feedback</h3>
-                                            <textarea class="feedback-textarea" id="feedback-text" 
-                                                                  placeholder="Enter your feedback for the student here..."
-                                                                  rows="5">${activity.response?.staffFeedback || ''}</textarea>
-                                                    </div>
-                                                ` : '<p class="no-questions">No questions available for this activity.</p>'}
-                                            </div>
-                                        </div>
-                                    ` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                ${activity.isCompleted ? `
-                                    <button class="btn btn-danger" onclick="VESPAStaff.markActivityIncomplete('${activityId}', '${studentId}')">
-                                        Mark as Incomplete
-                                    </button>
-                                    <button class="btn btn-primary" onclick="VESPAStaff.saveFeedback('${activityId}', '${studentId}')">
-                                        Save Feedback
-                                    </button>
-                                ` : ''}
-                                <button class="btn btn-secondary" onclick="VESPAStaff.closeModal('activity-detail-modal')">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                $('body').append(modalHtml);
-                
-            } catch (err) {
-                error('Failed to load activity details:', err);
-                alert('Error loading activity details');
-            } finally {
-                this.hideLoading();
-            }
-        }
+        // OLD FUNCTION DELETED - viewActivityDetailsOld was causing broken PDF modal
+        // The main viewActivityDetails() function above has the correct implementation
         
         // Provide feedback for an activity
         async provideFeedback(activityId, studentId) {
