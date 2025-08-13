@@ -3459,43 +3459,64 @@
         async loadActivityQuestions(activityId) {
             log(`Loading questions for activity: ${activityId}`);
             try {
-                // First, try to load all questions from Object_45 and we'll match them by ID
-                log(`Loading all questions from Object_45 to match by ID`);
-                const response = await $.ajax({
-                    url: `https://api.knack.com/v1/objects/object_45/records`,
-                    type: 'GET',
-                    headers: {
-                        'X-Knack-Application-Id': this.config.knackAppId,
-                        'X-Knack-REST-API-Key': this.config.knackApiKey
-                    },
-                    data: {
-                        page: 1,
-                        rows_per_page: 1000  // Load more questions to find matches
+                // Load ALL questions from Object_45 with pagination and cache them
+                if (!this.allQuestionsCache) {
+                    log('Loading all questions from Object_45 to match by ID (with pagination)');
+                    
+                    let allQuestions = [];
+                    let page = 1;
+                    let hasMorePages = true;
+                    
+                    while (hasMorePages) {
+                        log(`Loading questions page ${page}...`);
+                        
+                        const response = await $.ajax({
+                            url: `https://api.knack.com/v1/objects/object_45/records`,
+                            type: 'GET',
+                            headers: {
+                                'X-Knack-Application-Id': this.config.knackAppId,
+                                'X-Knack-REST-API-Key': this.config.knackApiKey
+                            },
+                            data: {
+                                page: page,
+                                rows_per_page: 1000 // Maximum per page
+                            }
+                        });
+                        
+                        log(`Questions page ${page}: ${response.records?.length || 0} records, total available: ${response.total_records}`);
+                        
+                        if (response.records && response.records.length > 0) {
+                            // Parse questions with field_1279 as the question text
+                            const pageQuestions = response.records.map(record => ({
+                                id: record.id,
+                                question: this.stripHtml(record.field_1279 || record.field_1137 || ''), // Use field_1279 first as specified
+                                type: record.field_1138 || record.field_1290 || 'text',
+                                options: record.field_1139 || record.field_1291 || '',
+                                order: parseInt(record.field_1140 || record.field_1303) || 0,
+                                activityConnection: record.field_1286 || '' // Store activity connection for debugging
+                            }));
+                            
+                            allQuestions = allQuestions.concat(pageQuestions);
+                            
+                            // Check if we have more pages
+                            hasMorePages = response.current_page < response.total_pages;
+                            page++;
+                        } else {
+                            hasMorePages = false;
+                        }
                     }
-                });
-
-                log(`Object_45 response: ${response.records ? response.records.length : 0} total questions found`);
-                if (response.records && response.records.length > 0) {
-                    log('Sample question record:', response.records[0]);
                     
-                    // Parse all questions and store them
-                    const allQuestions = response.records.map(record => ({
-                        id: record.id,
-                        question: this.stripHtml(record.field_1279 || record.field_1137 || ''), // Use field_1279 first as specified
-                        type: record.field_1138 || record.field_1290 || 'text',
-                        options: record.field_1139 || record.field_1291 || '',
-                        order: parseInt(record.field_1140 || record.field_1303) || 0,
-                        activityConnection: record.field_1286 || '' // Store activity connection for debugging
-                    }));
-                    
-                    log(`Parsed ${allQuestions.length} questions from Object_45`);
-                    log('Sample parsed question:', allQuestions[0]);
-                    
-                    // Store all questions for later matching
                     this.allQuestionsCache = allQuestions;
+                    log(`Loaded ${this.allQuestionsCache.length} total questions from Object_45 across ${page - 1} pages`);
                     
-                    // For now, return all questions - we'll match them in the response parsing
-                    return allQuestions;
+                    if (this.allQuestionsCache.length > 0) {
+                        log('Sample parsed question:', this.allQuestionsCache[0]);
+                    }
+                }
+                
+                // Return all cached questions
+                if (this.allQuestionsCache && this.allQuestionsCache.length > 0) {
+                    return this.allQuestionsCache;
                 } else {
                     log('No questions found in Object_45, using fallback default questions');
                     const activity = this.state.activities.find(a => a.id === activityId);
@@ -4695,6 +4716,9 @@
             try {
                 // Load activity questions from Object_45
                 const questions = await this.loadActivityQuestions(activityId);
+                
+                // Load additional activity data from Object_44
+                const additionalData = await this.loadActivityAdditionalData(activityId);
                 
                 // Load latest student response from Object_46 (Activity Answers)
                 const studentResponse = await this.loadLatestStudentActivityResponse(studentId, activityId);
