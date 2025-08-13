@@ -4248,13 +4248,13 @@
         async loadActivityAdditionalData(activityId) {
             try {
                 // First check if we have this activity in our cached data
-                let activityData = this.state.activitiesData?.find(a => a.Activity_id === activityId);
+                let activityData = this.state.activitiesData?.find(a => a.id === activityId || a.Activity_id === activityId);
                 
                 // If not in cache, try to load from activities JSON
                 if (!activityData) {
                     log('Activity not in cache, loading from JSON...');
                     await this.loadActivitiesFromJSON();
-                    activityData = this.state.activitiesData?.find(a => a.Activity_id === activityId);
+                    activityData = this.state.activitiesData?.find(a => a.id === activityId || a.Activity_id === activityId);
                 }
                 
                 // If we have activity data from JSON, use it
@@ -4906,75 +4906,48 @@
                                         `;
                                     })()}
                                     
-                                    <!-- Activity Questions Section -->
-                                    <div class="activity-questions-section" style="margin-bottom: 30px;">
-                                        <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
+                                    <!-- Student Responses Section -->
+                                    <div class="student-responses-section" style="margin-bottom: 30px;">
+                                        <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">💬 Student Responses</h3>
                                         ${(() => {
-                                            // Always show questions if available
+                                            // Always show questions with response boxes
                                             const allQuestions = this.allQuestionsCache || questions;
                                             const responseQuestionIds = parsedResponses.map(r => r.questionId);
                                             const relevantQuestions = allQuestions.filter(q => responseQuestionIds.includes(q.id));
                                             
                                             // If we have responses, show questions that match responses
-                                            // If no responses, show all available questions for this activity
-                                            const questionsToShow = relevantQuestions.length > 0 ? relevantQuestions : allQuestions.slice(0, 5); // Show first 5 as sample
+                                            // If no responses, show all available questions for this activity (first 10 max)
+                                            const questionsToShow = relevantQuestions.length > 0 ? relevantQuestions : allQuestions.slice(0, 10);
                                             
                                             if (questionsToShow.length > 0) {
                                                 return `
-                                                    <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
-                                                        ${questionsToShow.map((question, index) => `
-                                                            <div class="question-item" style="margin-bottom: 12px; ${index < questionsToShow.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
-                                                                <div class="question-header" style="font-weight: 600; color: #495057; margin-bottom: 4px;">
-                                                                    Question ${index + 1}
+                                                    <div class="responses-list" style="background: #e8f4fd; padding: 16px; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                                                        ${questionsToShow.map((question, index) => {
+                                                            // Find matching response for this question
+                                                            const matchingResponse = parsedResponses.find(r => r.questionId === question.id);
+                                                            const hasResponse = !!matchingResponse;
+                                                            
+                                                            return `
+                                                                <div class="response-item" style="margin-bottom: 16px; ${index < questionsToShow.length - 1 ? 'border-bottom: 1px solid #b8daff; padding-bottom: 16px;' : ''}">
+                                                                    <div class="response-question" style="font-weight: 500; color: #495057; margin-bottom: 8px;">
+                                                                        <strong>Q${index + 1}:</strong> ${this.escapeHtml(question.question || question.field_1279 || 'Question text not available')}
+                                                                    </div>
+                                                                    <div class="response-content" style="background: ${hasResponse ? 'white' : '#f8f9fa'}; padding: 12px; border-radius: 4px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #212529; border: 1px solid ${hasResponse ? '#b8daff' : '#dee2e6'};">
+                                                                        <strong>Answer:</strong> ${hasResponse ? this.escapeHtml(matchingResponse.response || matchingResponse.value || matchingResponse) : '<em style="color: #6c757d;">No response provided</em>'}
+                                                                    </div>
                                                                 </div>
-                                                                <div class="question-text" style="color: #6c757d; line-height: 1.4;">
-                                                                    ${this.escapeHtml(question.field_1279 || question.question || 'Question text not available')}
-                                                                </div>
-                                                            </div>
-                                                        `).join('')}
+                                                            `;
+                                                        }).join('')}
                                                     </div>
                                                 `;
                                             } else {
                                                 return `
-                                                    <div class="no-questions" style="background: #e9ecef; padding: 16px; border-radius: 6px; border-left: 4px solid #6c757d; color: #495057; text-align: center; font-style: italic;">
+                                                    <div class="no-questions" style="background: #fff3cd; padding: 16px; border-radius: 6px; border-left: 4px solid #ffc107; color: #856404; text-align: center; font-style: italic;">
                                                         No questions available for this activity.
                                                     </div>
                                                 `;
                                             }
                                         })()}
-                                    </div>
-                                    
-                                    <!-- Student Responses Section -->
-                                    <div class="student-responses-section" style="margin-bottom: 30px;">
-                                        <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">💬 Student Responses</h3>
-                                        ${parsedResponses.length > 0 ? `
-                                            <div class="responses-list" style="background: #e8f4fd; padding: 16px; border-radius: 6px; border-left: 4px solid #17a2b8;">
-                                                ${parsedResponses.map((response, index) => `
-                                                    <div class="response-item" style="margin-bottom: 16px; ${index < parsedResponses.length - 1 ? 'border-bottom: 1px solid #b8daff; padding-bottom: 16px;' : ''}">
-                                                        ${response.questionText ? `
-                                                            <div class="response-question" style="font-weight: 500; color: #495057; margin-bottom: 8px;">
-                                                                <strong>Q${index + 1}:</strong> ${this.escapeHtml(response.questionText)}
-                                                            </div>
-                                                        ` : response.question ? `
-                                                            <div class="response-question" style="font-weight: 500; color: #495057; margin-bottom: 8px;">
-                                                                <strong>Q${index + 1}:</strong> ${this.escapeHtml(response.question)}
-                                                            </div>
-                                                        ` : response.questionId ? `
-                                                            <div class="response-question" style="font-weight: 500; color: #6c757d; margin-bottom: 8px; font-style: italic;">
-                                                                Question ID: ${this.escapeHtml(response.questionId)}
-                                                            </div>
-                                                        ` : ''}
-                                                        <div class="response-content" style="background: white; padding: 12px; border-radius: 4px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #212529; border: 1px solid #b8daff;">
-                                                            <strong>Answer:</strong> ${this.escapeHtml(response.response || response.value || response)}
-                                                        </div>
-                                                    </div>
-                                                `).join('')}
-                                            </div>
-                                        ` : `
-                                            <div class="no-responses" style="background: #fff3cd; padding: 16px; border-radius: 6px; border-left: 4px solid #ffc107; color: #856404; text-align: center; font-style: italic;">
-                                                No responses found for this activity. Student has not completed this activity yet.
-                                            </div>
-                                        `}
                                     </div>
                                     
                                     <!-- Staff Feedback Section -->
