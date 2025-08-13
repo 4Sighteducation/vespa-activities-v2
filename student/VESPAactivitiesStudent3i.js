@@ -1018,10 +1018,11 @@
                                     <iframe 
                                         src="${slidesSrc}" 
                                         frameborder="0" 
+                                        width="100%"
+                                        height="100%"
                                         allowfullscreen="true" 
                                         mozallowfullscreen="true" 
-                                        webkitallowfullscreen="true"
-                                        loading="lazy">
+                                        webkitallowfullscreen="true">
                                     </iframe>
                                 </div>
                             </div>
@@ -1077,11 +1078,12 @@
                                     <iframe 
                                         src="${videoSrc}" 
                                         frameborder="0" 
+                                        width="100%"
+                                        height="100%"
                                         allowfullscreen="true" 
                                         mozallowfullscreen="true" 
                                         webkitallowfullscreen="true"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                        loading="lazy">
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
                                     </iframe>
                                 </div>
                             </div>
@@ -1103,7 +1105,8 @@
                                 <iframe 
                                     src="${pdfUrl}" 
                                     frameborder="0"
-                                    loading="lazy">
+                                    width="100%"
+                                    height="100%">
                                 </iframe>
                             </div>
                         </div>
