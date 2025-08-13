@@ -1090,6 +1090,8 @@
                             log(`Successfully loaded ${jsonData.length} activities from configured URL`);
                             this.state.activitiesData = jsonData;
                             return;
+                        } else {
+                            log(`Failed to load from configured URL - HTTP ${response.status}: ${response.statusText}`);
                         }
                     } catch (err) {
                         log(`Failed to load from configured URL:`, err);
