@@ -3987,10 +3987,44 @@
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.display = 'none';
-                if (modalId === 'student-details-modal') {
+                if (modalId === 'student-details-modal' || modalId === 'pdf-modal') {
                     modal.remove();
                 }
             }
+        }
+        
+        // Open PDF in embedded modal
+        openPDFModal(pdfUrl, activityName) {
+            const modalHtml = `
+                <div id="pdf-modal" class="modal-overlay" style="display: flex;">
+                    <div class="modal large-modal" style="max-width: 90vw; max-height: 90vh;">
+                        <div class="modal-header">
+                            <h2 class="modal-title">📄 ${this.escapeHtml(activityName)} - Activity PDF</h2>
+                            <button class="modal-close" onclick="VESPAStaff.closeModal('pdf-modal')">×</button>
+                        </div>
+                        <div class="modal-body" style="padding: 0; height: 80vh;">
+                            <iframe 
+                                src="${pdfUrl}" 
+                                style="width: 100%; height: 100%; border: none;"
+                                frameborder="0">
+                                <p>Your browser does not support PDFs. 
+                                   <a href="${pdfUrl}" target="_blank">Download the PDF</a> instead.
+                                </p>
+                            </iframe>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="window.open('${pdfUrl}', '_blank')">
+                                📥 Download PDF
+                            </button>
+                            <button class="btn btn-primary" onclick="VESPAStaff.closeModal('pdf-modal')">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            $('body').append(modalHtml);
         }
         
         // Switch tabs in student details modal
@@ -4873,44 +4907,36 @@
                                                         </div>
                                                     ` : ''}
                                                     
-                                                    <!-- Action Buttons -->
-                                                    <div class="activity-actions" style="display: flex; gap: 12px; justify-content: center;">
-                                                        ${additionalData.slideshowUrl ? `
+                                                    <!-- Embedded Slideshow -->
+                                                    ${additionalData.slideshowUrl ? `
+                                                        <div class="embedded-slideshow" style="margin-bottom: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                                                            <div style="background: #28a745; color: white; padding: 12px 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                                                🎬 Activity Slideshow
+                                                            </div>
+                                                            <iframe 
+                                                                src="${additionalData.slideshowUrl}" 
+                                                                style="width: 100%; height: 400px; border: none; display: block;"
+                                                                frameborder="0" 
+                                                                allowfullscreen="true"
+                                                                mozallowfullscreen="true" 
+                                                                webkitallowfullscreen="true">
+                                                            </iframe>
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    <!-- PDF Action Button -->
+                                                    ${additionalData.pdfUrl ? `
+                                                        <div class="pdf-action" style="text-align: center; margin-bottom: 20px;">
                                                             <button 
-                                                                onclick="window.open('${additionalData.slideshowUrl}', '_blank')" 
-                                                                style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
-                                                                onmouseover="this.style.backgroundColor='#218838'" 
-                                                                onmouseout="this.style.backgroundColor='#28a745'"
-                                                            >
-                                                                🎬 View Activity Slideshow
-                                                            </button>
-                                                        ` : `
-                                                            <button 
-                                                                style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
-                                                                disabled
-                                                            >
-                                                                🎬 No Slideshow Available
-                                                            </button>
-                                                        `}
-                                                        
-                                                        ${additionalData.pdfUrl ? `
-                                                            <button 
-                                                                onclick="window.open('${additionalData.pdfUrl}', '_blank')" 
-                                                                style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                                                                onclick="VESPAStaff.openPDFModal('${additionalData.pdfUrl}', '${this.escapeHtml(activity.name)}')" 
+                                                                style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
                                                                 onmouseover="this.style.backgroundColor='#c82333'" 
                                                                 onmouseout="this.style.backgroundColor='#dc3545'"
                                                             >
-                                                                📄 Download PDF
+                                                                📄 View Activity PDF
                                                             </button>
-                                                        ` : `
-                                                            <button 
-                                                                style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
-                                                                disabled
-                                                            >
-                                                                📄 No PDF Available
-                                                            </button>
-                                                        `}
-                                                    </div>
+                                                        </div>
+                                                    ` : ''}
                                                 </div>
                                             </div>
                                         `;

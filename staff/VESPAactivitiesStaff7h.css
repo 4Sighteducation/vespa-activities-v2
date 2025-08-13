@@ -5020,3 +5020,57 @@
     color: #666;
     font-style: italic;
 }
+
+/* Embedded Slideshow Styles */
+.embedded-slideshow {
+    border: 1px solid #dee2e6;
+    background: white;
+}
+
+.embedded-slideshow iframe {
+    transition: opacity 0.3s ease;
+}
+
+.embedded-slideshow iframe:hover {
+    opacity: 0.95;
+}
+
+/* PDF Modal Styles */
+#pdf-modal .modal {
+    width: 90vw;
+    height: 90vh;
+    max-width: none;
+    max-height: none;
+}
+
+#pdf-modal .modal-body {
+    flex: 1;
+    overflow: hidden;
+}
+
+#pdf-modal .modal-footer {
+    flex-shrink: 0;
+    padding: 16px 24px;
+    border-top: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+/* Responsive adjustments for embedded content */
+@media (max-width: 768px) {
+    .embedded-slideshow {
+        margin-bottom: 16px;
+    }
+    
+    .embedded-slideshow iframe {
+        height: 300px;
+    }
+    
+    #pdf-modal .modal {
+        width: 95vw;
+        height: 95vh;
+    }
+    
+    .pdf-action {
+        margin-bottom: 16px !important;
+    }
+}
