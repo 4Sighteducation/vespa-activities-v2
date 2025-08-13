@@ -1080,11 +1080,27 @@
             try {
                 log('Loading activities data...');
                 
-                // CDN sources only (preferred: consolidated, field-rich JSON)
+                // Primary: Use configured URL from KnackAppLoader (activity_json_final.json)
+                if (this.config.activityContentUrl) {
+                    try {
+                        log(`Attempting to load activities from configured URL: ${this.config.activityContentUrl}`);
+                        const response = await fetch(this.config.activityContentUrl);
+                        if (response.ok) {
+                            const jsonData = await response.json();
+                            log(`Successfully loaded ${jsonData.length} activities from configured URL`);
+                            this.state.activitiesData = jsonData;
+                            return;
+                        }
+                    } catch (err) {
+                        log(`Failed to load from configured URL:`, err);
+                    }
+                }
+                
+                // Fallback CDN sources (legacy support)
                 const externalPaths = [
-                    // Primary: consolidated JSON in this repo
+                    // Secondary: consolidated JSON in this repo
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activitiesjsonwithfields1c.json',
-                    // Secondary: field-rich JSON in FlashcardLoader (backup)
+                    // Tertiary: field-rich JSON in FlashcardLoader (backup)
                     'https://cdn.jsdelivr.net/gh/4Sighteducation/FlashcardLoader@main/integrations/activitiesjsonwithfields.json',
                     'https://raw.githubusercontent.com/4Sighteducation/FlashcardLoader/main/integrations/activitiesjsonwithfields.json',
                     // Legacy fallbacks
@@ -2699,7 +2715,7 @@
                     </div>
                     
                     <!-- Main Content Area -->
-                    <div class="workspace-content" style="display: flex; flex-direction: column; min-height: calc(100vh - 200px); max-height: calc(100vh - 150px); overflow-y: auto; padding: 0 16px;">
+                    <div class="workspace-content" style="display: flex; flex-direction: column; min-height: calc(100vh - 200px); max-height: calc(100vh - 120px); overflow-y: auto; padding: 0 16px; box-sizing: border-box;">
                         <!-- Student Activities Section -->
                         <div class="student-section">
                             <div class="section-header-compact">
@@ -2723,7 +2739,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div class="activities-by-category student">
+                            <div class="activities-by-category student" style="overflow-y: auto; max-height: calc(100vh - 300px);">
                                 ${categories.map(category => {
                                     // Split activities by level (with proper type checking and fallback)
                                     const allCategoryActivities = studentActivitiesByCategory[category];
@@ -4222,41 +4238,88 @@
                 if (activityData) {
                     log('Found activity in JSON data:', activityData);
                     
-                    // Convert markdown-style content to HTML
-                    let backgroundContent = activityData.background_content || '';
-                    
-                    // Basic markdown to HTML conversion
-                    backgroundContent = backgroundContent
-                        .replace(/\n\n/g, '</p><p>')
-                        .replace(/\n/g, '<br>')
-                        .replace(/^/, '<p>')
-                        .replace(/$/, '</p>')
-                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                        .replace(/LEARN 💡/g, '<h3>LEARN 💡</h3>')
-                        .replace(/REFLECT🤔/g, '<h3>REFLECT 🤔</h3>')
-                        .replace(/Final Thoughts/g, '<h4>Final Thoughts</h4>')
-                        .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
-                    
-                    // Extract any PDF links from media
+                    // Handle new activity_json_final.json structure
+                    let backgroundContent = '';
                     let pdfUrl = '';
-                    if (activityData.media?.pdf?.url) {
-                        pdfUrl = activityData.media.pdf.url;
-                    }
+                    let slideshowUrl = '';
+                    let videoUrls = [];
+                    let timeMinutes = activityData.time_minutes || 20;
                     
-                    // Calculate time based on content and level
-                    const contentLength = (backgroundContent.length) / 200; // Rough word count
-                    const baseTime = activityData.Level === 'Level 3' ? 25 : 
-                                    activityData.Level === 'Level 2' ? 20 : 15;
-                    const totalTime = Math.min(Math.max(Math.ceil(contentLength + baseTime), 15), 45);
+                    // Check if this is the new structure (has resources property)
+                    if (activityData.resources) {
+                        log('Using new activity_json_final.json structure');
+                        
+                        // Extract PDF from resources.do.pdfs
+                        if (activityData.resources.do?.pdfs?.length > 0) {
+                            pdfUrl = activityData.resources.do.pdfs[0];
+                        }
+                        
+                        // Extract slideshow from resources.watch.slides
+                        if (activityData.resources.watch?.slides?.length > 0) {
+                            slideshowUrl = activityData.resources.watch.slides[0];
+                        }
+                        
+                        // Extract videos from resources.watch.videos
+                        if (activityData.resources.watch?.videos?.length > 0) {
+                            videoUrls = activityData.resources.watch.videos;
+                        }
+                        
+                        // Create background content from activity info
+                        backgroundContent = `
+                            <div class="activity-overview">
+                                <h3>${activityData.name}</h3>
+                                <div class="activity-meta">
+                                    <span class="category">${activityData.category}</span>
+                                    <span class="level">Level ${activityData.level}</span>
+                                    <span class="difficulty">Difficulty: ${activityData.difficulty}/3</span>
+                                    ${timeMinutes ? `<span class="time">${timeMinutes} minutes</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="activity-description">
+                                <p>This ${activityData.category.toLowerCase()} activity is designed to help students develop key skills and understanding.</p>
+                                ${activityData.thresholds ? `<p><strong>Recommended for students with ${activityData.category} scores between ${activityData.thresholds.lower} and ${activityData.thresholds.upper}.</strong></p>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        // Handle legacy structure (background_content, media, etc.)
+                        log('Using legacy activity structure');
+                        backgroundContent = activityData.background_content || '';
+                        
+                        // Basic markdown to HTML conversion
+                        backgroundContent = backgroundContent
+                            .replace(/\n\n/g, '</p><p>')
+                            .replace(/\n/g, '<br>')
+                            .replace(/^/, '<p>')
+                            .replace(/$/, '</p>')
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/LEARN 💡/g, '<h3>LEARN 💡</h3>')
+                            .replace(/REFLECT🤔/g, '<h3>REFLECT 🤔</h3>')
+                            .replace(/Final Thoughts/g, '<h4>Final Thoughts</h4>')
+                            .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+                        
+                        // Extract any PDF links from legacy media
+                        if (activityData.media?.pdf?.url) {
+                            pdfUrl = activityData.media.pdf.url;
+                        }
+                        
+                        // Calculate time based on content and level
+                        const contentLength = (backgroundContent.length) / 200; // Rough word count
+                        const baseTime = activityData.Level === 'Level 3' ? 25 : 
+                                        activityData.Level === 'Level 2' ? 20 : 15;
+                        timeMinutes = Math.min(Math.max(Math.ceil(contentLength + baseTime), 15), 45);
+                    }
                     
                     return {
                         backgroundInfo: backgroundContent,
                         additionalInfo: '',
                         pdfUrl: pdfUrl,
-                        timeMinutes: totalTime,
+                        slideshowUrl: slideshowUrl,
+                        videoUrls: videoUrls,
+                        timeMinutes: timeMinutes,
                         objective: backgroundContent.substring(0, 200).replace(/<[^>]*>/g, '') + '...',
-                        media: activityData.media || {}
+                        media: activityData.media || {},
+                        resources: activityData.resources || {}
                     };
                 }
                 
@@ -4776,43 +4839,84 @@
                                                     
                                                     <!-- Action Buttons -->
                                                     <div class="activity-actions" style="display: flex; gap: 12px; justify-content: center;">
-                                                        <button 
-                                                            onclick="VESPAStaff.viewEnhancedActivityPreview('${activityId}')" 
-                                                            style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
-                                                            onmouseover="this.style.backgroundColor='#0056b3'" 
-                                                            onmouseout="this.style.backgroundColor='#007bff'"
-                                                        >
-                                                            🎬 View Activity Slideshow
-                                                        </button>
+                                                        ${additionalData.slideshowUrl ? `
+                                                            <button 
+                                                                onclick="window.open('${additionalData.slideshowUrl}', '_blank')" 
+                                                                style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                                                                onmouseover="this.style.backgroundColor='#218838'" 
+                                                                onmouseout="this.style.backgroundColor='#28a745'"
+                                                            >
+                                                                🎬 View Activity Slideshow
+                                                            </button>
+                                                        ` : `
+                                                            <button 
+                                                                style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
+                                                                disabled
+                                                            >
+                                                                🎬 No Slideshow Available
+                                                            </button>
+                                                        `}
                                                         
-                                                        ${(() => {
-                                                            // Check if activity has PDF
-                                                            const activityData = this.getEmbeddedActivities().find(a => a.id === activityId);
-                                                            const hasPDF = activityData?.media?.pdf?.url;
-                                                            
-                                                            return hasPDF ? `
-                                                                <button 
-                                                                    onclick="window.open('${activityData.media.pdf.url}', '_blank')" 
-                                                                    style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
-                                                                    onmouseover="this.style.backgroundColor='#c82333'" 
-                                                                    onmouseout="this.style.backgroundColor='#dc3545'"
-                                                                >
-                                                                    📄 Download PDF
-                                                                </button>
-                                                            ` : `
-                                                                <button 
-                                                                    style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
-                                                                    disabled
-                                                                >
-                                                                    📄 No PDF Available
-                                                                </button>
-                                                            `;
-                                                        })()}
+                                                        ${additionalData.pdfUrl ? `
+                                                            <button 
+                                                                onclick="window.open('${additionalData.pdfUrl}', '_blank')" 
+                                                                style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s;"
+                                                                onmouseover="this.style.backgroundColor='#c82333'" 
+                                                                onmouseout="this.style.backgroundColor='#dc3545'"
+                                                            >
+                                                                📄 Download PDF
+                                                            </button>
+                                                        ` : `
+                                                            <button 
+                                                                style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: not-allowed; font-weight: 500; display: flex; align-items: center; gap: 8px; opacity: 0.6;"
+                                                                disabled
+                                                            >
+                                                                📄 No PDF Available
+                                                            </button>
+                                                        `}
                                                     </div>
                                                 </div>
                                             </div>
                                         `;
                                     })()}
+                                    
+                                    <!-- Activity Questions Section -->
+                                    <div class="activity-questions-section" style="margin-bottom: 30px;">
+                                        <h3 style="color: #495057; margin-bottom: 16px; font-size: 18px; border-bottom: 2px solid #dee2e6; padding-bottom: 8px;">📝 Activity Questions</h3>
+                                        ${(() => {
+                                            // Always show questions if available
+                                            const allQuestions = this.allQuestionsCache || questions;
+                                            const responseQuestionIds = parsedResponses.map(r => r.questionId);
+                                            const relevantQuestions = allQuestions.filter(q => responseQuestionIds.includes(q.id));
+                                            
+                                            // If we have responses, show questions that match responses
+                                            // If no responses, show all available questions for this activity
+                                            const questionsToShow = relevantQuestions.length > 0 ? relevantQuestions : allQuestions.slice(0, 5); // Show first 5 as sample
+                                            
+                                            if (questionsToShow.length > 0) {
+                                                return `
+                                                    <div class="questions-list" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border-left: 4px solid #007bff;">
+                                                        ${questionsToShow.map((question, index) => `
+                                                            <div class="question-item" style="margin-bottom: 12px; ${index < questionsToShow.length - 1 ? 'border-bottom: 1px solid #dee2e6; padding-bottom: 12px;' : ''}">
+                                                                <div class="question-header" style="font-weight: 600; color: #495057; margin-bottom: 4px;">
+                                                                    Question ${index + 1}
+                                                                </div>
+                                                                <div class="question-text" style="color: #6c757d; line-height: 1.4;">
+                                                                    ${this.escapeHtml(question.field_1279 || question.question || 'Question text not available')}
+                                                                </div>
+                                                            </div>
+                                                        `).join('')}
+                                                    </div>
+                                                `;
+                                            } else {
+                                                return `
+                                                    <div class="no-questions" style="background: #e9ecef; padding: 16px; border-radius: 6px; border-left: 4px solid #6c757d; color: #495057; text-align: center; font-style: italic;">
+                                                        No questions available for this activity.
+                                                    </div>
+                                                `;
+                                            }
+                                        })()}
+                                    </div>
                                     
                                     <!-- Student Responses Section -->
                                     <div class="student-responses-section" style="margin-bottom: 30px;">
