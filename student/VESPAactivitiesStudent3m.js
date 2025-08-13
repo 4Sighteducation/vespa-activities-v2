@@ -2007,10 +2007,124 @@
     window.ResponseHandler = ResponseHandler;
     window.ActivityRenderer = ActivityRenderer;
     
+    // ============================================
+    // IMAGE QUEUE MANAGER - Prevent simultaneous loading crashes
+    // ============================================
+    class ImageQueueManager {
+        constructor(maxConcurrent = 3) {
+            this.maxConcurrent = maxConcurrent;
+            this.currentLoading = 0;
+            this.queue = [];
+            this.loaded = new Set();
+            this.failed = new Set();
+            this.observer = null;
+            this.setupIntersectionObserver();
+        }
+
+        setupIntersectionObserver() {
+            if ('IntersectionObserver' in window) {
+                this.observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            const src = img.dataset.src;
+                            if (src && !img.src) {
+                                this.loadImage(src).then(success => {
+                                    if (success) {
+                                        img.src = src;
+                                        img.classList.add('loaded');
+                                    }
+                                });
+                                this.observer.unobserve(img);
+                            }
+                        }
+                    });
+                }, {
+                    rootMargin: '50px'
+                });
+            }
+        }
+
+        observeImage(img) {
+            if (this.observer && img.dataset.src) {
+                this.observer.observe(img);
+            }
+        }
+
+        async loadImage(src) {
+            // Skip if already loaded or failed
+            if (this.loaded.has(src) || this.failed.has(src)) {
+                return this.loaded.has(src);
+            }
+
+            return new Promise((resolve) => {
+                const processImage = () => {
+                    if (this.currentLoading >= this.maxConcurrent) {
+                        // Queue this image
+                        this.queue.push({ src, resolve });
+                        return;
+                    }
+
+                    this.currentLoading++;
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        this.loaded.add(src);
+                        this.currentLoading--;
+                        this.processQueue();
+                        resolve(true);
+                    };
+                    
+                    img.onerror = () => {
+                        this.failed.add(src);
+                        this.currentLoading--;
+                        this.processQueue();
+                        log(`Failed to load image: ${src}`);
+                        resolve(false);
+                    };
+                    
+                    img.src = src;
+                };
+
+                processImage();
+            });
+        }
+
+        processQueue() {
+            while (this.queue.length > 0 && this.currentLoading < this.maxConcurrent) {
+                const { src, resolve } = this.queue.shift();
+                this.loadImage(src).then(resolve);
+            }
+        }
+
+        preloadCritical(urls) {
+            // Preload only critical images (first 3-5)
+            const critical = urls.slice(0, 5);
+            return Promise.all(critical.map(url => this.loadImage(url)));
+        }
+
+        reset() {
+            this.currentLoading = 0;
+            this.queue = [];
+            // Keep loaded cache for session
+        }
+
+        cleanup() {
+            if (this.observer) {
+                this.observer.disconnect();
+            }
+            this.reset();
+        }
+    }
+
+    // Global image queue manager
+    const imageQueueManager = new ImageQueueManager(3);
+    
     // Main application class
     class VESPAActivitiesApp {
         constructor(config) {
             this.config = config;
+            this.imageQueue = imageQueueManager;
             this.state = {
                 view: 'dashboard',
                 vespaScores: {},
@@ -2070,17 +2184,39 @@
                 // Ensure views are hidden initially
                 this.hideDataViews();
                 
-                // Wait for Knack to be ready
-                await this.waitForKnack();
+                // Wait for Knack to be ready with timeout
+                try {
+                    await Promise.race([
+                        this.waitForKnack(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Knack initialization timeout')), 20000)
+                        )
+                    ]);
+                } catch (error) {
+                    console.error('Knack initialization failed:', error);
+                    throw new Error('Unable to initialize Knack framework');
+                }
                 
                 // Setup view listeners
                 this.setupViewListeners();
                 
-                // Wait for all required views to render
-                await this.waitForViews();
+                // Wait for all required views to render with timeout
+                try {
+                    await Promise.race([
+                        this.waitForViews(),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Views rendering timeout')), 15000)
+                        )
+                    ]);
+                } catch (error) {
+                    console.warn('Some views may not have rendered:', error);
+                    // Continue anyway - we'll handle missing data gracefully
+                }
                 
-                // Load activities.json on startup to get media URLs
-                await this.loadActivitiesJson();
+                // Load activities.json - non-blocking to prevent crashes
+                this.loadActivitiesJson().catch(err => {
+                    console.warn('Failed to load activities JSON, continuing without media:', err);
+                });
                 
                 // Load initial data with validation
                 await this.loadInitialData();
@@ -4249,7 +4385,7 @@
         }
         
         handleBrokenImages() {
-            // Add event listeners to handle broken images
+            // Add event listeners to handle broken images with queue management
             document.addEventListener('error', (e) => {
                 if (e.target.tagName === 'IMG') {
                     // Check if we've already handled this image
@@ -4263,33 +4399,38 @@
                     placeholder.innerHTML = '🖼️ Image unavailable';
                     placeholder.style.cssText = 'background: #f0f0f0; padding: 20px; text-align: center; color: #666; border-radius: 8px;';
                     e.target.parentNode.insertBefore(placeholder, e.target);
+                    
+                    // Mark as failed in queue manager
+                    if (this.imageQueue) {
+                        this.imageQueue.failed.add(e.target.src);
+                    }
                 }
             }, true);
         }
         
         enableLazyLoading() {
-            // Enable lazy loading for images
-            if ('IntersectionObserver' in window) {
-                const imageObserver = new IntersectionObserver((entries, observer) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const img = entry.target;
-                            if (img.dataset.src) {
-                                img.src = img.dataset.src;
-                                img.removeAttribute('data-src');
-                                observer.unobserve(img);
-                            }
-                        }
-                    });
-                }, {
-                    rootMargin: '50px 0px' // Start loading 50px before entering viewport
-                });
+            // Use the centralized image queue manager for lazy loading
+            const images = document.querySelectorAll('img[data-src], img[src]');
+            
+            images.forEach(img => {
+                // Convert regular images to lazy-loaded
+                if (img.src && !img.dataset.src && !img.src.includes('data:image')) {
+                    // Skip data URLs and already processed images
+                    const originalSrc = img.src;
+                    img.dataset.src = originalSrc;
+                    
+                    // Set placeholder
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23f5f5f5"/%3E%3C/svg%3E';
+                    img.classList.add('lazy-image');
+                }
                 
-                // Observe all images with data-src
-                document.querySelectorAll('img[data-src]').forEach(img => {
-                    imageObserver.observe(img);
-                });
-            }
+                // Register with queue manager for lazy loading
+                if (img.dataset.src && this.imageQueue) {
+                    this.imageQueue.observeImage(img);
+                }
+            });
+            
+            log(`Enabled lazy loading for ${images.length} images`);
         }
         
         showCategoryModal(category) {
@@ -4340,16 +4481,23 @@
         
         async loadActivitiesJson() {
             try {
+                // Check if data is already loaded (from AppLoader or previous load)
+                if (window.vespaActivitiesData && Object.keys(window.vespaActivitiesData).length > 0) {
+                    log('Activities data already loaded, skipping fetch');
+                    return;
+                }
+                
                 // Use the new activity_json_final1a.json file configured in KnackAppLoader
                 const jsonUrl = this.config.activityContentUrl || 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activity_json_final1a.json';
                 log('Loading activity_json_final1a.json from:', jsonUrl);
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced to 15 seconds
                 
                 const response = await fetch(jsonUrl, {
-                    signal: controller.signal
+                    signal: controller.signal,
+                    cache: 'force-cache' // Use cached version if available
                 });
                 
                 clearTimeout(timeoutId);
@@ -4362,6 +4510,7 @@
                     
                     // Store globally for activity renderer to access
                     window.vespaActivitiesData = {};
+                    const allImageUrls = [];
                     
                     if (Array.isArray(data)) {
                         data.forEach(activity => {
@@ -4371,6 +4520,12 @@
                                 const slidesUrl = activity.resources?.watch?.slides?.[0] || '';
                                 const videoUrl = activity.resources?.watch?.videos?.[0] || '';
                                 const pdfUrl = activity.resources?.do?.pdfs?.[0] || '';
+                                const learnImages = activity.resources?.learn?.images || [];
+                                
+                                // Collect all image URLs for preloading
+                                if (learnImages.length > 0) {
+                                    allImageUrls.push(...learnImages);
+                                }
                                 
                                 window.vespaActivitiesData[activity.id] = {
                                     // Media URLs from the actual JSON structure
@@ -4382,19 +4537,31 @@
                                     category: activity.category || '',
                                     level: activity.level || '',
                                     // Images from learn section
-                                    learnImages: activity.resources?.learn?.images || [],
+                                    learnImages: learnImages,
                                     // Keep full activity data for reference
                                     fullData: activity
                                 };
                                 
-                                console.log(`Loaded activity ${activity.id} (${activity.name}):`, {
+                                log(`Loaded activity ${activity.id} (${activity.name}):`, {
                                     slides: slidesUrl ? 'YES' : 'NO',
                                     video: videoUrl ? 'YES' : 'NO',
-                                    pdf: pdfUrl ? 'YES' : 'NO'
+                                    pdf: pdfUrl ? 'YES' : 'NO',
+                                    images: learnImages.length
                                 });
                             }
                         });
+                        
                         log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities with media URLs`);
+                        
+                        // Preload only critical images (first 3-5) to prevent crashes
+                        if (allImageUrls.length > 0 && this.imageQueue) {
+                            const criticalImages = allImageUrls.slice(0, 3);
+                            log(`Preloading ${criticalImages.length} critical images (out of ${allImageUrls.length} total)`);
+                            // Don't await - let it happen in background
+                            this.imageQueue.preloadCritical(criticalImages).then(() => {
+                                log('Critical images preloaded');
+                            });
+                        }
                     } else {
                         console.error('activity_json_final1a.json did not return an array:', data);
                     }
@@ -4405,7 +4572,11 @@
                     window.vespaActivitiesData = {};
                 }
             } catch (error) {
-                console.error('Error loading activity_json_final1a.json:', error);
+                if (error.name === 'AbortError') {
+                    console.error('Loading activities timed out - connection too slow');
+                } else {
+                    console.error('Error loading activity_json_final1a.json:', error);
+                }
                 // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }

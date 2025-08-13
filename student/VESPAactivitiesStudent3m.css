@@ -3502,3 +3502,81 @@ body {
     opacity: 0.3;
     border-radius: 8px;
 }
+
+/* ============================================ */
+/* LAZY LOADING & IMAGE QUEUE MANAGEMENT FIX */
+/* ============================================ */
+
+/* Lazy Loading Images */
+.lazy-image {
+    background: #f5f5f5;
+    min-height: 100px;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.lazy-image.loaded {
+    opacity: 1;
+}
+
+/* Prevent layout shift during image load */
+img[data-src] {
+    display: block;
+    min-height: 100px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer-load 1.5s infinite;
+}
+
+@keyframes shimmer-load {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Image error state */
+.image-error {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+/* Image placeholder for broken images */
+.image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    border-radius: 8px;
+    min-height: 100px;
+    font-size: 14px;
+}
+
+/* Optimize image rendering to prevent crashes */
+.vespa-student-activities img {
+    will-change: transform;
+    contain: layout style;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+/* Prevent excessive reflows */
+.activities-grid {
+    contain: layout;
+}
+
+/* Performance optimization for activity cards */
+.activity-card {
+    contain: layout style paint;
+    transform: translateZ(0);
+}
+
+/* Limit concurrent animations */
+.activity-card:nth-child(n+10) {
+    animation-delay: 0s !important;
+    animation: none !important;
+}
