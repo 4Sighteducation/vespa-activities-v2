@@ -3993,38 +3993,102 @@
             }
         }
         
-        // Open PDF in embedded modal
+        // Open PDF in enhanced modal with loading and error handling
         openPDFModal(pdfUrl, activityName) {
+            console.log('[VESPA Staff] Opening PDF modal with URL:', pdfUrl);
+            
             const modalHtml = `
-                <div id="pdf-modal" class="modal-overlay" style="display: flex;">
-                    <div class="modal large-modal" style="max-width: 90vw; max-height: 90vh;">
-                        <div class="modal-header">
-                            <h2 class="modal-title">📄 ${this.escapeHtml(activityName)} - Activity PDF</h2>
-                            <button class="modal-close" onclick="VESPAStaff.closeModal('pdf-modal')">×</button>
+                <div id="pdf-modal" class="pdf-modal" style="display: block;">
+                    <div class="pdf-modal-content">
+                        <div class="pdf-modal-header">
+                            <h3 class="pdf-modal-title">${this.escapeHtml(activityName || 'Activity PDF')}</h3>
+                            <div class="pdf-modal-controls">
+                                <a href="${pdfUrl}" target="_blank" class="pdf-download-link">
+                                    <i class="fas fa-download"></i>
+                                    <span>Download</span>
+                                </a>
+                                <button class="pdf-close-button" onclick="VESPAStaff.closePDFModal()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div class="modal-body" style="padding: 0; height: 80vh;">
-                            <iframe 
-                                src="${pdfUrl}" 
-                                style="width: 100%; height: 100%; border: none;"
-                                frameborder="0">
-                                <p>Your browser does not support PDFs. 
-                                   <a href="${pdfUrl}" target="_blank">Download the PDF</a> instead.
-                                </p>
-                            </iframe>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" onclick="window.open('${pdfUrl}', '_blank')">
-                                📥 Download PDF
-                            </button>
-                            <button class="btn btn-primary" onclick="VESPAStaff.closeModal('pdf-modal')">
-                                Close
-                            </button>
+                        <div id="pdfViewerContainer" class="pdf-viewer-container">
+                            <div class="pdf-loading">
+                                <i class="fas fa-spinner fa-spin" style="margin-right: 10px;"></i>
+                                Loading PDF...
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
             
             $('body').append(modalHtml);
+            
+            // Load PDF with timeout and error handling
+            setTimeout(() => {
+                try {
+                    const viewerContainer = document.getElementById('pdfViewerContainer');
+                    const iframe = document.createElement('iframe');
+                    
+                    iframe.src = pdfUrl;
+                    iframe.style.width = '100%';
+                    iframe.style.height = '100%';
+                    iframe.style.border = 'none';
+                    
+                    // Handle iframe load errors
+                    iframe.onerror = () => {
+                        console.log('[VESPA Staff] PDF iframe failed to load, showing error message');
+                        this.showPDFError(pdfUrl, viewerContainer);
+                    };
+                    
+                    // Set a timeout to check if PDF loaded
+                    const loadTimeout = setTimeout(() => {
+                        console.log('[VESPA Staff] PDF load timeout reached, showing fallback options');
+                        this.showPDFError(pdfUrl, viewerContainer);
+                    }, 10000); // 10 second timeout
+                    
+                    iframe.onload = () => {
+                        console.log('[VESPA Staff] PDF iframe loaded successfully');
+                        clearTimeout(loadTimeout);
+                    };
+                    
+                    // Clear container and add iframe
+                    viewerContainer.innerHTML = '';
+                    viewerContainer.appendChild(iframe);
+                    
+                } catch (error) {
+                    console.log('[VESPA Staff] Error setting up PDF viewer:', error);
+                    this.showPDFError(pdfUrl, document.getElementById('pdfViewerContainer'));
+                }
+            }, 500);
+        }
+        
+        // Show PDF error with fallback options
+        showPDFError(pdfUrl, container) {
+            container.innerHTML = `
+                <div class="pdf-error">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 24px; margin-bottom: 10px; color: #f39c12;"></i>
+                    <p>Unable to display PDF in browser.</p>
+                    <div style="margin-top: 15px;">
+                        <a href="${pdfUrl}" target="_blank" class="pdf-download-link" style="margin-right: 10px;">
+                            <i class="fas fa-external-link-alt"></i>
+                            Open in new tab
+                        </a>
+                        <a href="${pdfUrl}" download class="pdf-download-link">
+                            <i class="fas fa-download"></i>
+                            Download PDF
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Close PDF modal
+        closePDFModal() {
+            const modal = document.getElementById('pdf-modal');
+            if (modal) {
+                modal.remove();
+            }
         }
         
         // Switch tabs in student details modal
@@ -5952,5 +6016,23 @@
             error('Failed to initialize VESPA Staff Activities:', err);
         }
     };
+    
+    // Add PDF modal event handlers
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('pdf-modal');
+            if (modal && modal.style.display === 'block') {
+                window.VESPAStaff.closePDFModal();
+            }
+        }
+    });
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('pdf-modal');
+        if (event.target === modal) {
+            window.VESPAStaff.closePDFModal();
+        }
+    });
     
 })();
