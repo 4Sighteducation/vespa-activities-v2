@@ -4362,21 +4362,36 @@
                     
                     if (Array.isArray(data)) {
                         data.forEach(activity => {
-                            if (activity.Activity_id) {
-                                window.vespaActivitiesData[activity.Activity_id] = {
-                                    // Media URLs from the new JSON structure
-                                    slidesUrl: activity.slidesUrl || '',
-                                    videoUrl: activity.videoUrl || '',
-                                    pdfUrl: activity.pdfUrl || '',
-                                    backgroundInfo: activity.backgroundInfo || '',
-                                    additionalInfo: activity.additionalInfo || '',
-                                    objective: activity.objective || '',
+                            // The JSON uses 'id' not 'Activity_id'
+                            if (activity.id) {
+                                // Extract media URLs from the resources structure
+                                const slidesUrl = activity.resources?.watch?.slides?.[0] || '';
+                                const videoUrl = activity.resources?.watch?.videos?.[0] || '';
+                                const pdfUrl = activity.resources?.do?.pdfs?.[0] || '';
+                                
+                                window.vespaActivitiesData[activity.id] = {
+                                    // Media URLs from the actual JSON structure
+                                    slidesUrl: slidesUrl,
+                                    videoUrl: videoUrl,
+                                    pdfUrl: pdfUrl,
+                                    // Additional data
+                                    name: activity.name || '',
+                                    category: activity.category || '',
+                                    level: activity.level || '',
+                                    // Images from learn section
+                                    learnImages: activity.resources?.learn?.images || [],
                                     // Keep full activity data for reference
                                     fullData: activity
                                 };
+                                
+                                console.log(`Loaded activity ${activity.id} (${activity.name}):`, {
+                                    slides: slidesUrl ? 'YES' : 'NO',
+                                    video: videoUrl ? 'YES' : 'NO',
+                                    pdf: pdfUrl ? 'YES' : 'NO'
+                                });
                             }
                         });
-                        log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities`);
+                        log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities with media URLs`);
                     } else {
                         console.error('activity_json_final1a.json did not return an array:', data);
                     }
