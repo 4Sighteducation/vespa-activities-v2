@@ -4248,18 +4248,28 @@
         async loadActivityAdditionalData(activityId) {
             try {
                 // First check if we have this activity in our cached data
-                let activityData = this.state.activitiesData?.find(a => a.id === activityId || a.Activity_id === activityId);
+                // Get the activity name from the Knack activities list to match with JSON
+                const knackActivity = this.state.activities.find(a => a.id === activityId);
+                const activityName = knackActivity?.name;
+                log(`Looking for activity ID: ${activityId}, found name: "${activityName}"`);
+                
+                let activityData = null;
+                if (activityName && this.state.activitiesData) {
+                    activityData = this.state.activitiesData.find(a => a.name === activityName);
+                }
                 
                 // If not in cache, try to load from activities JSON
-                if (!activityData) {
+                if (!activityData && activityName) {
                     log('Activity not in cache, loading from JSON...');
                     await this.loadActivitiesFromJSON();
-                    activityData = this.state.activitiesData?.find(a => a.id === activityId || a.Activity_id === activityId);
+                    if (this.state.activitiesData) {
+                        activityData = this.state.activitiesData.find(a => a.name === activityName);
+                    }
                 }
                 
                 // If we have activity data from JSON, use it
                 if (activityData) {
-                    log('Found activity in JSON data:', activityData);
+                    log(`Found activity in JSON data by name "${activityName}":`, activityData);
                     
                     // Handle new activity_json_final.json structure
                     let backgroundContent = '';
@@ -4917,7 +4927,10 @@
                                             
                                             // If we have responses, show questions that match responses
                                             // If no responses, show all available questions for this activity (first 10 max)
-                                            const questionsToShow = relevantQuestions.length > 0 ? relevantQuestions : allQuestions.slice(0, 10);
+                                            let questionsToShow = relevantQuestions.length > 0 ? relevantQuestions : allQuestions.slice(0, 10);
+                                            
+                                            // Sort questions by order field to ensure correct sequence
+                                            questionsToShow = questionsToShow.sort((a, b) => (a.order || 0) - (b.order || 0));
                                             
                                             if (questionsToShow.length > 0) {
                                                 return `
