@@ -2392,6 +2392,13 @@
                     // Hide it immediately
                     const element = document.querySelector(`#${viewId}`);
                     if (element) {
+                        // CRITICAL: Remove any iframes that might have been added
+                        const iframes = element.querySelectorAll('iframe');
+                        if (iframes.length > 0) {
+                            log(`⚠️ Removing ${iframes.length} iframes from re-rendered ${viewId}`);
+                            iframes.forEach(iframe => iframe.remove());
+                        }
+                        
                         element.style.display = 'none';
                         const viewWrapper = element.closest('.kn-view');
                         if (viewWrapper) {
@@ -2499,6 +2506,22 @@
             viewsToHide.forEach(viewId => {
                 const element = document.querySelector(`#${viewId}`);
                 if (element) {
+                    // CRITICAL FIX: Remove all iframes from data views to prevent performance issues
+                    const iframes = element.querySelectorAll('iframe');
+                    if (iframes.length > 0) {
+                        log(`⚠️ WARNING: Found ${iframes.length} iframes in ${viewId}, removing to prevent crashes`);
+                        iframes.forEach(iframe => {
+                            // Log for debugging
+                            const src = iframe.src || iframe.dataset.src || '';
+                            if (src && src.length > 0) {
+                                log(`  Removing iframe: ${src.substring(0, 60)}...`);
+                            }
+                            // Remove the iframe completely to prevent loading
+                            iframe.remove();
+                        });
+                        log(`✅ Removed ${iframes.length} iframes from ${viewId}`);
+                    }
+                    
                     // Hide the view completely
                     element.style.display = 'none';
                     element.style.visibility = 'hidden';
@@ -3944,18 +3967,42 @@
         
         // Event handling
         attachEventListeners() {
-            // Navigation
-            this.container.addEventListener('click', (e) => {
+            // CRITICAL FIX: Remove existing listeners before adding new ones
+            if (this._eventListenerAttached) {
+                log('Event listeners already attached, skipping');
+                return;
+            }
+            
+            // Clean up any existing listener first (safety check)
+            this.removeEventListeners();
+            
+            // Use event delegation with a single listener
+            this._clickHandler = (e) => {
                 // Nav items
                 if (e.target.closest('.nav-item')) {
                     const view = e.target.closest('.nav-item').dataset.view;
                     this.switchView(view);
                 }
                 
-                // Start activity
+                // Start activity - WITH DEBOUNCE
                 if (e.target.closest('.start-activity-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
                     const card = e.target.closest('.activity-card');
                     const activityId = card.dataset.activityId;
+                    
+                    // Prevent duplicate calls
+                    const now = Date.now();
+                    if (this._lastActivityStart && 
+                        this._lastActivityId === activityId && 
+                        (now - this._lastActivityStart) < 1000) {
+                        log('Blocked duplicate activity start');
+                        return;
+                    }
+                    
+                    this._lastActivityStart = now;
+                    this._lastActivityId = activityId;
                     this.startActivity(activityId);
                 }
                 
@@ -3977,17 +4024,40 @@
                     const category = e.target.closest('.category-button').dataset.category;
                     this.showCategoryActivities(category);
                 }
-            });
+            };
+            
+            // Attach the click handler
+            this.container.addEventListener('click', this._clickHandler);
+            
+            // Mark as attached to prevent duplicates
+            this._eventListenerAttached = true;
+            log('Event listeners attached');
+        }
+        
+        removeEventListeners() {
+            if (this._clickHandler && this.container) {
+                this.container.removeEventListener('click', this._clickHandler);
+                this._eventListenerAttached = false;
+                log('Event listeners removed');
+            }
         }
         
         switchView(view) {
+            // Don't re-render if already on this view
+            if (this.state.view === view) {
+                log('Already on view:', view);
+                return;
+            }
+            
             this.state.view = view;
             this.render();
             
             // Add view transition animation
             const content = this.container.querySelector('.vespa-content-area');
-            content.classList.add('view-transition');
-            setTimeout(() => content.classList.remove('view-transition'), 300);
+            if (content) {
+                content.classList.add('view-transition');
+                setTimeout(() => content.classList.remove('view-transition'), 300);
+            }
         }
         
         startActivity(activityId) {
