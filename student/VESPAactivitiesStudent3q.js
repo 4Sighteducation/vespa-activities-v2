@@ -1601,14 +1601,21 @@
         }
         
         startAutoSave() {
+            // CRITICAL FIX: Clear any existing interval first
+            this.stopAutoSave();
+            
             this.autoSaveInterval = setInterval(() => {
                 this.handleSave();
             }, 30000);
+            
+            log(`Auto-save started with interval ID: ${this.autoSaveInterval}`);
         }
         
         stopAutoSave() {
             if (this.autoSaveInterval) {
+                log(`Stopping auto-save interval: ${this.autoSaveInterval}`);
                 clearInterval(this.autoSaveInterval);
+                this.autoSaveInterval = null;
             }
         }
         
@@ -4063,6 +4070,16 @@
         startActivity(activityId) {
             log(`Starting activity: ${activityId}`);
             
+            // CRITICAL FIX: Prevent duplicate activity starts
+            if (this._currentActivityRenderer) {
+                log('Activity already loading/open, cleaning up first');
+                // Clean up existing renderer
+                if (this._currentActivityRenderer.stopAutoSave) {
+                    this._currentActivityRenderer.stopAutoSave();
+                }
+                this._currentActivityRenderer = null;
+            }
+            
             // Find the activity
             const activity = this.state.activities.all.find(a => a.id === activityId);
             if (!activity) {
@@ -4088,6 +4105,12 @@
                     console.error('Error loading existing responses:', error);
                 }
                 
+                // CRITICAL FIX: Only create one renderer
+                if (this._currentActivityRenderer) {
+                    log('Renderer already exists, skipping duplicate creation');
+                    return;
+                }
+                
                 // Create the activity renderer with existing responses
                 const renderer = new window.ActivityRenderer(
                     activity,
@@ -4103,6 +4126,9 @@
                         studentLastName: this.state.studentLastName
                     }
                 );
+                
+                // Store reference to current renderer
+                this._currentActivityRenderer = renderer;
                 
                 // Log the config being passed to renderer for debugging
                 log('Activity Renderer Config:', {
@@ -4120,6 +4146,14 @@
                 
                 // Set up the close callback
                 window.vespaApp.onActivityClose = async () => {
+                    // CRITICAL FIX: Clean up renderer reference
+                    if (this._currentActivityRenderer) {
+                        if (this._currentActivityRenderer.stopAutoSave) {
+                            this._currentActivityRenderer.stopAutoSave();
+                        }
+                        this._currentActivityRenderer = null;
+                    }
+                    
                     // Refresh both student data and activity progress
                     try {
                         // Re-parse student record to get updated finished activities
