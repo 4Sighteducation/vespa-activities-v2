@@ -703,7 +703,7 @@
                 const progressData = {
                     field_3537: activityId, // Activities connection
                     field_3536: studentId, // Student connection
-                    field_3538: this.state.currentCycle || cycleNumber, // Use current cycle from Object_10
+                    field_3538: cycleNumber, // Cycle Number
                     field_3539: new Date().toISOString(), // date_assigned
                     field_3540: new Date().toISOString(), // date_started
                     field_3541: status === 'completed' ? new Date().toISOString() : null, // date_completed
@@ -730,7 +730,7 @@
                 const progressData = {
                     field_3537: activityId, // Activity connection
                     field_3536: studentId, // Student connection
-                    field_3538: this.state.currentCycle || 1, // Use current cycle from Object_10
+                    field_3538: 1, // Cycle number
                     field_3539: this.formatDateUK(new Date()), // Start date
                     field_3540: this.formatDateUK(new Date()), // End date
                     field_3541: this.formatDateUK(new Date()), // Completion date
@@ -1093,7 +1093,7 @@
                     ${hasBackgroundInfo ? `
                         <div class="learn-background-section">
                             <div class="background-info-content">
-                                ${this.filterBrokenImages(backgroundInfo)}
+                                ${backgroundInfo}
                             </div>
                         </div>
                     ` : ''}
@@ -1379,32 +1379,6 @@
             return iframeContent || '';
         }
         
-        filterBrokenImages(htmlContent) {
-            if (!htmlContent) return '';
-            
-            // Parse HTML string and filter out images from broken domains
-            let filteredContent = htmlContent;
-            
-            // Find all img tags
-            const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
-            const matches = [...htmlContent.matchAll(imgRegex)];
-            
-            matches.forEach(match => {
-                const fullImgTag = match[0];
-                const imgSrc = match[1];
-                
-                // Check if image is from a broken domain
-                if (isImageUrlBroken(imgSrc)) {
-                    // Replace with placeholder
-                    const placeholder = '<div class="image-placeholder" style="background: #f0f0f0; padding: 20px; text-align: center; color: #666; border-radius: 8px; margin: 10px 0;">🖼️ Image unavailable</div>';
-                    filteredContent = filteredContent.replace(fullImgTag, placeholder);
-                    log(`Filtered broken image: ${imgSrc}`);
-                }
-            });
-            
-            return filteredContent;
-        }
-        
         getActivityObjective() {
             if (this.activity.instructions) {
                 return this.activity.instructions.substring(0, 100) + '...';
@@ -1601,21 +1575,14 @@
         }
         
         startAutoSave() {
-            // CRITICAL FIX: Clear any existing interval first
-            this.stopAutoSave();
-            
             this.autoSaveInterval = setInterval(() => {
                 this.handleSave();
             }, 30000);
-            
-            log(`Auto-save started with interval ID: ${this.autoSaveInterval}`);
         }
         
         stopAutoSave() {
             if (this.autoSaveInterval) {
-                log(`Stopping auto-save interval: ${this.autoSaveInterval}`);
                 clearInterval(this.autoSaveInterval);
-                this.autoSaveInterval = null;
             }
         }
         
@@ -1660,26 +1627,20 @@
                 </div>
             `;
             
-            // Fix and optimize Google URLs
+            // Optimize Google Slides URLs for faster loading
             let optimizedSrc = src;
-            if (src && src.includes('docs.google.com')) {
-                // Fix Google Slides URLs
-                if (src.includes('/presentation/')) {
-                    // Extract presentation ID and rebuild clean URL
-                    const presentationMatch = src.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
-                    if (presentationMatch) {
-                        // Use clean embed URL without rm=minimal (causes CSP issues)
-                        optimizedSrc = `https://docs.google.com/presentation/d/${presentationMatch[1]}/embed?start=false&loop=false&delayms=60000`;
-                        log(`Fixed Google Slides URL: ${optimizedSrc}`);
-                    }
-                }
-            } else if (src && src.includes('drive.google.com')) {
-                // Fix Google Drive video URLs
-                const driveMatch = src.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-                if (driveMatch) {
-                    optimizedSrc = `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
-                    log(`Fixed Google Drive URL: ${optimizedSrc}`);
-                }
+            if (type === 'slides' && src.includes('docs.google.com/presentation')) {
+                // Parse the URL
+                const url = new URL(src);
+                
+                // Add performance-optimizing parameters
+                url.searchParams.set('rm', 'minimal'); // Remove UI for faster load
+                url.searchParams.set('start', 'false'); // Don't auto-start
+                url.searchParams.set('loop', 'false'); // Don't loop
+                url.searchParams.set('delayms', '60000'); // 60 second delay between slides
+                
+                optimizedSrc = url.toString();
+                log(`Optimized slides URL: ${optimizedSrc}`);
             }
             
             // Create and insert iframe with trust signals
@@ -1692,13 +1653,11 @@
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             iframe.style.cssText = 'width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0;';
             
-            // Additional attributes for Google content
-            if (type === 'slides' || optimizedSrc.includes('google.com')) {
-                // Don't use sandbox for Google content - it causes CSP issues
+            // Additional performance attributes for Google Slides
+            if (type === 'slides') {
+                iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
                 iframe.setAttribute('frameborder', '0');
                 iframe.setAttribute('allowtransparency', 'true');
-                // Add credentialless for cross-origin isolation
-                iframe.setAttribute('credentialless', 'true');
             }
             
             // Add load event listener
@@ -2048,139 +2007,10 @@
     window.ResponseHandler = ResponseHandler;
     window.ActivityRenderer = ActivityRenderer;
     
-    // ============================================
-    // IMAGE QUEUE MANAGER - Prevent simultaneous loading crashes
-    // ============================================
-    class ImageQueueManager {
-        constructor(maxConcurrent = 3) {
-            this.maxConcurrent = maxConcurrent;
-            this.currentLoading = 0;
-            this.queue = [];
-            this.loaded = new Set();
-            this.failed = new Set();
-            this.observer = null;
-            this.setupIntersectionObserver();
-        }
-
-        setupIntersectionObserver() {
-            if ('IntersectionObserver' in window) {
-                this.observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const img = entry.target;
-                            const src = img.dataset.src;
-                            if (src && !img.src) {
-                                this.loadImage(src).then(success => {
-                                    if (success) {
-                                        img.src = src;
-                                        img.classList.add('loaded');
-                                    }
-                                });
-                                this.observer.unobserve(img);
-                            }
-                        }
-                    });
-                }, {
-                    rootMargin: '50px'
-                });
-            }
-        }
-
-        observeImage(img) {
-            if (this.observer && img.dataset.src) {
-                this.observer.observe(img);
-            }
-        }
-
-        async loadImage(src) {
-            // Skip if already loaded or failed
-            if (this.loaded.has(src) || this.failed.has(src)) {
-                return this.loaded.has(src);
-            }
-
-            return new Promise((resolve) => {
-                const processImage = () => {
-                    if (this.currentLoading >= this.maxConcurrent) {
-                        // Queue this image
-                        this.queue.push({ src, resolve });
-                        return;
-                    }
-
-                    this.currentLoading++;
-                    const img = new Image();
-                    
-                    img.onload = () => {
-                        this.loaded.add(src);
-                        this.currentLoading--;
-                        this.processQueue();
-                        resolve(true);
-                    };
-                    
-                    img.onerror = () => {
-                        this.failed.add(src);
-                        this.currentLoading--;
-                        this.processQueue();
-                        log(`Failed to load image: ${src}`);
-                        resolve(false);
-                    };
-                    
-                    img.src = src;
-                };
-
-                processImage();
-            });
-        }
-
-        processQueue() {
-            while (this.queue.length > 0 && this.currentLoading < this.maxConcurrent) {
-                const { src, resolve } = this.queue.shift();
-                this.loadImage(src).then(resolve);
-            }
-        }
-
-        preloadCritical(urls) {
-            // Preload only critical images (first 3-5)
-            const critical = urls.slice(0, 5);
-            return Promise.all(critical.map(url => this.loadImage(url)));
-        }
-
-        reset() {
-            this.currentLoading = 0;
-            this.queue = [];
-            // Keep loaded cache for session
-        }
-
-        cleanup() {
-            if (this.observer) {
-                this.observer.disconnect();
-            }
-            this.reset();
-        }
-    }
-
-    // Global image queue manager
-    const imageQueueManager = new ImageQueueManager(3);
-    
-    // List of known broken/dead domains to filter out
-    const BROKEN_IMAGE_DOMAINS = [
-        'danicaexplainsitall.com',
-        'www.theschoolrun.com',
-        '461200-1444427-raikfcquaxqncofqfm.stackpathdns.com',
-        'raikfcquaxqncofqfm.stackpathdns.com'
-    ];
-    
-    // Function to check if image URL is from a broken domain
-    function isImageUrlBroken(url) {
-        if (!url) return true;
-        const urlLower = url.toLowerCase();
-        return BROKEN_IMAGE_DOMAINS.some(domain => urlLower.includes(domain));
-    }
-    
     // Main application class
     class VESPAActivitiesApp {
         constructor(config) {
             this.config = config;
-            this.imageQueue = imageQueueManager;
             this.state = {
                 view: 'dashboard',
                 vespaScores: {},
@@ -2240,39 +2070,17 @@
                 // Ensure views are hidden initially
                 this.hideDataViews();
                 
-                // Wait for Knack to be ready with timeout
-                try {
-                    await Promise.race([
-                        this.waitForKnack(),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Knack initialization timeout')), 20000)
-                        )
-                    ]);
-                } catch (error) {
-                    console.error('Knack initialization failed:', error);
-                    throw new Error('Unable to initialize Knack framework');
-                }
+                // Wait for Knack to be ready
+                await this.waitForKnack();
                 
                 // Setup view listeners
                 this.setupViewListeners();
                 
-                // Wait for all required views to render with timeout
-                try {
-                    await Promise.race([
-                        this.waitForViews(),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Views rendering timeout')), 15000)
-                        )
-                    ]);
-                } catch (error) {
-                    console.warn('Some views may not have rendered:', error);
-                    // Continue anyway - we'll handle missing data gracefully
-                }
+                // Wait for all required views to render
+                await this.waitForViews();
                 
-                // Load activities.json - non-blocking to prevent crashes
-                this.loadActivitiesJson().catch(err => {
-                    console.warn('Failed to load activities JSON, continuing without media:', err);
-                });
+                // Load activities.json on startup to get media URLs
+                await this.loadActivitiesJson();
                 
                 // Load initial data with validation
                 await this.loadInitialData();
@@ -2306,12 +2114,6 @@
                 
                 // Hide loading overlay
                 this.hideLoadingOverlay();
-                
-                // Check if this is a new user and show welcome modal
-                if (this.state.isNewUser) {
-                    log('New user detected, showing welcome modal');
-                    await this.showWelcomeModal();
-                }
                 
                 log('VESPA Activities initialization complete');
             } catch (error) {
@@ -2405,13 +2207,6 @@
                     // Hide it immediately
                     const element = document.querySelector(`#${viewId}`);
                     if (element) {
-                        // CRITICAL: Remove any iframes that might have been added
-                        const iframes = element.querySelectorAll('iframe');
-                        if (iframes.length > 0) {
-                            log(`⚠️ Removing ${iframes.length} iframes from re-rendered ${viewId}`);
-                            iframes.forEach(iframe => iframe.remove());
-                        }
-                        
                         element.style.display = 'none';
                         const viewWrapper = element.closest('.kn-view');
                         if (viewWrapper) {
@@ -2519,22 +2314,6 @@
             viewsToHide.forEach(viewId => {
                 const element = document.querySelector(`#${viewId}`);
                 if (element) {
-                    // CRITICAL FIX: Remove all iframes from data views to prevent performance issues
-                    const iframes = element.querySelectorAll('iframe');
-                    if (iframes.length > 0) {
-                        log(`⚠️ WARNING: Found ${iframes.length} iframes in ${viewId}, removing to prevent crashes`);
-                        iframes.forEach(iframe => {
-                            // Log for debugging
-                            const src = iframe.src || iframe.dataset.src || '';
-                            if (src && src.length > 0) {
-                                log(`  Removing iframe: ${src.substring(0, 60)}...`);
-                            }
-                            // Remove the iframe completely to prevent loading
-                            iframe.remove();
-                        });
-                        log(`✅ Removed ${iframes.length} iframes from ${viewId}`);
-                    }
-                    
                     // Hide the view completely
                     element.style.display = 'none';
                     element.style.visibility = 'hidden';
@@ -2720,35 +2499,6 @@
                     attitude: parseInt(record[this.config.fields.attitudeScore] || record[this.config.fields.attitudeScore + '_raw'] || 0)
                 };
                 
-                // Parse the current cycle from Object_10
-                this.state.currentCycle = parseInt(record[this.config.fields.currentcycle] || record[this.config.fields.currentcycle + '_raw'] || 1);
-                log('Current cycle from VESPA results:', this.state.currentCycle);
-                
-                // Parse cycle-specific scores
-                this.state.cycleScores = {
-                    cycle1: {
-                        vision: parseInt(record[this.config.fields.visionc1] || record[this.config.fields.visionc1 + '_raw'] || 0),
-                        effort: parseInt(record[this.config.fields.effortc1] || record[this.config.fields.effortc1 + '_raw'] || 0),
-                        systems: parseInt(record[this.config.fields.systemsc1] || record[this.config.fields.systemsc1 + '_raw'] || 0),
-                        practice: parseInt(record[this.config.fields.practicec1] || record[this.config.fields.practicec1 + '_raw'] || 0),
-                        attitude: parseInt(record[this.config.fields.attitudec1] || record[this.config.fields.attitudec1 + '_raw'] || 0)
-                    },
-                    cycle2: {
-                        vision: parseInt(record[this.config.fields.visionc2] || record[this.config.fields.visionc2 + '_raw'] || 0),
-                        effort: parseInt(record[this.config.fields.effortc2] || record[this.config.fields.effortc2 + '_raw'] || 0),
-                        systems: parseInt(record[this.config.fields.systemsc2] || record[this.config.fields.systemsc2 + '_raw'] || 0),
-                        practice: parseInt(record[this.config.fields.practicec2] || record[this.config.fields.practicec2 + '_raw'] || 0),
-                        attitude: parseInt(record[this.config.fields.attitudec2] || record[this.config.fields.attitudec2 + '_raw'] || 0)
-                    },
-                    cycle3: {
-                        vision: parseInt(record[this.config.fields.visionc3] || record[this.config.fields.visionc3 + '_raw'] || 0),
-                        effort: parseInt(record[this.config.fields.effortc3] || record[this.config.fields.effortc3 + '_raw'] || 0),
-                        systems: parseInt(record[this.config.fields.systemsc3] || record[this.config.fields.systemsc3 + '_raw'] || 0),
-                        practice: parseInt(record[this.config.fields.practicec3] || record[this.config.fields.practicec3 + '_raw'] || 0),
-                        attitude: parseInt(record[this.config.fields.attitudec3] || record[this.config.fields.attitudec3 + '_raw'] || 0)
-                    }
-                };
-                
                 log('Parsed VESPA scores:', this.state.vespaScores);
                 
                 // Log if all scores are still 0
@@ -2878,13 +2628,6 @@
                     this.state.prescribedActivityIds = [];
                 }
                 log('Prescribed activity IDs:', this.state.prescribedActivityIds);
-                
-                // Parse new user field (field_3655)
-                const newUserField = record[this.config.fields.newUser] || 
-                                   record[this.config.fields.newUser + '_raw'] || 'No';
-                // Parse the boolean value - it comes as "Yes" or "No"
-                this.state.isNewUser = (newUserField === 'No' || newUserField === false || newUserField === 'false');
-                log('Is new user:', this.state.isNewUser);
                 
                 // Parse finished activities (field_1380) - this is a text field with comma-separated IDs
                 const finishedField = record[this.config.fields.finishedActivities] || 
@@ -3452,11 +3195,6 @@
                             <p class="subtitle">Ready to boost your VESPA scores today?</p>
                         </div>
                         <div class="header-stats">
-                            <div class="cycle-display">
-                                <span class="cycle-icon">🎯</span>
-                                <span>Cycle</span>
-                                <span class="cycle-number">${this.state.currentCycle || 1}</span>
-                            </div>
                             <div class="stat-card">
                                 <span class="stat-emoji">⭐</span>
                                 <div class="stat-content">
@@ -4021,42 +3759,18 @@
         
         // Event handling
         attachEventListeners() {
-            // CRITICAL FIX: Remove existing listeners before adding new ones
-            if (this._eventListenerAttached) {
-                log('Event listeners already attached, skipping');
-                return;
-            }
-            
-            // Clean up any existing listener first (safety check)
-            this.removeEventListeners();
-            
-            // Use event delegation with a single listener
-            this._clickHandler = (e) => {
+            // Navigation
+            this.container.addEventListener('click', (e) => {
                 // Nav items
                 if (e.target.closest('.nav-item')) {
                     const view = e.target.closest('.nav-item').dataset.view;
                     this.switchView(view);
                 }
                 
-                // Start activity - WITH DEBOUNCE
+                // Start activity
                 if (e.target.closest('.start-activity-btn')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
                     const card = e.target.closest('.activity-card');
                     const activityId = card.dataset.activityId;
-                    
-                    // Prevent duplicate calls
-                    const now = Date.now();
-                    if (this._lastActivityStart && 
-                        this._lastActivityId === activityId && 
-                        (now - this._lastActivityStart) < 1000) {
-                        log('Blocked duplicate activity start');
-                        return;
-                    }
-                    
-                    this._lastActivityStart = now;
-                    this._lastActivityId = activityId;
                     this.startActivity(activityId);
                 }
                 
@@ -4078,54 +3792,21 @@
                     const category = e.target.closest('.category-button').dataset.category;
                     this.showCategoryActivities(category);
                 }
-            };
-            
-            // Attach the click handler
-            this.container.addEventListener('click', this._clickHandler);
-            
-            // Mark as attached to prevent duplicates
-            this._eventListenerAttached = true;
-            log('Event listeners attached');
-        }
-        
-        removeEventListeners() {
-            if (this._clickHandler && this.container) {
-                this.container.removeEventListener('click', this._clickHandler);
-                this._eventListenerAttached = false;
-                log('Event listeners removed');
-            }
+            });
         }
         
         switchView(view) {
-            // Don't re-render if already on this view
-            if (this.state.view === view) {
-                log('Already on view:', view);
-                return;
-            }
-            
             this.state.view = view;
             this.render();
             
             // Add view transition animation
             const content = this.container.querySelector('.vespa-content-area');
-            if (content) {
-                content.classList.add('view-transition');
-                setTimeout(() => content.classList.remove('view-transition'), 300);
-            }
+            content.classList.add('view-transition');
+            setTimeout(() => content.classList.remove('view-transition'), 300);
         }
         
         startActivity(activityId) {
             log(`Starting activity: ${activityId}`);
-            
-            // CRITICAL FIX: Prevent duplicate activity starts
-            if (this._currentActivityRenderer) {
-                log('Activity already loading/open, cleaning up first');
-                // Clean up existing renderer
-                if (this._currentActivityRenderer.stopAutoSave) {
-                    this._currentActivityRenderer.stopAutoSave();
-                }
-                this._currentActivityRenderer = null;
-            }
             
             // Find the activity
             const activity = this.state.activities.all.find(a => a.id === activityId);
@@ -4152,12 +3833,6 @@
                     console.error('Error loading existing responses:', error);
                 }
                 
-                // CRITICAL FIX: Only create one renderer
-                if (this._currentActivityRenderer) {
-                    log('Renderer already exists, skipping duplicate creation');
-                    return;
-                }
-                
                 // Create the activity renderer with existing responses
                 const renderer = new window.ActivityRenderer(
                     activity,
@@ -4173,9 +3848,6 @@
                         studentLastName: this.state.studentLastName
                     }
                 );
-                
-                // Store reference to current renderer
-                this._currentActivityRenderer = renderer;
                 
                 // Log the config being passed to renderer for debugging
                 log('Activity Renderer Config:', {
@@ -4193,14 +3865,6 @@
                 
                 // Set up the close callback
                 window.vespaApp.onActivityClose = async () => {
-                    // CRITICAL FIX: Clean up renderer reference
-                    if (this._currentActivityRenderer) {
-                        if (this._currentActivityRenderer.stopAutoSave) {
-                            this._currentActivityRenderer.stopAutoSave();
-                        }
-                        this._currentActivityRenderer = null;
-                    }
-                    
                     // Refresh both student data and activity progress
                     try {
                         // Re-parse student record to get updated finished activities
@@ -4558,120 +4222,6 @@
             `;
         }
         
-        async showWelcomeModal() {
-            log('Showing welcome modal for new user');
-            
-            // Create modal overlay
-            const modalOverlay = document.createElement('div');
-            modalOverlay.className = 'vespa-welcome-modal-overlay';
-            modalOverlay.innerHTML = `
-                <div class="vespa-welcome-modal">
-                    <div class="welcome-modal-header">
-                        <h2>Welcome to VESPA Activities!</h2>
-                        <span class="welcome-modal-close">&times;</span>
-                    </div>
-                    <div class="welcome-modal-body">
-                        <div class="welcome-modal-icon">
-                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
-                                      fill="#f4d03f" stroke="#f4d03f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </div>
-                        <h3>Hello ${this.state.studentName || 'Student'}!</h3>
-                        <p>We're excited to have you start your VESPA journey!</p>
-                        
-                        <div class="welcome-features">
-                            <div class="welcome-feature">
-                                <span class="feature-icon">📚</span>
-                                <div>
-                                    <h4>Personalised Activities</h4>
-                                    <p>Complete activities tailored to improve your VESPA scores</p>
-                                </div>
-                            </div>
-                            <div class="welcome-feature">
-                                <span class="feature-icon">📊</span>
-                                <div>
-                                    <h4>Track Your Progress</h4>
-                                    <p>Monitor your improvement across Vision, Effort, Systems, Practice, and Attitude</p>
-                                </div>
-                            </div>
-                            <div class="welcome-feature">
-                                <span class="feature-icon">🏆</span>
-                                <div>
-                                    <h4>Earn Achievements</h4>
-                                    <p>Unlock badges and rewards as you complete activities</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="welcome-current-cycle">
-                            <p>You're currently in <strong>Cycle ${this.state.currentCycle || 1}</strong> of your VESPA journey.</p>
-                        </div>
-                        
-                        <button class="welcome-modal-button">Get Started!</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modalOverlay);
-            
-            // Add animation class after a small delay
-            setTimeout(() => {
-                modalOverlay.classList.add('show');
-            }, 10);
-            
-            // Handle modal close
-            const closeModal = async () => {
-                modalOverlay.classList.remove('show');
-                setTimeout(() => {
-                    modalOverlay.remove();
-                }, 300);
-                
-                // Update the newUser field to "Yes"
-                await this.updateNewUserStatus();
-            };
-            
-            // Close button click
-            modalOverlay.querySelector('.welcome-modal-close').addEventListener('click', closeModal);
-            
-            // Get Started button click
-            modalOverlay.querySelector('.welcome-modal-button').addEventListener('click', closeModal);
-            
-            // Close on overlay click
-            modalOverlay.addEventListener('click', (e) => {
-                if (e.target === modalOverlay) {
-                    closeModal();
-                }
-            });
-        }
-        
-        async updateNewUserStatus() {
-            log('Updating new user status to Yes');
-            
-            try {
-                // Prepare the update data
-                const updateData = {
-                    [this.config.fields.newUser]: 'Yes'
-                };
-                
-                // Update the student record
-                const response = await this.makeKnackAPICall(
-                    'PUT',
-                    `objects/${this.config.objects.student}/records/${this.state.studentId}`,
-                    updateData
-                );
-                
-                if (response) {
-                    log('Successfully updated new user status');
-                    this.state.isNewUser = false;
-                } else {
-                    error('Failed to update new user status');
-                }
-            } catch (err) {
-                error('Error updating new user status:', err);
-            }
-        }
-        
         showLoadingOverlay() {
             // Create overlay if it doesn't exist
             let overlay = document.getElementById('vespa-loading-overlay');
@@ -4699,7 +4249,7 @@
         }
         
         handleBrokenImages() {
-            // Add event listeners to handle broken images with queue management
+            // Add event listeners to handle broken images
             document.addEventListener('error', (e) => {
                 if (e.target.tagName === 'IMG') {
                     // Check if we've already handled this image
@@ -4713,38 +4263,33 @@
                     placeholder.innerHTML = '🖼️ Image unavailable';
                     placeholder.style.cssText = 'background: #f0f0f0; padding: 20px; text-align: center; color: #666; border-radius: 8px;';
                     e.target.parentNode.insertBefore(placeholder, e.target);
-                    
-                    // Mark as failed in queue manager
-                    if (this.imageQueue) {
-                        this.imageQueue.failed.add(e.target.src);
-                    }
                 }
             }, true);
         }
         
         enableLazyLoading() {
-            // Use the centralized image queue manager for lazy loading
-            const images = document.querySelectorAll('img[data-src], img[src]');
-            
-            images.forEach(img => {
-                // Convert regular images to lazy-loaded
-                if (img.src && !img.dataset.src && !img.src.includes('data:image')) {
-                    // Skip data URLs and already processed images
-                    const originalSrc = img.src;
-                    img.dataset.src = originalSrc;
-                    
-                    // Set placeholder
-                    img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23f5f5f5"/%3E%3C/svg%3E';
-                    img.classList.add('lazy-image');
-                }
+            // Enable lazy loading for images
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                                observer.unobserve(img);
+                            }
+                        }
+                    });
+                }, {
+                    rootMargin: '50px 0px' // Start loading 50px before entering viewport
+                });
                 
-                // Register with queue manager for lazy loading
-                if (img.dataset.src && this.imageQueue) {
-                    this.imageQueue.observeImage(img);
-                }
-            });
-            
-            log(`Enabled lazy loading for ${images.length} images`);
+                // Observe all images with data-src
+                document.querySelectorAll('img[data-src]').forEach(img => {
+                    imageObserver.observe(img);
+                });
+            }
         }
         
         showCategoryModal(category) {
@@ -4795,23 +4340,16 @@
         
         async loadActivitiesJson() {
             try {
-                // Check if data is already loaded (from AppLoader or previous load)
-                if (window.vespaActivitiesData && Object.keys(window.vespaActivitiesData).length > 0) {
-                    log('Activities data already loaded, skipping fetch');
-                    return;
-                }
-                
                 // Use the new activity_json_final1a.json file configured in KnackAppLoader
                 const jsonUrl = this.config.activityContentUrl || 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/shared/utils/activity_json_final1a.json';
                 log('Loading activity_json_final1a.json from:', jsonUrl);
                 
                 // Add timeout for slow connections
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced to 15 seconds
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
                 const response = await fetch(jsonUrl, {
-                    signal: controller.signal,
-                    cache: 'force-cache' // Use cached version if available
+                    signal: controller.signal
                 });
                 
                 clearTimeout(timeoutId);
@@ -4824,7 +4362,6 @@
                     
                     // Store globally for activity renderer to access
                     window.vespaActivitiesData = {};
-                    const allImageUrls = [];
                     
                     if (Array.isArray(data)) {
                         data.forEach(activity => {
@@ -4834,12 +4371,6 @@
                                 const slidesUrl = activity.resources?.watch?.slides?.[0] || '';
                                 const videoUrl = activity.resources?.watch?.videos?.[0] || '';
                                 const pdfUrl = activity.resources?.do?.pdfs?.[0] || '';
-                                const learnImages = activity.resources?.learn?.images || [];
-                                
-                                // Collect all image URLs for preloading
-                                if (learnImages.length > 0) {
-                                    allImageUrls.push(...learnImages);
-                                }
                                 
                                 window.vespaActivitiesData[activity.id] = {
                                     // Media URLs from the actual JSON structure
@@ -4851,31 +4382,19 @@
                                     category: activity.category || '',
                                     level: activity.level || '',
                                     // Images from learn section
-                                    learnImages: learnImages,
+                                    learnImages: activity.resources?.learn?.images || [],
                                     // Keep full activity data for reference
                                     fullData: activity
                                 };
                                 
-                                log(`Loaded activity ${activity.id} (${activity.name}):`, {
+                                console.log(`Loaded activity ${activity.id} (${activity.name}):`, {
                                     slides: slidesUrl ? 'YES' : 'NO',
                                     video: videoUrl ? 'YES' : 'NO',
-                                    pdf: pdfUrl ? 'YES' : 'NO',
-                                    images: learnImages.length
+                                    pdf: pdfUrl ? 'YES' : 'NO'
                                 });
                             }
                         });
-                        
                         log(`Processed ${Object.keys(window.vespaActivitiesData).length} activities with media URLs`);
-                        
-                        // Preload only critical images (first 3-5) to prevent crashes
-                        if (allImageUrls.length > 0 && this.imageQueue) {
-                            const criticalImages = allImageUrls.slice(0, 3);
-                            log(`Preloading ${criticalImages.length} critical images (out of ${allImageUrls.length} total)`);
-                            // Don't await - let it happen in background
-                            this.imageQueue.preloadCritical(criticalImages).then(() => {
-                                log('Critical images preloaded');
-                            });
-                        }
                     } else {
                         console.error('activity_json_final1a.json did not return an array:', data);
                     }
@@ -4886,11 +4405,7 @@
                     window.vespaActivitiesData = {};
                 }
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    console.error('Loading activities timed out - connection too slow');
-                } else {
-                    console.error('Error loading activity_json_final1a.json:', error);
-                }
+                console.error('Error loading activity_json_final1a.json:', error);
                 // Continue without media URLs rather than breaking the app
                 window.vespaActivitiesData = {};
             }

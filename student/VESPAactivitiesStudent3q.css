@@ -179,6 +179,161 @@ body {
     margin-top: 8px;
 }
 
+/* Welcome Modal */
+.vespa-welcome-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.vespa-welcome-modal-overlay.show {
+    opacity: 1;
+}
+
+.vespa-welcome-modal {
+    background: white;
+    border-radius: 20px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.vespa-welcome-modal-overlay.show .vespa-welcome-modal {
+    transform: scale(1);
+}
+
+.welcome-modal-header {
+    position: relative;
+    padding: 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+}
+
+.welcome-modal-header h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.welcome-modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 30px;
+    color: white;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+    line-height: 1;
+}
+
+.welcome-modal-close:hover {
+    opacity: 1;
+}
+
+.welcome-modal-body {
+    padding: 40px 30px;
+    text-align: center;
+}
+
+.welcome-modal-icon {
+    margin-bottom: 20px;
+}
+
+.welcome-modal-body h3 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.welcome-modal-body > p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+.welcome-features {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin: 30px 0;
+    text-align: left;
+}
+
+.welcome-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.feature-icon {
+    font-size: 30px;
+    flex-shrink: 0;
+}
+
+.welcome-feature h4 {
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.welcome-feature p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.welcome-current-cycle {
+    padding: 20px;
+    background: #f0f4f8;
+    border-radius: 10px;
+    margin: 30px 0;
+}
+
+.welcome-current-cycle p {
+    margin: 0;
+    color: #555;
+    font-size: 16px;
+}
+
+.welcome-current-cycle strong {
+    color: #667eea;
+    font-size: 18px;
+}
+
+.welcome-modal-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 50px;
+    font-size: 18px;
+    font-weight: 600;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.welcome-modal-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
 /* Improved loading overlay */
 .vespa-loading-overlay {
     position: fixed;
@@ -263,6 +418,35 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 1rem;
     margin-bottom: 1.5rem;
+    position: relative;
+}
+
+/* Cycle Display */
+.cycle-display {
+    position: absolute;
+    top: -45px;
+    right: 0;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.cycle-display .cycle-icon {
+    font-size: 16px;
+}
+
+.cycle-display .cycle-number {
+    font-size: 16px;
+    font-weight: 700;
 }
 
 .stat-card {
