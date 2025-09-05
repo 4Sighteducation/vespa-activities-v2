@@ -203,9 +203,9 @@ body {
 .vespa-welcome-modal {
     background: white;
     border-radius: 20px;
-    max-width: 600px;
+    max-width: 550px;
     width: 90%;
-    max-height: 90vh;
+    max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     transform: scale(0.9);
@@ -218,7 +218,7 @@ body {
 
 .welcome-modal-header {
     position: relative;
-    padding: 30px;
+    padding: 25px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-radius: 20px 20px 0 0;
@@ -226,15 +226,15 @@ body {
 
 .welcome-modal-header h2 {
     margin: 0;
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
 }
 
 .welcome-modal-close {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    font-size: 30px;
+    top: 15px;
+    right: 15px;
+    font-size: 28px;
     color: white;
     cursor: pointer;
     opacity: 0.8;
@@ -247,24 +247,24 @@ body {
 }
 
 .welcome-modal-body {
-    padding: 40px 30px;
+    padding: 25px 20px;
     text-align: center;
 }
 
 .welcome-modal-icon {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .welcome-modal-body h3 {
     color: #333;
-    font-size: 24px;
-    margin-bottom: 10px;
+    font-size: 22px;
+    margin-bottom: 8px;
 }
 
 .welcome-modal-body > p {
     color: #666;
-    font-size: 16px;
-    margin-bottom: 30px;
+    font-size: 15px;
+    margin-bottom: 20px;
 }
 
 .welcome-features {
@@ -299,30 +299,57 @@ body {
     font-size: 14px;
 }
 
+/* Compact features layout */
+.welcome-features-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.welcome-feature-compact {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #555;
+}
+
+.welcome-feature-compact .feature-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.welcome-feature-compact strong {
+    color: #333;
+    font-weight: 600;
+}
+
 .welcome-current-cycle {
-    padding: 20px;
+    padding: 15px;
     background: #f0f4f8;
     border-radius: 10px;
-    margin: 30px 0;
+    margin: 20px 0;
 }
 
 .welcome-current-cycle p {
     margin: 0;
     color: #555;
-    font-size: 16px;
+    font-size: 15px;
 }
 
 .welcome-current-cycle strong {
     color: #667eea;
-    font-size: 18px;
+    font-size: 16px;
 }
 
 .welcome-modal-button {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    padding: 15px 50px;
-    font-size: 18px;
+    padding: 14px 45px;
+    font-size: 16px;
     font-weight: 600;
     border-radius: 30px;
     cursor: pointer;

@@ -65,7 +65,9 @@
             return;
         }
         
-        log('Initializing VESPA Activities Student Experience', config);
+        log('Initializing VESPA Activities Student Experience');
+        log('Config object received:', config);
+        log('Field mappings in config:', config.fields);
         
         // Hide views immediately before initialization
         const viewsToHide = ['view_3164', 'view_3165', 'view_3166', 'view_3167'];
@@ -2707,22 +2709,41 @@
             if (record) {
                 log('Record found, parsing scores...');
                 log('Available fields in record:', Object.keys(record));
+                log('Full record data:', record);
+                log('Config field mappings:', this.config.fields);
                 
                 // Store the full record for cross-referencing with student data
                 this.state.vespaScoresRecord = record;
                 
-                // Parse scores using configured field IDs
+                // Parse scores using configured field IDs - with detailed logging
+                const visionRaw = record[this.config.fields.visionScore] || record[this.config.fields.visionScore + '_raw'];
+                const effortRaw = record[this.config.fields.effortScore] || record[this.config.fields.effortScore + '_raw'];
+                const systemsRaw = record[this.config.fields.systemsScore] || record[this.config.fields.systemsScore + '_raw'];
+                const practiceRaw = record[this.config.fields.practiceScore] || record[this.config.fields.practiceScore + '_raw'];
+                const attitudeRaw = record[this.config.fields.attitudeScore] || record[this.config.fields.attitudeScore + '_raw'];
+                
+                log('Raw score values:', {
+                    vision: visionRaw,
+                    effort: effortRaw,
+                    systems: systemsRaw,
+                    practice: practiceRaw,
+                    attitude: attitudeRaw
+                });
+                
                 this.state.vespaScores = {
-                    vision: parseInt(record[this.config.fields.visionScore] || record[this.config.fields.visionScore + '_raw'] || 0),
-                    effort: parseInt(record[this.config.fields.effortScore] || record[this.config.fields.effortScore + '_raw'] || 0),
-                    systems: parseInt(record[this.config.fields.systemsScore] || record[this.config.fields.systemsScore + '_raw'] || 0),
-                    practice: parseInt(record[this.config.fields.practiceScore] || record[this.config.fields.practiceScore + '_raw'] || 0),
-                    attitude: parseInt(record[this.config.fields.attitudeScore] || record[this.config.fields.attitudeScore + '_raw'] || 0)
+                    vision: parseInt(visionRaw || 0),
+                    effort: parseInt(effortRaw || 0),
+                    systems: parseInt(systemsRaw || 0),
+                    practice: parseInt(practiceRaw || 0),
+                    attitude: parseInt(attitudeRaw || 0)
                 };
                 
-                // Parse the current cycle from Object_10
-                this.state.currentCycle = parseInt(record[this.config.fields.currentcycle] || record[this.config.fields.currentcycle + '_raw'] || 1);
-                log('Current cycle from VESPA results:', this.state.currentCycle);
+                // Parse the current cycle from Object_10 with detailed logging
+                const cycleRaw = record[this.config.fields.currentcycle] || record[this.config.fields.currentcycle + '_raw'];
+                log('Raw cycle value from field_146:', cycleRaw);
+                log('Cycle field key being used:', this.config.fields.currentcycle);
+                this.state.currentCycle = parseInt(cycleRaw || 1);
+                log('Parsed current cycle:', this.state.currentCycle);
                 
                 // Parse cycle-specific scores
                 this.state.cycleScores = {
@@ -3555,6 +3576,10 @@
         }
         
         getVESPAScoresHTML() {
+            // Log the actual scores being used for display
+            log('Rendering VESPA scores:', this.state.vespaScores);
+            log('Current cycle:', this.state.currentCycle);
+            
             const categories = ['vision', 'effort', 'systems', 'practice', 'attitude'];
             const emojis = {
                 vision: '👁️',
@@ -4561,6 +4586,27 @@
         async showWelcomeModal() {
             log('Showing welcome modal for new user');
             
+            // Get the student's first name - prefer state over user attributes
+            let firstName = 'Student';
+            if (this.state.studentFirstName) {
+                firstName = this.state.studentFirstName;
+            } else if (this.state.studentName && this.state.studentName !== 'Student') {
+                firstName = this.state.studentName.split(' ')[0];
+            } else {
+                // Fallback to Knack user attributes
+                const user = Knack.getUserAttributes();
+                if (user?.name) {
+                    firstName = user.name.split(' ')[0];
+                }
+            }
+            
+            log('Student first name for modal:', firstName);
+            log('Student state:', {
+                studentFirstName: this.state.studentFirstName,
+                studentName: this.state.studentName,
+                currentCycle: this.state.currentCycle
+            });
+            
             // Create modal overlay
             const modalOverlay = document.createElement('div');
             modalOverlay.className = 'vespa-welcome-modal-overlay';
@@ -4572,35 +4618,26 @@
                     </div>
                     <div class="welcome-modal-body">
                         <div class="welcome-modal-icon">
-                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none">
+                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
                                 <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
                                       fill="#f4d03f" stroke="#f4d03f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-                        <h3>Hello ${this.state.studentName || 'Student'}!</h3>
+                        <h3>Hello ${firstName}!</h3>
                         <p>We're excited to have you start your VESPA journey!</p>
                         
-                        <div class="welcome-features">
-                            <div class="welcome-feature">
+                        <div class="welcome-features-compact">
+                            <div class="welcome-feature-compact">
                                 <span class="feature-icon">📚</span>
-                                <div>
-                                    <h4>Personalised Activities</h4>
-                                    <p>Complete activities tailored to improve your VESPA scores</p>
-                                </div>
+                                <span><strong>Personalised Activities</strong> tailored to improve your VESPA scores</span>
                             </div>
-                            <div class="welcome-feature">
+                            <div class="welcome-feature-compact">
                                 <span class="feature-icon">📊</span>
-                                <div>
-                                    <h4>Track Your Progress</h4>
-                                    <p>Monitor your improvement across Vision, Effort, Systems, Practice, and Attitude</p>
-                                </div>
+                                <span><strong>Track Your Progress</strong> across Vision, Effort, Systems, Practice, and Attitude</span>
                             </div>
-                            <div class="welcome-feature">
+                            <div class="welcome-feature-compact">
                                 <span class="feature-icon">🏆</span>
-                                <div>
-                                    <h4>Earn Achievements</h4>
-                                    <p>Unlock badges and rewards as you complete activities</p>
-                                </div>
+                                <span><strong>Earn Achievements</strong> and unlock badges as you complete activities</span>
                             </div>
                         </div>
                         
