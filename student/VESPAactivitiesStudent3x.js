@@ -4190,11 +4190,32 @@
             }
         }
         
-        removeActivityFromDashboard(activityId) {
+        async removeActivityFromDashboard(activityId) {
             // Remove from prescribed activities
             const index = this.state.prescribedActivityIds.indexOf(activityId);
             if (index > -1) {
                 this.state.prescribedActivityIds.splice(index, 1);
+                
+                // Save updated list to Knack
+                try {
+                    await $.ajax({
+                        url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
+                        type: 'PUT',
+                        headers: {
+                            'X-Knack-Application-Id': Knack.application_id,
+                            'X-Knack-REST-API-Key': 'knack'
+                        },
+                        data: { 
+                            field_1683: this.state.prescribedActivityIds // Update with remaining activities
+                        }
+                    });
+                    
+                    log('Activity removed from Knack:', activityId);
+                } catch (error) {
+                    console.error('Failed to remove activity from Knack:', error);
+                    // Revert the change on error
+                    this.state.prescribedActivityIds.splice(index, 0, activityId);
+                }
                 
                 // Re-render the dashboard
                 this.render();
@@ -4888,15 +4909,13 @@
                 
                 // Update in Knack using jQuery ajax
                 await $.ajax({
-                    url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                    url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                     type: 'PUT',
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-KEY': 'knack',
-                        'Authorization': Knack.getUserToken()
+                        'X-Knack-REST-API-Key': 'knack'
                     },
-                    data: JSON.stringify({ field_3656: historyString }),
-                    contentType: 'application/json'
+                    data: { field_3656: historyString }
                 });
                 
                 // Update local state
@@ -4928,17 +4947,15 @@
                 if (activityIds.length > 0) {
                     try {
                         await $.ajax({
-                            url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                            url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                             type: 'PUT',
                             headers: {
                                 'X-Knack-Application-Id': Knack.application_id,
-                                'X-Knack-REST-API-KEY': 'knack',
-                                'Authorization': Knack.getUserToken()
+                                'X-Knack-REST-API-Key': 'knack'
                             },
-                            data: JSON.stringify({ 
+                            data: { 
                                 field_1683: activityIds  // Knack connection field expects array of record IDs
-                            }),
-                            contentType: 'application/json'
+                            }
                         });
                         
                         // Update local state
@@ -5092,14 +5109,8 @@
                                     <div class="prescribed-activities">
                                         <h4>Your Prescribed Activities</h4>
                                         ${selectedActivities.length > 0 ? `
-                                            <div class="activity-list">
-                                                ${selectedActivities.slice(0, 10).map((activity, idx) => `
-                                                    <div class="prescribed-activity-item" data-index="${idx}">
-                                                        <span class="activity-number">${idx + 1}</span>
-                                                        <span class="activity-name">${activity}</span>
-                                                        <button class="swap-btn" title="Change this activity">🔄</button>
-                                                    </div>
-                                                `).join('')}
+                                            <div class="activity-list categorized">
+                                                ${this.renderCategorizedActivities(selectedActivities)}
                                             </div>
                                         ` : `
                                             <p style="text-align: center; padding: 20px; color: #666;">
@@ -5267,17 +5278,15 @@
                     if (activityIds.length > 0) {
                         try {
                             await $.ajax({
-                                url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                                url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                                 type: 'PUT',
                                 headers: {
                                     'X-Knack-Application-Id': Knack.application_id,
-                                    'X-Knack-REST-API-KEY': 'knack',
-                                    'Authorization': Knack.getUserToken()
+                                    'X-Knack-REST-API-Key': 'knack'
                                 },
-                                data: JSON.stringify({ 
+                                data: { 
                                     field_1683: activityIds // Save the activity IDs to prescribed field
-                                }),
-                                contentType: 'application/json'
+                                }
                             });
                             
                             // Update local state
@@ -5335,6 +5344,134 @@
                     }
                 }
             });
+            
+            // Handle activity info popup
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target.classList.contains('activity-info-trigger')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const activities = JSON.parse(e.target.dataset.activities || '[]');
+                    
+                    // Create popup
+                    const popup = document.createElement('div');
+                    popup.className = 'activity-info-popup';
+                    popup.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: white;
+                        border-radius: 12px;
+                        padding: 20px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                        z-index: 10001;
+                        max-width: 400px;
+                        max-height: 400px;
+                        overflow-y: auto;
+                    `;
+                    
+                    popup.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #333;">Activities for this problem</h4>
+                            <button style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;" onclick="this.parentElement.parentElement.remove()">✕</button>
+                        </div>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            ${activities.map((activity, idx) => `
+                                <li style="padding: 8px 0; border-bottom: 1px solid #eee; color: #555;">
+                                    <span style="color: #7f31a4; font-weight: bold;">${idx + 1}.</span> ${activity}
+                                </li>
+                            `).join('')}
+                        </ul>
+                        ${activities.length === 0 ? '<p style="color: #999; text-align: center;">No activities available</p>' : ''}
+                    `;
+                    
+                    document.body.appendChild(popup);
+                    
+                    // Remove popup when clicking outside
+                    setTimeout(() => {
+                        const removePopup = (evt) => {
+                            if (!popup.contains(evt.target)) {
+                                popup.remove();
+                                document.removeEventListener('click', removePopup);
+                            }
+                        };
+                        document.addEventListener('click', removePopup);
+                    }, 100);
+                }
+            });
+        }
+        
+        /**
+         * Render categorized activities for the welcome journey
+         */
+        renderCategorizedActivities(activityNames) {
+            // Group activities by category
+            const categorized = {
+                vision: [],
+                effort: [],
+                systems: [],
+                practice: [],
+                attitude: []
+            };
+            
+            // Find each activity and categorize it
+            activityNames.forEach(name => {
+                const activity = this.state.activities.all.find(a => a.name === name);
+                if (activity && activity.category) {
+                    const category = activity.category.toLowerCase();
+                    if (categorized[category]) {
+                        categorized[category].push(name);
+                    }
+                }
+            });
+            
+            const categoryColors = {
+                vision: '#ff8f00',
+                effort: '#86b4f0',
+                systems: '#72cb44',
+                practice: '#7f31a4',
+                attitude: '#f032e6'
+            };
+            
+            const categoryLabels = {
+                vision: 'Vision',
+                effort: 'Effort',
+                systems: 'Systems',
+                practice: 'Practice',
+                attitude: 'Attitude'
+            };
+            
+            let html = '';
+            let activityIndex = 0;
+            
+            Object.keys(categorized).forEach(category => {
+                if (categorized[category].length > 0) {
+                    const color = categoryColors[category];
+                    const label = categoryLabels[category];
+                    
+                    html += `
+                        <div class="activity-category-group" style="margin-bottom: 15px;">
+                            <h5 style="color: ${color}; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600;">
+                                ${label} Activities
+                            </h5>
+                            ${categorized[category].map((activity) => {
+                                activityIndex++;
+                                return `
+                                    <div class="prescribed-activity-item" data-index="${activityIndex - 1}" 
+                                         style="border-left: 3px solid ${color}; background: linear-gradient(90deg, ${color}10 0%, transparent 100%);">
+                                        <span class="activity-number" style="background: ${color}; color: white;">${activityIndex}</span>
+                                        <span class="activity-name">${activity}</span>
+                                        <button class="swap-btn" title="Change this activity">🔄</button>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            });
+            
+            return html || '<p>No activities found</p>';
         }
         
         /**
@@ -5364,7 +5501,11 @@
                                            data-activities='${JSON.stringify(problem.recommendedActivities)}'
                                            data-category="${category}">
                                     <span class="problem-text">${problem.text}</span>
-                                    <span class="activity-count">${problem.recommendedActivities?.length || 0} activities</span>
+                                    <span class="activity-count activity-info-trigger" 
+                                          data-activities='${JSON.stringify(problem.recommendedActivities)}'
+                                          style="cursor: help;">
+                                        ${problem.recommendedActivities?.length || 0} activities ℹ️
+                                    </span>
                                 </label>
                             `).join('')}
                         </div>
@@ -5386,15 +5527,13 @@
                 
                 // Update the student record
                 const response = await $.ajax({
-                    url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                    url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                     type: 'PUT',
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-KEY': 'knack',
-                        'Authorization': Knack.getUserToken()
+                        'X-Knack-REST-API-Key': 'knack'
                     },
-                    data: JSON.stringify(updateData),
-                    contentType: 'application/json'
+                    data: updateData
                 });
                 
                 if (response) {

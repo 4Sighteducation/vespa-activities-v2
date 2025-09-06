@@ -763,12 +763,7 @@ body {
     color: var(--gray-800);
 }
 
-.score-value::after {
-    content: '/10';
-    font-size: 0.875rem;
-    color: var(--gray-500);
-    font-weight: 400;
-}
+/* Removed /10 suffix per user request */
 
 /* Score dots indicator */
 .score-dots {
