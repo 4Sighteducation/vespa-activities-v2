@@ -896,6 +896,39 @@ body {
     border: 2px solid transparent;
 }
 
+.activity-delete-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #e9ecef;
+    color: #dc3545;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 10;
+    line-height: 1;
+    padding: 0;
+}
+
+.activity-card:hover .activity-delete-btn {
+    opacity: 1;
+}
+
+.activity-delete-btn:hover {
+    background: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
 .activity-card.prescribed {
     border-color: var(--primary);
 }
@@ -3941,11 +3974,11 @@ img[data-src] {
     transition: width 0.5s ease;
 }
 
-.score-fill.vision { background: linear-gradient(90deg, #667eea, #764ba2); }
-.score-fill.effort { background: linear-gradient(90deg, #f093fb, #f5576c); }
-.score-fill.systems { background: linear-gradient(90deg, #4facfe, #00f2fe); }
-.score-fill.practice { background: linear-gradient(90deg, #43e97b, #38f9d7); }
-.score-fill.attitude { background: linear-gradient(90deg, #fa709a, #fee140); }
+.score-fill.vision { background: linear-gradient(90deg, #ff8f00, #ffa940); }
+.score-fill.effort { background: linear-gradient(90deg, #86b4f0, #a3c4f3); }
+.score-fill.systems { background: linear-gradient(90deg, #72cb44, #8ed662); }
+.score-fill.practice { background: linear-gradient(90deg, #7f31a4, #9c4fc6); }
+.score-fill.attitude { background: linear-gradient(90deg, #f032e6, #f460ea); }
 
 .score-value {
     width: 50px;
@@ -4091,21 +4124,35 @@ img[data-src] {
     overflow-y: auto;
 }
 
+.problem-categories.enhanced {
+    padding: 10px;
+}
+
 .problem-category {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.problem-category:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .problem-category h5 {
-    margin: 0 0 12px 0;
-    color: #495057;
-    font-size: 1.1rem;
+    margin: 0 0 15px 0;
+    font-size: 1.2rem;
     font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .problem-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .problem-item {
@@ -4118,12 +4165,38 @@ img[data-src] {
     transition: background 0.2s;
 }
 
-.problem-item:hover {
-    background: #e9ecef;
+.problem-item.enhanced {
+    background: white;
+    border: 1px solid #e9ecef;
+    position: relative;
+    padding: 12px 15px;
 }
 
-.problem-item input[type="checkbox"] {
+.problem-item.enhanced:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.problem-checkbox {
     margin-right: 12px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.problem-text {
+    flex: 1;
+    color: #495057;
+    font-size: 0.95rem;
+}
+
+.activity-count {
+    background: #e9ecef;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 500;
 }
 
 /* Step 4: Summary */

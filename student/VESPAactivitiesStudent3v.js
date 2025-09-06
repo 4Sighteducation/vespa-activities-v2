@@ -2873,26 +2873,22 @@
                 this.state.studentId = record.id;
                 log('Student record ID:', this.state.studentId);
                 
-                // Get student name - field_187 is a name field with first/last subfields
-                const nameField = record.field_187 || record.field_187_raw || {};
-                log('Name field value:', nameField);
+                // Get student name - prefer from Knack user if field is empty or string
+                let nameField = record.field_187 || record.field_187_raw || {};
                 
-                // Parse the name properly
-                if (typeof nameField === 'object' && (nameField.first || nameField.last)) {
-                    this.state.studentFirstName = nameField.first || '';
-                    this.state.studentLastName = nameField.last || '';
-                    this.state.studentName = `${nameField.first || ''} ${nameField.last || ''}`.trim();
-                } else if (typeof nameField === 'string' && nameField.trim()) {
-                    this.state.studentName = nameField;
-                    const nameParts = nameField.split(' ');
-                    this.state.studentFirstName = nameParts[0] || 'Student';
-                    this.state.studentLastName = nameParts.slice(1).join(' ') || '';
-                } else {
-                    // Fallback - try to parse from the formatted output if it exists
-                    const formattedName = record.field_187_formatted;
-                    if (formattedName && typeof formattedName === 'string') {
-                        this.state.studentName = formattedName;
-                        const nameParts = formattedName.split(' ');
+                // If name field is empty or just a string, get from Knack user
+                if (!nameField || typeof nameField === 'string') {
+                    const user = Knack.getUserAttributes();
+                    if (user && user.name) {
+                        // Parse from Knack user name
+                        const nameParts = user.name.split(' ');
+                        this.state.studentFirstName = nameParts[0] || 'Student';
+                        this.state.studentLastName = nameParts.slice(1).join(' ') || '';
+                        this.state.studentName = user.name;
+                    } else if (typeof nameField === 'string' && nameField.trim()) {
+                        // Use the string value if we have it
+                        this.state.studentName = nameField;
+                        const nameParts = nameField.split(' ');
                         this.state.studentFirstName = nameParts[0] || 'Student';
                         this.state.studentLastName = nameParts.slice(1).join(' ') || '';
                     } else {
@@ -2900,6 +2896,15 @@
                         this.state.studentFirstName = 'Student';
                         this.state.studentLastName = '';
                     }
+                } else if (typeof nameField === 'object' && (nameField.first || nameField.last)) {
+                    // Use the object format if available
+                    this.state.studentFirstName = nameField.first || '';
+                    this.state.studentLastName = nameField.last || '';
+                    this.state.studentName = `${nameField.first || ''} ${nameField.last || ''}`.trim();
+                } else {
+                    this.state.studentName = 'Student';
+                    this.state.studentFirstName = 'Student';
+                    this.state.studentLastName = '';
                 }
                 log('Student name:', this.state.studentName);
                 log('First name:', this.state.studentFirstName, 'Last name:', this.state.studentLastName);
@@ -2946,8 +2951,8 @@
                 // Parse new user field (field_3655)
                 const newUserField = record[this.config.fields.newUser] || 
                                    record[this.config.fields.newUser + '_raw'] || 'No';
-                // Parse the boolean value - it comes as "Yes" or "No"
-                this.state.isNewUser = (newUserField === 'No' || newUserField === false || newUserField === 'false');
+                // Parse the boolean value - Show welcome if blank OR "Yes"
+                this.state.isNewUser = (!newUserField || newUserField === '' || newUserField === 'Yes' || newUserField === true || newUserField === 'true');
                 log('Is new user:', this.state.isNewUser);
                 
                 // Get activity history from field_3656
@@ -3796,6 +3801,7 @@
                      data-activity-id="${activity.id}"
                      style="animation-delay: ${index * 0.1}s">
                     <div class="card-glow" style="background: ${categoryColor}"></div>
+                    <button class="activity-delete-btn" data-activity-id="${activity.id}" title="Remove activity">×</button>
                     <div class="card-header">
                         <span class="category-chip" style="background: ${categoryColor}20; color: ${categoryColor}">
                             ${categoryEmoji} ${activity.category.charAt(0).toUpperCase() + activity.category.slice(1)}
@@ -4116,6 +4122,16 @@
                     this.switchView(view);
                 }
                 
+                // Delete activity
+                if (e.target.classList.contains('activity-delete-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const activityId = e.target.dataset.activityId;
+                    if (activityId) {
+                        this.removeActivityFromDashboard(activityId);
+                    }
+                }
+                
                 // Start activity - WITH DEBOUNCE
                 if (e.target.closest('.start-activity-btn')) {
                     e.preventDefault();
@@ -4171,6 +4187,20 @@
                 this.container.removeEventListener('click', this._clickHandler);
                 this._eventListenerAttached = false;
                 log('Event listeners removed');
+            }
+        }
+        
+        removeActivityFromDashboard(activityId) {
+            // Remove from prescribed activities
+            const index = this.state.prescribedActivityIds.indexOf(activityId);
+            if (index > -1) {
+                this.state.prescribedActivityIds.splice(index, 1);
+                
+                // Re-render the dashboard
+                this.render();
+                
+                // Show confirmation message
+                this.showMessage('Activity removed from your dashboard', 'success');
             }
         }
         
@@ -4871,12 +4901,18 @@
             try {
                 const historyString = JSON.stringify(history);
                 
-                // Update in Knack
-                await this.knackAPI(
-                    'PUT',
-                    `objects/object_6/records/${this.state.studentId}`,
-                    { field_3656: historyString }
-                );
+                // Update in Knack using jQuery ajax
+                await $.ajax({
+                    url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': Knack.application_id,
+                        'X-Knack-REST-API-KEY': 'knack',
+                        'Authorization': Knack.getUserToken()
+                    },
+                    data: JSON.stringify({ field_3656: historyString }),
+                    contentType: 'application/json'
+                });
                 
                 // Update local state
                 this.state.activityHistory = historyString;
@@ -4896,27 +4932,66 @@
             if (!prescribedField || prescribedField.length === 0) {
                 log('No prescribed activities found, calculating...');
                 
-                const prescribed = this.calculatePrescribedActivities();
+                const prescribedNames = this.calculatePrescribedActivities();
+                
+                // Convert names to IDs
+                const activityIds = [];
+                prescribedNames.forEach(activityName => {
+                    const activity = this.state.activities.all.find(a => a.name === activityName);
+                    if (activity) {
+                        activityIds.push(activity.id);
+                    }
+                });
+                
+                // Save to Knack field_1683
+                if (activityIds.length > 0) {
+                    try {
+                        await $.ajax({
+                            url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                            type: 'PUT',
+                            headers: {
+                                'X-Knack-Application-Id': Knack.application_id,
+                                'X-Knack-REST-API-KEY': 'knack',
+                                'Authorization': Knack.getUserToken()
+                            },
+                            data: JSON.stringify({ 
+                                field_1683: activityIds
+                            }),
+                            contentType: 'application/json'
+                        });
+                        
+                        // Update local state
+                        this.state.prescribedActivityIds = activityIds;
+                        log('Auto-prescribed activities saved to Knack:', activityIds);
+                    } catch (error) {
+                        console.error('Failed to save prescribed activities:', error);
+                    }
+                }
                 
                 // Update history
                 const history = this.getActivityHistory();
                 history[`cycle${this.state.currentCycle}`] = {
                     ...history[`cycle${this.state.currentCycle}`],
-                    prescribed: prescribed,
+                    prescribed: prescribedNames,
+                    prescribedIds: activityIds,
                     timestamp: new Date().toISOString()
                 };
                 
                 await this.saveActivityHistory(history);
                 
-                // Update prescribed activities in Knack
-                // Note: This would need the activity IDs, not just names
-                // For now, log the recommendation
-                log('Recommended activities to prescribe:', prescribed);
-                
-                return prescribed;
+                return prescribedNames;
             }
             
-            return prescribedField;
+            // Convert IDs back to names for display
+            const activityNames = [];
+            prescribedField.forEach(activityId => {
+                const activity = this.state.activities.all.find(a => a.id === activityId);
+                if (activity) {
+                    activityNames.push(activity.name);
+                }
+            });
+            
+            return activityNames;
         }
         
         /**
@@ -4969,35 +5044,35 @@
                                                 <div class="score-progress">
                                                     <div class="score-fill vision" style="width: ${this.state.vespaScores.vision * 10}%"></div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.vision}/10</span>
+                                                <span class="score-value">${this.state.vespaScores.vision}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">💪 Effort</span>
                                                 <div class="score-progress">
                                                     <div class="score-fill effort" style="width: ${this.state.vespaScores.effort * 10}%"></div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.effort}/10</span>
+                                                <span class="score-value">${this.state.vespaScores.effort}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">⚙️ Systems</span>
                                                 <div class="score-progress">
                                                     <div class="score-fill systems" style="width: ${this.state.vespaScores.systems * 10}%"></div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.systems}/10</span>
+                                                <span class="score-value">${this.state.vespaScores.systems}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">🎯 Practice</span>
                                                 <div class="score-progress">
                                                     <div class="score-fill practice" style="width: ${this.state.vespaScores.practice * 10}%"></div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.practice}/10</span>
+                                                <span class="score-value">${this.state.vespaScores.practice}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">🧠 Attitude</span>
                                                 <div class="score-progress">
                                                     <div class="score-fill attitude" style="width: ${this.state.vespaScores.attitude * 10}%"></div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.attitude}/10</span>
+                                                <span class="score-value">${this.state.vespaScores.attitude}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -5009,6 +5084,12 @@
                         break;
                         
                     case 2: // VESPA Elves Prescription
+                        // Ensure we have activities to show
+                        if (selectedActivities.length === 0) {
+                            // Calculate activities if none prescribed
+                            selectedActivities = this.calculatePrescribedActivities();
+                        }
+                        
                         content = `
                             <div class="journey-step step-2">
                                 <div class="journey-header">
@@ -5029,20 +5110,27 @@
                                     
                                     <div class="prescribed-activities">
                                         <h4>Your Prescribed Activities</h4>
-                                        <div class="activity-list">
-                                            ${selectedActivities.slice(0, 10).map((activity, idx) => `
-                                                <div class="prescribed-activity-item" data-index="${idx}">
-                                                    <span class="activity-number">${idx + 1}</span>
-                                                    <span class="activity-name">${activity}</span>
-                                                    <button class="swap-btn" title="Change this activity">🔄</button>
-                                                </div>
-                                            `).join('')}
-                                        </div>
+                                        ${selectedActivities.length > 0 ? `
+                                            <div class="activity-list">
+                                                ${selectedActivities.slice(0, 10).map((activity, idx) => `
+                                                    <div class="prescribed-activity-item" data-index="${idx}">
+                                                        <span class="activity-number">${idx + 1}</span>
+                                                        <span class="activity-name">${activity}</span>
+                                                        <button class="swap-btn" title="Change this activity">🔄</button>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        ` : `
+                                            <p style="text-align: center; padding: 20px; color: #666;">
+                                                No activities available for your current scores. Try selecting from problems in the next step!
+                                            </p>
+                                        `}
                                     </div>
                                     
                                     <div class="journey-buttons">
                                         <button class="journey-back-btn">← Back</button>
-                                        <button class="journey-next-btn">Keep These →</button>
+                                        <button class="journey-finish-btn">Keep These → Start</button>
+                                        <button class="journey-next-btn">Select Your Own Activities →</button>
                                     </div>
                                 </div>
                             </div>
@@ -5053,7 +5141,7 @@
                         content = `
                             <div class="journey-step step-3">
                                 <div class="journey-header">
-                                    <h2>Any Specific Challenges?</h2>
+                                    <h2>Any Specific Challenges? 🎯</h2>
                                     <span class="journey-close">&times;</span>
                                 </div>
                                 <div class="journey-progress">
@@ -5063,10 +5151,14 @@
                                     <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
                                 </div>
                                 <div class="journey-content">
-                                    <p>Select any challenges you're facing to get additional targeted activities:</p>
+                                    <p style="margin-bottom: 20px; color: #555;">Select challenges you're facing to get targeted activities (max 3):</p>
                                     
-                                    <div class="problem-categories">
+                                    <div class="problem-categories enhanced">
                                         ${this.renderProblemSelectors()}
+                                    </div>
+                                    
+                                    <div class="selected-count" style="text-align: center; margin: 15px 0; color: #666;">
+                                        <span id="problemCount">0</span> of 3 problems selected
                                     </div>
                                     
                                     <div class="journey-buttons">
@@ -5141,7 +5233,25 @@
                 }
                 
                 if (e.target.classList.contains('journey-next-btn')) {
-                    if (currentStep < totalSteps) {
+                    if (currentStep === 2) {
+                        // From step 2, go to problem selection
+                        currentStep = 3;
+                        renderStep();
+                    } else if (currentStep === 3) {
+                        // From step 3, add selected problem activities
+                        const checkedBoxes = modalOverlay.querySelectorAll('.problem-checkbox:checked');
+                        checkedBoxes.forEach(checkbox => {
+                            const activities = JSON.parse(checkbox.dataset.activities || '[]');
+                            activities.forEach(actName => {
+                                if (!selectedActivities.includes(actName)) {
+                                    selectedActivities.push(actName);
+                                }
+                            });
+                        });
+                        log('Activities after problem selection:', selectedActivities);
+                        currentStep = 4;
+                        renderStep();
+                    } else if (currentStep < totalSteps) {
                         currentStep++;
                         renderStep();
                     }
@@ -5163,9 +5273,48 @@
                     modalOverlay.classList.remove('show');
                     setTimeout(() => modalOverlay.remove(), 300);
                     
-                    // Save selected activities and update status
+                    // Get activity IDs from names
+                    const activityIds = [];
+                    selectedActivities.forEach(activityName => {
+                        const activity = this.state.activities.all.find(a => a.name === activityName);
+                        if (activity) {
+                            activityIds.push(activity.id);
+                        }
+                    });
+                    
+                    // Save to prescribed activities field (field_1683) in Knack
+                    if (activityIds.length > 0) {
+                        try {
+                            await $.ajax({
+                                url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                                type: 'PUT',
+                                headers: {
+                                    'X-Knack-Application-Id': Knack.application_id,
+                                    'X-Knack-REST-API-KEY': 'knack',
+                                    'Authorization': Knack.getUserToken()
+                                },
+                                data: JSON.stringify({ 
+                                    field_1683: activityIds // Save the activity IDs to prescribed field
+                                }),
+                                contentType: 'application/json'
+                            });
+                            
+                            // Update local state
+                            this.state.prescribedActivityIds = activityIds;
+                            log('Prescribed activities saved to Knack:', activityIds);
+                        } catch (error) {
+                            console.error('Failed to save prescribed activities:', error);
+                        }
+                    }
+                    
+                    // Save to history
                     const history = this.getActivityHistory();
-                    history[`cycle${this.state.currentCycle}`].selected = selectedActivities;
+                    history[`cycle${this.state.currentCycle}`] = {
+                        ...history[`cycle${this.state.currentCycle}`],
+                        selected: selectedActivities,
+                        selectedIds: activityIds,
+                        timestamp: new Date().toISOString()
+                    };
                     await this.saveActivityHistory(history);
                     await this.updateNewUserStatus();
                     
@@ -5179,6 +5328,32 @@
                     this.showActivitySwapModal(index, selectedActivities);
                 }
             });
+            
+            // Handle checkbox selection limits
+            modalOverlay.addEventListener('change', (e) => {
+                if (e.target.classList.contains('problem-checkbox')) {
+                    const checkedBoxes = modalOverlay.querySelectorAll('.problem-checkbox:checked');
+                    const countElement = modalOverlay.querySelector('#problemCount');
+                    
+                    // Update count
+                    if (countElement) {
+                        countElement.textContent = checkedBoxes.length;
+                    }
+                    
+                    // Limit to 3 selections
+                    if (checkedBoxes.length >= 3) {
+                        modalOverlay.querySelectorAll('.problem-checkbox:not(:checked)').forEach(cb => {
+                            cb.disabled = true;
+                            cb.parentElement.style.opacity = '0.5';
+                        });
+                    } else {
+                        modalOverlay.querySelectorAll('.problem-checkbox').forEach(cb => {
+                            cb.disabled = false;
+                            cb.parentElement.style.opacity = '1';
+                        });
+                    }
+                }
+            });
         }
         
         /**
@@ -5188,15 +5363,27 @@
             const problemMappings = window.vespaProblemMappings?.problemMappings || {};
             let html = '';
             
+            const categoryColors = {
+                'Vision': '#ff8f00',
+                'Effort': '#86b4f0',
+                'Systems': '#72cb44',
+                'Practice': '#7f31a4',
+                'Attitude': '#f032e6'
+            };
+            
             Object.keys(problemMappings).forEach(category => {
+                const color = categoryColors[category] || '#666';
                 html += `
-                    <div class="problem-category">
-                        <h5>${category}</h5>
+                    <div class="problem-category" style="border-left: 4px solid ${color};">
+                        <h5 style="color: ${color};">${category}</h5>
                         <div class="problem-list">
                             ${problemMappings[category].slice(0, 3).map(problem => `
-                                <label class="problem-item">
-                                    <input type="checkbox" value="${problem.id}" data-activities='${JSON.stringify(problem.recommendedActivities)}'>
-                                    <span>${problem.text}</span>
+                                <label class="problem-item enhanced">
+                                    <input type="checkbox" class="problem-checkbox" value="${problem.id}" 
+                                           data-activities='${JSON.stringify(problem.recommendedActivities)}'
+                                           data-category="${category}">
+                                    <span class="problem-text">${problem.text}</span>
+                                    <span class="activity-count">${problem.recommendedActivities?.length || 0} activities</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -5217,11 +5404,17 @@
                 };
                 
                 // Update the student record
-                const response = await this.makeKnackAPICall(
-                    'PUT',
-                    `objects/${this.config.objects.student}/records/${this.state.studentId}`,
-                    updateData
-                );
+                const response = await $.ajax({
+                    url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-Knack-Application-Id': Knack.application_id,
+                        'X-Knack-REST-API-KEY': 'knack',
+                        'Authorization': Knack.getUserToken()
+                    },
+                    data: JSON.stringify(updateData),
+                    contentType: 'application/json'
+                });
                 
                 if (response) {
                     log('Successfully updated new user status');
