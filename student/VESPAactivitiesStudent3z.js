@@ -637,7 +637,7 @@
                 options.body = JSON.stringify(data);
             }
             
-            let url = `https://api.knack.com/v1/${endpoint}`;
+            let url = `/v1/${endpoint}`;  // Use relative URL to avoid CORS
             
             if (method === 'GET' && data) {
                 const params = new URLSearchParams();
@@ -4154,6 +4154,35 @@
                     this.startActivity(activityId);
                 }
                 
+                // Preview activity from modal
+                if (e.target.closest('.compact-preview-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const btn = e.target.closest('.compact-preview-btn');
+                    const activityId = btn.dataset.activityId;
+                    
+                    // Close any open modals first
+                    this.closeAllModals();
+                    
+                    // Then start the activity
+                    this.startActivity(activityId);
+                }
+                
+                // Add activity to dashboard from modal
+                if (e.target.closest('.compact-add-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const btn = e.target.closest('.compact-add-btn');
+                    const activityId = btn.dataset.activityId;
+                    const recordId = btn.dataset.activityRecordId;
+                    const activityName = btn.dataset.activityName;
+                    
+                    this.addActivityToDashboard(recordId || activityId, activityName);
+                    
+                    // Update the button to show it's been added
+                    btn.outerHTML = '<span class="compact-already-added" title="Added to dashboard">✓</span>';
+                }
+                
                 // Problem selection
                 if (e.target.closest('.problem-item')) {
                     const problemId = e.target.closest('.problem-item').dataset.problemId;
@@ -4203,14 +4232,10 @@
                     
                     $.ajax({
                         type: 'PUT',
-                        url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                        url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
                         data: { 
+                            id: this.state.studentId,
                             field_1683: this.state.prescribedActivityIds // Update with remaining activities
-                        },
-                        headers: {
-                            'X-Knack-Application-Id': Knack.application_id,
-                            'X-Knack-REST-API-Key': 'knack',
-                            'Authorization': Knack.getUserToken()
                         },
                         success: () => {
                             log('Activity removed from Knack:', activityId);
@@ -4233,6 +4258,74 @@
                 
                 // Show confirmation message
                 this.showMessage('Activity removed from your dashboard', 'success');
+            }
+        }
+        
+        async addActivityToDashboard(activityId, activityName) {
+            log('Adding activity to dashboard:', activityId, activityName);
+            
+            // Check if already in prescribed list
+            if (this.state.prescribedActivityIds.includes(activityId)) {
+                this.showMessage('Activity already in your dashboard', 'info');
+                return;
+            }
+            
+            // Add to prescribed activities
+            this.state.prescribedActivityIds.push(activityId);
+            
+            // Save updated list to Knack
+            try {
+                Knack.showSpinner();
+                
+                $.ajax({
+                    type: 'PUT',
+                    url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
+                    data: { 
+                        id: this.state.studentId,
+                        field_1683: this.state.prescribedActivityIds // Update with new activities
+                    },
+                    success: () => {
+                        log('Activity added to Knack:', activityId);
+                        Knack.hideSpinner();
+                        
+                        // Show confirmation
+                        this.showMessage(`Added "${activityName}" to your dashboard!`, 'success');
+                        
+                        // If we're on the dashboard view, re-render to show the new activity
+                        if (this.state.view === 'dashboard') {
+                            this.render();
+                        }
+                    },
+                    error: (error) => {
+                        console.error('Failed to add activity to Knack:', error);
+                        // Revert the change on error
+                        const index = this.state.prescribedActivityIds.indexOf(activityId);
+                        if (index > -1) {
+                            this.state.prescribedActivityIds.splice(index, 1);
+                        }
+                        Knack.hideSpinner();
+                        this.showMessage('Failed to add activity. Please try again.', 'error');
+                    }
+                });
+            } catch (error) {
+                console.error('Unexpected error:', error);
+                Knack.hideSpinner();
+            }
+        }
+        
+        closeAllModals() {
+            // Close all modals by removing them from DOM
+            const modals = document.querySelectorAll('.activities-modal-overlay, .vespa-welcome-modal-overlay');
+            modals.forEach(modal => {
+                if (modal.parentNode) {
+                    modal.remove();
+                }
+            });
+            
+            // Restore body scroll if no modals remain
+            const remainingModals = document.querySelectorAll('.activities-modal-overlay, .vespa-welcome-modal-overlay');
+            if (remainingModals.length === 0) {
+                document.body.style.overflow = '';
             }
         }
         
@@ -4535,12 +4628,18 @@
             const isCompleted = this.state.finishedActivityIds.includes(activity.id) || 
                               this.state.finishedActivityIds.includes(activity.activityId) ||
                               completedActivities.includes(activity.id);
+            
+            // Check if activity is already in prescribed list
+            const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
+                               this.state.prescribedActivityIds.includes(activity.record_id);
+            
             const categoryColor = this.colors[activity.category]?.primary || '#666';
             const basePoints = activity.level === 'Level 3' ? 15 : 10;
             
             return `
                 <div class="compact-activity-card ${isCompleted ? 'completed' : ''}" 
                      data-activity-id="${activity.id}"
+                     data-activity-record-id="${activity.record_id || activity.id}"
                      style="animation-delay: ${index * 0.05}s">
                     <div class="compact-card-header">
                         <span class="compact-level">${activity.level}</span>
@@ -4550,7 +4649,24 @@
                     <div class="compact-card-footer">
                         ${isCompleted ? 
                             '<span class="compact-completed">✓ Completed</span>' :
-                            '<button class="compact-start-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start</button>'
+                            `<div class="compact-card-actions">
+                                ${!isPrescribed ? 
+                                    `<button class="compact-add-btn" 
+                                             data-activity-id="${activity.id}"
+                                             data-activity-record-id="${activity.record_id || activity.id}"
+                                             data-activity-name="${activity.name}"
+                                             title="Add to Dashboard"
+                                             style="background: ${categoryColor}">
+                                        <span>+</span>
+                                    </button>` : 
+                                    '<span class="compact-already-added" title="Already in your dashboard">✓</span>'
+                                }
+                                <button class="compact-preview-btn" 
+                                        data-activity-id="${activity.id}"
+                                        style="background: ${categoryColor}">
+                                    Preview
+                                </button>
+                            </div>`
                         }
                     </div>
                 </div>
@@ -4918,15 +5034,13 @@
             try {
                 const historyString = JSON.stringify(history);
                 
-                // Update in Knack using proper API endpoint
+                // Update in Knack using relative URL
                 await $.ajax({
                     type: 'PUT',
-                    url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                    data: { field_3656: historyString },
-                    headers: {
-                        'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack',
-                        'Authorization': Knack.getUserToken()
+                    url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
+                    data: { 
+                        id: this.state.studentId,
+                        field_3656: historyString 
                     }
                 });
                 
@@ -4957,27 +5071,30 @@
                 
                 // Save to Knack field_1683 (connection field needs IDs)
                 if (activityIds.length > 0) {
-                    try {
-                        // Use Knack's API endpoint with proper format
-                        await $.ajax({
-                            type: 'PUT',
-                            url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                            data: { 
-                                field_1683: activityIds  // Array of record IDs for connection field
-                            },
-                            headers: {
-                                'X-Knack-Application-Id': Knack.application_id,
-                                'X-Knack-REST-API-Key': 'knack',
-                                'Authorization': Knack.getUserToken()
-                            }
-                        });
-                        
-                        // Update local state
-                        this.state.prescribedActivityIds = activityIds;
-                        log('Auto-prescribed activities saved to Knack:', activityIds);
-                    } catch (error) {
-                        console.error('Failed to save prescribed activities:', error);
-                    }
+                    // Use Knack's built-in submit form to update the record
+                    const updateData = {
+                        id: this.state.studentId,
+                        field_1683: activityIds  // Array of record IDs for connection field
+                    };
+                    
+                    Knack.showSpinner();
+                    
+                    // Submit via Knack's internal API which handles auth automatically
+                    $.ajax({
+                        type: 'PUT',
+                        url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
+                        data: updateData,
+                        success: () => {
+                            // Update local state
+                            this.state.prescribedActivityIds = activityIds;
+                            log('Auto-prescribed activities saved to Knack:', activityIds);
+                            Knack.hideSpinner();
+                        },
+                        error: (error) => {
+                            console.error('Failed to save prescribed activities:', error);
+                            Knack.hideSpinner();
+                        }
+                    });
                 }
                 
                 // Update history
@@ -5247,12 +5364,16 @@
                         // From step 3, add selected problem activities
                         const checkedBoxes = modalOverlay.querySelectorAll('.problem-checkbox:checked');
                         checkedBoxes.forEach(checkbox => {
-                            const activities = JSON.parse(checkbox.dataset.activities || '[]');
-                            activities.forEach(actName => {
-                                if (!selectedActivities.includes(actName)) {
-                                    selectedActivities.push(actName);
-                                }
-                            });
+                            try {
+                                const activities = JSON.parse(checkbox.dataset.activities || '[]');
+                                activities.forEach(actName => {
+                                    if (!selectedActivities.includes(actName)) {
+                                        selectedActivities.push(actName);
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('Failed to parse activities:', checkbox.dataset.activities, e);
+                            }
                         });
                         log('Activities after problem selection:', selectedActivities);
                         currentStep = 4;
@@ -5290,27 +5411,27 @@
                     
                     // Save to prescribed activities field (field_1683) in Knack
                     if (activityIds.length > 0) {
-                        try {
-                            // Use Knack's API endpoint with proper format
-                            await $.ajax({
-                                type: 'PUT',
-                                url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                                data: { 
-                                    field_1683: activityIds // Array of record IDs for connection field
-                                },
-                                headers: {
-                                    'X-Knack-Application-Id': Knack.application_id,
-                                    'X-Knack-REST-API-Key': 'knack',
-                                    'Authorization': Knack.getUserToken()
-                                }
-                            });
-                            
-                            // Update local state
-                            this.state.prescribedActivityIds = activityIds;
-                            log('Prescribed activities saved to Knack:', activityIds);
-                        } catch (error) {
-                            console.error('Failed to save prescribed activities:', error);
-                        }
+                        // Use Knack's built-in API which handles auth automatically
+                        Knack.showSpinner();
+                        
+                        $.ajax({
+                            type: 'PUT',
+                            url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
+                            data: {
+                                id: this.state.studentId,
+                                field_1683: activityIds // Array of record IDs for connection field
+                            },
+                            success: () => {
+                                // Update local state
+                                this.state.prescribedActivityIds = activityIds;
+                                log('Prescribed activities saved to Knack:', activityIds);
+                                Knack.hideSpinner();
+                            },
+                            error: (error) => {
+                                console.error('Failed to save prescribed activities:', error);
+                                Knack.hideSpinner();
+                            }
+                        });
                     }
                     
                     // Save to history
@@ -5541,15 +5662,13 @@
                     [this.config.fields.newUser]: 'Yes'
                 };
                 
-                // Update the student record
+                // Update the student record using relative URL
                 const response = await $.ajax({
                     type: 'PUT',
-                    url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                    data: updateData,
-                    headers: {
-                        'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack',
-                        'Authorization': Knack.getUserToken()
+                    url: '/v1/pages/scene_1258/views/view_3165/records/' + this.state.studentId,
+                    data: {
+                        id: this.state.studentId,
+                        ...updateData
                     }
                 });
                 
