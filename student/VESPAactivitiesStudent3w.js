@@ -4834,7 +4834,11 @@
                 
                 // Take up to 2 activities
                 const selected = activities.slice(0, 2);
-                prescribed.push(...selected.map(a => a.name));
+                // Store both record_id (Knack ID) and name for each activity
+                prescribed.push(...selected.map(a => ({
+                    id: a.record_id || a.id,  // Use record_id for Knack, fallback to id
+                    name: a.name
+                })));
             });
             
             log('Prescribed activities:', prescribed);
@@ -4845,33 +4849,14 @@
          * Get scores for a specific cycle
          */
         getCycleScores(cycleNumber) {
-            if (cycleNumber === 1) {
-                return {
-                    vision: parseInt(this.state.cycleScores?.cycle1?.vision || 0),
-                    effort: parseInt(this.state.cycleScores?.cycle1?.effort || 0),
-                    systems: parseInt(this.state.cycleScores?.cycle1?.systems || 0),
-                    practice: parseInt(this.state.cycleScores?.cycle1?.practice || 0),
-                    attitude: parseInt(this.state.cycleScores?.cycle1?.attitude || 0)
-                };
-            } else if (cycleNumber === 2) {
-                return {
-                    vision: parseInt(this.state.cycleScores?.cycle2?.vision || 0),
-                    effort: parseInt(this.state.cycleScores?.cycle2?.effort || 0),
-                    systems: parseInt(this.state.cycleScores?.cycle2?.systems || 0),
-                    practice: parseInt(this.state.cycleScores?.cycle2?.practice || 0),
-                    attitude: parseInt(this.state.cycleScores?.cycle2?.attitude || 0)
-                };
-            } else if (cycleNumber === 3) {
-                return {
-                    vision: parseInt(this.state.cycleScores?.cycle3?.vision || 0),
-                    effort: parseInt(this.state.cycleScores?.cycle3?.effort || 0),
-                    systems: parseInt(this.state.cycleScores?.cycle3?.systems || 0),
-                    practice: parseInt(this.state.cycleScores?.cycle3?.practice || 0),
-                    attitude: parseInt(this.state.cycleScores?.cycle3?.attitude || 0)
-                };
-            } else {
-                // Default to current scores
-                return this.state.vespaScores;
+            // Always use the current VESPA scores
+            // The current scores ARE the scores for the current cycle
+            return this.state.vespaScores || {
+                vision: 0,
+                effort: 0,
+                systems: 0,
+                practice: 0,
+                attitude: 0
             }
         }
         
@@ -4932,18 +4917,14 @@
             if (!prescribedField || prescribedField.length === 0) {
                 log('No prescribed activities found, calculating...');
                 
-                const prescribedNames = this.calculatePrescribedActivities();
+                // calculatePrescribedActivities now returns objects with {id, name}
+                const prescribedActivities = this.calculatePrescribedActivities();
                 
-                // Convert names to IDs
-                const activityIds = [];
-                prescribedNames.forEach(activityName => {
-                    const activity = this.state.activities.all.find(a => a.name === activityName);
-                    if (activity) {
-                        activityIds.push(activity.id);
-                    }
-                });
+                // Extract just the IDs for saving to Knack
+                const activityIds = prescribedActivities.map(a => a.id);
+                const activityNames = prescribedActivities.map(a => a.name);
                 
-                // Save to Knack field_1683
+                // Save to Knack field_1683 (connection field needs IDs)
                 if (activityIds.length > 0) {
                     try {
                         await $.ajax({
@@ -4955,7 +4936,7 @@
                                 'Authorization': Knack.getUserToken()
                             },
                             data: JSON.stringify({ 
-                                field_1683: activityIds
+                                field_1683: activityIds  // Knack connection field expects array of record IDs
                             }),
                             contentType: 'application/json'
                         });
@@ -4972,14 +4953,14 @@
                 const history = this.getActivityHistory();
                 history[`cycle${this.state.currentCycle}`] = {
                     ...history[`cycle${this.state.currentCycle}`],
-                    prescribed: prescribedNames,
+                    prescribed: activityNames,
                     prescribedIds: activityIds,
                     timestamp: new Date().toISOString()
                 };
                 
                 await this.saveActivityHistory(history);
                 
-                return prescribedNames;
+                return activityNames;  // Return names for display
             }
             
             // Convert IDs back to names for display
@@ -5602,9 +5583,12 @@
                                     videoUrl: videoUrl,
                                     pdfUrl: pdfUrl,
                                     // Additional data
+                                    id: activity.id || '',  // Old system ID
+                                    record_id: activity.record_id || '',  // Knack record ID (needed for field_1683)
                                     name: activity.name || '',
                                     category: activity.category || '',
                                     level: activity.level || '',
+                                    thresholds: activity.thresholds || null,  // Needed for prescription calculation
                                     // Images from learn section
                                     learnImages: learnImages,
                                     // Keep full activity data for reference
