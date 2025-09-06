@@ -4196,25 +4196,36 @@
             if (index > -1) {
                 this.state.prescribedActivityIds.splice(index, 1);
                 
-                // Save updated list to Knack
+                // Save updated list to Knack using Knack's built-in method
                 try {
-                    await $.ajax({
-                        url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
+                    // Use Knack's built-in update method
+                    Knack.showSpinner();
+                    
+                    $.ajax({
                         type: 'PUT',
-                        headers: {
-                            'X-Knack-Application-Id': Knack.application_id,
-                            'X-Knack-REST-API-Key': 'knack'
-                        },
+                        url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
                         data: { 
                             field_1683: this.state.prescribedActivityIds // Update with remaining activities
+                        },
+                        headers: {
+                            'X-Knack-Application-Id': Knack.application_id,
+                            'X-Knack-REST-API-Key': 'knack',
+                            'Authorization': Knack.getUserToken()
+                        },
+                        success: () => {
+                            log('Activity removed from Knack:', activityId);
+                            Knack.hideSpinner();
+                        },
+                        error: (error) => {
+                            console.error('Failed to remove activity from Knack:', error);
+                            // Revert the change on error
+                            this.state.prescribedActivityIds.splice(index, 0, activityId);
+                            Knack.hideSpinner();
                         }
                     });
-                    
-                    log('Activity removed from Knack:', activityId);
                 } catch (error) {
-                    console.error('Failed to remove activity from Knack:', error);
-                    // Revert the change on error
-                    this.state.prescribedActivityIds.splice(index, 0, activityId);
+                    console.error('Unexpected error:', error);
+                    Knack.hideSpinner();
                 }
                 
                 // Re-render the dashboard
@@ -4907,15 +4918,16 @@
             try {
                 const historyString = JSON.stringify(history);
                 
-                // Update in Knack using jQuery ajax
+                // Update in Knack using proper API endpoint
                 await $.ajax({
-                    url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                     type: 'PUT',
+                    url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                    data: { field_3656: historyString },
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack'
-                    },
-                    data: { field_3656: historyString }
+                        'X-Knack-REST-API-Key': 'knack',
+                        'Authorization': Knack.getUserToken()
+                    }
                 });
                 
                 // Update local state
@@ -4946,15 +4958,17 @@
                 // Save to Knack field_1683 (connection field needs IDs)
                 if (activityIds.length > 0) {
                     try {
+                        // Use Knack's API endpoint with proper format
                         await $.ajax({
-                            url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                             type: 'PUT',
+                            url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                            data: { 
+                                field_1683: activityIds  // Array of record IDs for connection field
+                            },
                             headers: {
                                 'X-Knack-Application-Id': Knack.application_id,
-                                'X-Knack-REST-API-Key': 'knack'
-                            },
-                            data: { 
-                                field_1683: activityIds  // Knack connection field expects array of record IDs
+                                'X-Knack-REST-API-Key': 'knack',
+                                'Authorization': Knack.getUserToken()
                             }
                         });
                         
@@ -5277,15 +5291,17 @@
                     // Save to prescribed activities field (field_1683) in Knack
                     if (activityIds.length > 0) {
                         try {
+                            // Use Knack's API endpoint with proper format
                             await $.ajax({
-                                url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                                 type: 'PUT',
+                                url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                                data: { 
+                                    field_1683: activityIds // Array of record IDs for connection field
+                                },
                                 headers: {
                                     'X-Knack-Application-Id': Knack.application_id,
-                                    'X-Knack-REST-API-Key': 'knack'
-                                },
-                                data: { 
-                                    field_1683: activityIds // Save the activity IDs to prescribed field
+                                    'X-Knack-REST-API-Key': 'knack',
+                                    'Authorization': Knack.getUserToken()
                                 }
                             });
                             
@@ -5527,13 +5543,14 @@
                 
                 // Update the student record
                 const response = await $.ajax({
-                    url: `https://api.knack.com/v1/pages/scene_1258/views/view_3165/records/${this.state.studentId}`,
                     type: 'PUT',
+                    url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                    data: updateData,
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack'
-                    },
-                    data: updateData
+                        'X-Knack-REST-API-Key': 'knack',
+                        'Authorization': Knack.getUserToken()
+                    }
                 });
                 
                 if (response) {
