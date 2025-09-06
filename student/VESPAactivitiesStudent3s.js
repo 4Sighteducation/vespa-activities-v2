@@ -2709,8 +2709,11 @@
             if (record) {
                 log('Record found, parsing scores...');
                 log('Available fields in record:', Object.keys(record));
-                log('Full record data:', record);
-                log('Config field mappings:', this.config.fields);
+                // Log first 5 fields with their values for debugging
+                Object.keys(record).slice(0, 10).forEach(key => {
+                    log(`Field ${key}:`, record[key]);
+                });
+                log('Config field mappings:', JSON.stringify(this.config.fields, null, 2));
                 
                 // Store the full record for cross-referencing with student data
                 this.state.vespaScoresRecord = record;
@@ -2739,11 +2742,24 @@
                 };
                 
                 // Parse the current cycle from Object_10 with detailed logging
-                const cycleRaw = record[this.config.fields.currentcycle] || record[this.config.fields.currentcycle + '_raw'];
-                log('Raw cycle value from field_146:', cycleRaw);
-                log('Cycle field key being used:', this.config.fields.currentcycle);
-                this.state.currentCycle = parseInt(cycleRaw || 1);
-                log('Parsed current cycle:', this.state.currentCycle);
+                const cycleFieldKey = this.config.fields.currentcycle;
+                log('Looking for cycle in field:', cycleFieldKey);
+                log('Direct value:', record[cycleFieldKey]);
+                log('Raw value:', record[cycleFieldKey + '_raw']);
+                
+                // Try multiple ways to get the cycle value
+                let cycleValue = record[cycleFieldKey];
+                if (!cycleValue && record[cycleFieldKey + '_raw']) {
+                    cycleValue = record[cycleFieldKey + '_raw'];
+                }
+                if (!cycleValue) {
+                    // Check if it's in a formatted field
+                    const formattedKey = cycleFieldKey.replace('field_', 'field_') + '_formatted';
+                    cycleValue = record[formattedKey];
+                }
+                
+                this.state.currentCycle = parseInt(cycleValue || 1);
+                log('Current cycle from VESPA results:', this.state.currentCycle);
                 
                 // Parse cycle-specific scores
                 this.state.cycleScores = {
@@ -2774,14 +2790,12 @@
                 
                 // Log if all scores are still 0
                 if (Object.values(this.state.vespaScores).every(score => score === 0)) {
-                    log('Warning: All scores are 0. Check field mappings:');
-                    log('Expected fields:', {
-                        vision: this.config.fields.visionScore,
-                        effort: this.config.fields.effortScore,
-                        systems: this.config.fields.systemsScore,
-                        practice: this.config.fields.practiceScore,
-                        attitude: this.config.fields.attitudeScore
-                    });
+                    log('⚠️ Warning: All scores are 0. Checking field values...');
+                    log('Vision field (' + this.config.fields.visionScore + '):', record[this.config.fields.visionScore]);
+                    log('Effort field (' + this.config.fields.effortScore + '):', record[this.config.fields.effortScore]);
+                    log('Systems field (' + this.config.fields.systemsScore + '):', record[this.config.fields.systemsScore]);
+                    log('Practice field (' + this.config.fields.practiceScore + '):', record[this.config.fields.practiceScore]);
+                    log('Attitude field (' + this.config.fields.attitudeScore + '):', record[this.config.fields.attitudeScore]);
                 }
             } else {
                 // Use debug data or defaults
@@ -2850,16 +2864,36 @@
                 this.state.studentId = record.id;
                 log('Student record ID:', this.state.studentId);
                 
-                // Get student name
+                // Get student name - field_187 is a name field with first/last subfields
                 const nameField = record.field_187 || record.field_187_raw || {};
-                if (nameField.first || nameField.last) {
+                log('Name field value:', nameField);
+                
+                // Parse the name properly
+                if (typeof nameField === 'object' && (nameField.first || nameField.last)) {
+                    this.state.studentFirstName = nameField.first || '';
+                    this.state.studentLastName = nameField.last || '';
                     this.state.studentName = `${nameField.first || ''} ${nameField.last || ''}`.trim();
-                } else if (typeof nameField === 'string') {
+                } else if (typeof nameField === 'string' && nameField.trim()) {
                     this.state.studentName = nameField;
+                    const nameParts = nameField.split(' ');
+                    this.state.studentFirstName = nameParts[0] || 'Student';
+                    this.state.studentLastName = nameParts.slice(1).join(' ') || '';
                 } else {
-                    this.state.studentName = 'Student';
+                    // Fallback - try to parse from the formatted output if it exists
+                    const formattedName = record.field_187_formatted;
+                    if (formattedName && typeof formattedName === 'string') {
+                        this.state.studentName = formattedName;
+                        const nameParts = formattedName.split(' ');
+                        this.state.studentFirstName = nameParts[0] || 'Student';
+                        this.state.studentLastName = nameParts.slice(1).join(' ') || '';
+                    } else {
+                        this.state.studentName = 'Student';
+                        this.state.studentFirstName = 'Student';
+                        this.state.studentLastName = '';
+                    }
                 }
                 log('Student name:', this.state.studentName);
+                log('First name:', this.state.studentFirstName, 'Last name:', this.state.studentLastName);
                 
                 // Parse prescribed activities (field_1683) - this is a connection field returning HTML
                 const prescribedField = record[this.config.fields.prescribedActivities] || 
@@ -4702,10 +4736,10 @@
                     log('Successfully updated new user status');
                     this.state.isNewUser = false;
                 } else {
-                    error('Failed to update new user status');
+                    console.error('Failed to update new user status');
                 }
             } catch (err) {
-                error('Error updating new user status:', err);
+                console.error('Error updating new user status:', err);
             }
         }
         
