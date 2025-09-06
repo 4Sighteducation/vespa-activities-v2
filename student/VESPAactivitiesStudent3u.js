@@ -2310,9 +2310,18 @@
                 this.hideLoadingOverlay();
                 
                 // Check if this is a new user and show welcome modal
+                // Show welcome journey for new users or cycle changes
                 if (this.state.isNewUser) {
-                    log('New user detected, showing welcome modal');
-                    await this.showWelcomeModal();
+                    log('New user detected, showing welcome journey');
+                    await this.showWelcomeJourney();
+                } else {
+                    // Check if this is a new cycle (could add logic to track last seen cycle)
+                    const history = this.getActivityHistory();
+                    const currentCycleData = history[`cycle${this.state.currentCycle}`];
+                    if (!currentCycleData?.timestamp) {
+                        log('New cycle detected, showing journey for cycle', this.state.currentCycle);
+                        await this.showWelcomeJourney();
+                    }
                 }
                 
                 log('VESPA Activities initialization complete');
@@ -2941,6 +2950,13 @@
                 this.state.isNewUser = (newUserField === 'No' || newUserField === false || newUserField === 'false');
                 log('Is new user:', this.state.isNewUser);
                 
+                // Get activity history from field_3656
+                this.state.activityHistory = record[this.config.fields.activityHistory] || 
+                                            record[this.config.fields.activityHistory + '_raw'] || 
+                                            record.field_3656 || 
+                                            record.field_3656_raw || '';
+                log('Activity history field:', this.state.activityHistory);
+                
                 // Parse finished activities (field_1380) - this is a text field with comma-separated IDs
                 const finishedField = record[this.config.fields.finishedActivities] || 
                                     record[this.config.fields.finishedActivities + '_raw'] || '';
@@ -3289,11 +3305,14 @@
                 const response = await fetch(this.config.problemMappingsUrl);
                 const data = await response.json();
                 this.state.problemMappings = data.problemMappings;
+                // Make available globally for modal access
+                window.vespaProblemMappings = data;
                 log('Problem mappings loaded:', this.state.problemMappings);
             } catch (error) {
                 console.error('Failed to load problem mappings:', error);
                 // Use fallback mappings
                 this.state.problemMappings = this.getFallbackProblemMappings();
+                window.vespaProblemMappings = { problemMappings: this.state.problemMappings };
             }
         }
         
@@ -4714,6 +4733,478 @@
                     closeModal();
                 }
             });
+        }
+        
+        // ============================================
+        // ACTIVITY PRESCRIPTION SYSTEM
+        // ============================================
+        
+        /**
+         * Calculate prescribed activities based on VESPA scores and thresholds
+         * @param {number} cycleNumber - Current cycle (1, 2, or 3)
+         * @returns {Array} Array of activity names to prescribe
+         */
+        calculatePrescribedActivities(cycleNumber = null) {
+            const cycle = cycleNumber || this.state.currentCycle || 1;
+            log('Calculating prescribed activities for cycle:', cycle);
+            
+            // Get the appropriate scores for this cycle
+            const scores = this.getCycleScores(cycle);
+            log('Using scores for prescription:', scores);
+            
+            // Get activity history to avoid repeats
+            const history = this.getActivityHistory();
+            const previouslyPrescribed = history[`cycle${cycle - 1}`]?.prescribed || [];
+            
+            // Load activities from the JSON data (it's an object, not array)
+            const activitiesData = window.vespaActivitiesData || {};
+            const allActivities = Object.values(activitiesData);
+            
+            // Group activities by category and filter by thresholds
+            const categorizedActivities = {
+                vision: [],
+                effort: [],
+                systems: [],
+                practice: [],
+                attitude: []
+            };
+            
+            // Filter activities based on thresholds
+            allActivities.forEach(activity => {
+                if (!activity.category || !activity.thresholds) return;
+                
+                const category = activity.category.toLowerCase();
+                const score = scores[category];
+                
+                if (score >= activity.thresholds.lower && 
+                    score <= activity.thresholds.upper) {
+                    
+                    // Check if it was prescribed in previous cycle
+                    const wasPreviouslyPrescribed = previouslyPrescribed.includes(activity.name);
+                    
+                    categorizedActivities[category].push({
+                        ...activity,
+                        wasPreviouslyPrescribed,
+                        priority: wasPreviouslyPrescribed ? 2 : 1 // Prioritize new activities
+                    });
+                }
+            });
+            
+            // Select 2 activities per category (max 10 total)
+            const prescribed = [];
+            
+            Object.keys(categorizedActivities).forEach(category => {
+                const activities = categorizedActivities[category];
+                
+                // Sort by priority (new activities first) and shuffle within priority groups
+                activities.sort((a, b) => {
+                    if (a.priority !== b.priority) return a.priority - b.priority;
+                    return Math.random() - 0.5; // Randomize within same priority
+                });
+                
+                // Take up to 2 activities
+                const selected = activities.slice(0, 2);
+                prescribed.push(...selected.map(a => a.name));
+            });
+            
+            log('Prescribed activities:', prescribed);
+            return prescribed;
+        }
+        
+        /**
+         * Get scores for a specific cycle
+         */
+        getCycleScores(cycleNumber) {
+            if (cycleNumber === 1) {
+                return {
+                    vision: parseInt(this.state.cycleScores?.cycle1?.vision || 0),
+                    effort: parseInt(this.state.cycleScores?.cycle1?.effort || 0),
+                    systems: parseInt(this.state.cycleScores?.cycle1?.systems || 0),
+                    practice: parseInt(this.state.cycleScores?.cycle1?.practice || 0),
+                    attitude: parseInt(this.state.cycleScores?.cycle1?.attitude || 0)
+                };
+            } else if (cycleNumber === 2) {
+                return {
+                    vision: parseInt(this.state.cycleScores?.cycle2?.vision || 0),
+                    effort: parseInt(this.state.cycleScores?.cycle2?.effort || 0),
+                    systems: parseInt(this.state.cycleScores?.cycle2?.systems || 0),
+                    practice: parseInt(this.state.cycleScores?.cycle2?.practice || 0),
+                    attitude: parseInt(this.state.cycleScores?.cycle2?.attitude || 0)
+                };
+            } else if (cycleNumber === 3) {
+                return {
+                    vision: parseInt(this.state.cycleScores?.cycle3?.vision || 0),
+                    effort: parseInt(this.state.cycleScores?.cycle3?.effort || 0),
+                    systems: parseInt(this.state.cycleScores?.cycle3?.systems || 0),
+                    practice: parseInt(this.state.cycleScores?.cycle3?.practice || 0),
+                    attitude: parseInt(this.state.cycleScores?.cycle3?.attitude || 0)
+                };
+            } else {
+                // Default to current scores
+                return this.state.vespaScores;
+            }
+        }
+        
+        /**
+         * Get and parse activity history from field_3656
+         */
+        getActivityHistory() {
+            try {
+                const historyField = this.state.activityHistory;
+                if (historyField && typeof historyField === 'string') {
+                    return JSON.parse(historyField);
+                }
+            } catch (e) {
+                log('Error parsing activity history:', e);
+            }
+            return {
+                cycle1: { prescribed: [], selected: [], completed: [] },
+                cycle2: { prescribed: [], selected: [], completed: [] },
+                cycle3: { prescribed: [], selected: [], completed: [] }
+            };
+        }
+        
+        /**
+         * Save activity history to field_3656
+         */
+        async saveActivityHistory(history) {
+            try {
+                const historyString = JSON.stringify(history);
+                
+                // Update in Knack
+                await this.knackAPI(
+                    'PUT',
+                    `objects/object_6/records/${this.state.studentId}`,
+                    { field_3656: historyString }
+                );
+                
+                // Update local state
+                this.state.activityHistory = historyString;
+                log('Activity history saved:', history);
+            } catch (error) {
+                console.error('Failed to save activity history:', error);
+            }
+        }
+        
+        /**
+         * Check and update prescribed activities if needed
+         */
+        async checkAndUpdatePrescribedActivities() {
+            const prescribedField = this.state.prescribedActivityIds;
+            
+            // If no activities prescribed yet, calculate and save them
+            if (!prescribedField || prescribedField.length === 0) {
+                log('No prescribed activities found, calculating...');
+                
+                const prescribed = this.calculatePrescribedActivities();
+                
+                // Update history
+                const history = this.getActivityHistory();
+                history[`cycle${this.state.currentCycle}`] = {
+                    ...history[`cycle${this.state.currentCycle}`],
+                    prescribed: prescribed,
+                    timestamp: new Date().toISOString()
+                };
+                
+                await this.saveActivityHistory(history);
+                
+                // Update prescribed activities in Knack
+                // Note: This would need the activity IDs, not just names
+                // For now, log the recommendation
+                log('Recommended activities to prescribe:', prescribed);
+                
+                return prescribed;
+            }
+            
+            return prescribedField;
+        }
+        
+        /**
+         * Show enhanced welcome journey modal
+         */
+        async showWelcomeJourney() {
+            log('Starting welcome journey for user');
+            
+            const firstName = this.state.studentFirstName || 'Student';
+            const currentCycle = this.state.currentCycle || 1;
+            let currentStep = 1;
+            const totalSteps = 4;
+            
+            // Get prescribed activities
+            const prescribedActivities = await this.checkAndUpdatePrescribedActivities();
+            let selectedActivities = [...prescribedActivities];
+            
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'vespa-welcome-modal-overlay journey-modal';
+            
+            const renderStep = () => {
+                let content = '';
+                
+                switch(currentStep) {
+                    case 1: // Welcome & Score Breakdown
+                        content = `
+                            <div class="journey-step step-1">
+                                <div class="journey-header">
+                                    <h2>Welcome to Your VESPA Journey!</h2>
+                                    <span class="journey-close">&times;</span>
+                                </div>
+                                <div class="journey-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${(currentStep/totalSteps)*100}%"></div>
+                                    </div>
+                                    <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
+                                </div>
+                                <div class="journey-content">
+                                    <div class="welcome-animation">
+                                        <span class="big-emoji">👋</span>
+                                    </div>
+                                    <h3>Hello ${firstName}!</h3>
+                                    <p>Let's decode your VESPA scores and create your personalized learning path.</p>
+                                    
+                                    <div class="scores-breakdown">
+                                        <h4>Your Current Scores (Cycle ${currentCycle})</h4>
+                                        <div class="score-bars">
+                                            <div class="score-bar">
+                                                <span class="score-label">👁️ Vision</span>
+                                                <div class="score-progress">
+                                                    <div class="score-fill vision" style="width: ${this.state.vespaScores.vision * 10}%"></div>
+                                                </div>
+                                                <span class="score-value">${this.state.vespaScores.vision}/10</span>
+                                            </div>
+                                            <div class="score-bar">
+                                                <span class="score-label">💪 Effort</span>
+                                                <div class="score-progress">
+                                                    <div class="score-fill effort" style="width: ${this.state.vespaScores.effort * 10}%"></div>
+                                                </div>
+                                                <span class="score-value">${this.state.vespaScores.effort}/10</span>
+                                            </div>
+                                            <div class="score-bar">
+                                                <span class="score-label">⚙️ Systems</span>
+                                                <div class="score-progress">
+                                                    <div class="score-fill systems" style="width: ${this.state.vespaScores.systems * 10}%"></div>
+                                                </div>
+                                                <span class="score-value">${this.state.vespaScores.systems}/10</span>
+                                            </div>
+                                            <div class="score-bar">
+                                                <span class="score-label">🎯 Practice</span>
+                                                <div class="score-progress">
+                                                    <div class="score-fill practice" style="width: ${this.state.vespaScores.practice * 10}%"></div>
+                                                </div>
+                                                <span class="score-value">${this.state.vespaScores.practice}/10</span>
+                                            </div>
+                                            <div class="score-bar">
+                                                <span class="score-label">🧠 Attitude</span>
+                                                <div class="score-progress">
+                                                    <div class="score-fill attitude" style="width: ${this.state.vespaScores.attitude * 10}%"></div>
+                                                </div>
+                                                <span class="score-value">${this.state.vespaScores.attitude}/10</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="journey-next-btn">Continue →</button>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                        
+                    case 2: // VESPA Elves Prescription
+                        content = `
+                            <div class="journey-step step-2">
+                                <div class="journey-header">
+                                    <h2>The VESPA Elves Have Been Busy! 🧚‍♂️</h2>
+                                    <span class="journey-close">&times;</span>
+                                </div>
+                                <div class="journey-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${(currentStep/totalSteps)*100}%"></div>
+                                    </div>
+                                    <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
+                                </div>
+                                <div class="journey-content">
+                                    <div class="elves-message">
+                                        <p>Based on your scores, our VESPA elves have carefully selected activities to help you improve!</p>
+                                        <p class="note">⚠️ Note: Your tutor may also add or change activities throughout your journey.</p>
+                                    </div>
+                                    
+                                    <div class="prescribed-activities">
+                                        <h4>Your Prescribed Activities</h4>
+                                        <div class="activity-list">
+                                            ${selectedActivities.slice(0, 10).map((activity, idx) => `
+                                                <div class="prescribed-activity-item" data-index="${idx}">
+                                                    <span class="activity-number">${idx + 1}</span>
+                                                    <span class="activity-name">${activity}</span>
+                                                    <button class="swap-btn" title="Change this activity">🔄</button>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="journey-buttons">
+                                        <button class="journey-back-btn">← Back</button>
+                                        <button class="journey-next-btn">Keep These →</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                        
+                    case 3: // Problem-Based Selection
+                        content = `
+                            <div class="journey-step step-3">
+                                <div class="journey-header">
+                                    <h2>Any Specific Challenges?</h2>
+                                    <span class="journey-close">&times;</span>
+                                </div>
+                                <div class="journey-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${(currentStep/totalSteps)*100}%"></div>
+                                    </div>
+                                    <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
+                                </div>
+                                <div class="journey-content">
+                                    <p>Select any challenges you're facing to get additional targeted activities:</p>
+                                    
+                                    <div class="problem-categories">
+                                        ${this.renderProblemSelectors()}
+                                    </div>
+                                    
+                                    <div class="journey-buttons">
+                                        <button class="journey-back-btn">← Back</button>
+                                        <button class="journey-skip-btn">Skip</button>
+                                        <button class="journey-next-btn">Add Selected →</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                        
+                    case 4: // Summary & Start
+                        content = `
+                            <div class="journey-step step-4">
+                                <div class="journey-header">
+                                    <h2>Your Learning Path is Ready! 🎉</h2>
+                                    <span class="journey-close">&times;</span>
+                                </div>
+                                <div class="journey-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${(currentStep/totalSteps)*100}%"></div>
+                                    </div>
+                                    <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
+                                </div>
+                                <div class="journey-content">
+                                    <div class="success-animation">
+                                        <span class="big-emoji">🚀</span>
+                                    </div>
+                                    
+                                    <div class="journey-summary">
+                                        <h4>You're all set for Cycle ${currentCycle}!</h4>
+                                        <div class="summary-stats">
+                                            <div class="stat-item">
+                                                <span class="stat-number">${selectedActivities.length}</span>
+                                                <span class="stat-label">Activities Selected</span>
+                                            </div>
+                                            <div class="stat-item">
+                                                <span class="stat-number">~${selectedActivities.length * 20}</span>
+                                                <span class="stat-label">Minutes of Learning</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <p class="motivational-message">
+                                            Remember: Small steps lead to big changes. You've got this! 💪
+                                        </p>
+                                    </div>
+                                    
+                                    <button class="journey-finish-btn">Start My Journey! →</button>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                }
+                
+                modalOverlay.innerHTML = `<div class="vespa-journey-modal">${content}</div>`;
+            };
+            
+            // Initial render
+            renderStep();
+            document.body.appendChild(modalOverlay);
+            
+            // Add animation
+            setTimeout(() => modalOverlay.classList.add('show'), 10);
+            
+            // Event delegation for modal interactions
+            modalOverlay.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('journey-close')) {
+                    modalOverlay.classList.remove('show');
+                    setTimeout(() => modalOverlay.remove(), 300);
+                    await this.updateNewUserStatus();
+                }
+                
+                if (e.target.classList.contains('journey-next-btn')) {
+                    if (currentStep < totalSteps) {
+                        currentStep++;
+                        renderStep();
+                    }
+                }
+                
+                if (e.target.classList.contains('journey-back-btn')) {
+                    if (currentStep > 1) {
+                        currentStep--;
+                        renderStep();
+                    }
+                }
+                
+                if (e.target.classList.contains('journey-skip-btn')) {
+                    currentStep = 4;
+                    renderStep();
+                }
+                
+                if (e.target.classList.contains('journey-finish-btn')) {
+                    modalOverlay.classList.remove('show');
+                    setTimeout(() => modalOverlay.remove(), 300);
+                    
+                    // Save selected activities and update status
+                    const history = this.getActivityHistory();
+                    history[`cycle${this.state.currentCycle}`].selected = selectedActivities;
+                    await this.saveActivityHistory(history);
+                    await this.updateNewUserStatus();
+                    
+                    // Refresh the view
+                    this.render();
+                }
+                
+                if (e.target.classList.contains('swap-btn')) {
+                    // Handle activity swapping
+                    const index = parseInt(e.target.parentElement.dataset.index);
+                    this.showActivitySwapModal(index, selectedActivities);
+                }
+            });
+        }
+        
+        /**
+         * Render problem selectors for step 3
+         */
+        renderProblemSelectors() {
+            const problemMappings = window.vespaProblemMappings?.problemMappings || {};
+            let html = '';
+            
+            Object.keys(problemMappings).forEach(category => {
+                html += `
+                    <div class="problem-category">
+                        <h5>${category}</h5>
+                        <div class="problem-list">
+                            ${problemMappings[category].slice(0, 3).map(problem => `
+                                <label class="problem-item">
+                                    <input type="checkbox" value="${problem.id}" data-activities='${JSON.stringify(problem.recommendedActivities)}'>
+                                    <span>${problem.text}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            return html;
         }
         
         async updateNewUserStatus() {
