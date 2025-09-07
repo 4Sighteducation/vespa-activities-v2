@@ -2885,10 +2885,17 @@
                 this.state.studentId = record.id;
                 log('Student record ID:', this.state.studentId);
                 
-                // Get student name - prefer from Knack user if field is empty or string
-                let nameField = record.field_187 || record.field_187_raw || {};
+                // Get student name - try multiple sources
+                // First check if there's a name field in student record (less common)
+                let nameField = record.field_187 || record.field_187_raw || null;
                 
-                // If name field is empty or just a string, get from Knack user
+                // If no name in student record, check VESPA scores record (more common location)
+                if (!nameField && this.state.vespaScoresRecord) {
+                    nameField = this.state.vespaScoresRecord.field_187_raw || this.state.vespaScoresRecord.field_187;
+                    log('Getting name from VESPA scores record:', nameField);
+                }
+                
+                // If still no name field or it's just a string, try Knack user
                 if (!nameField || typeof nameField === 'string') {
                     const user = Knack.getUserAttributes();
                     if (user && user.name) {
@@ -5309,7 +5316,7 @@
                         content = `
                             <div class="journey-step step-1">
                                 <div class="journey-header">
-                                    <h2>Welcome to Your VESPA Journey!</h2>
+                                    <h2>Let's Review Your VESPA Scores</h2>
                                     <span class="journey-close">&times;</span>
                                 </div>
                                 <div class="journey-progress">
@@ -5320,10 +5327,10 @@
                                 </div>
                                 <div class="journey-content">
                                     <div class="welcome-animation">
-                                        <span class="big-emoji">👋</span>
+                                        <span class="big-emoji">📊</span>
                                     </div>
                                     <h3>Hello ${firstName}!</h3>
-                                    <p>Let's decode your VESPA scores and create your personalized learning path.</p>
+                                    <p class="journey-description">Based on your questionnaire responses, we've calculated your scores across five key learning dimensions. These scores help us recommend the perfect activities to boost your academic performance.</p>
                                     
                                     <div class="scores-breakdown">
                                         <h4>Your Current Scores (Cycle ${currentCycle})</h4>
@@ -5331,42 +5338,56 @@
                                             <div class="score-bar">
                                                 <span class="score-label">👁️ Vision</span>
                                                 <div class="score-progress">
-                                                    <div class="score-fill vision" style="width: ${this.state.vespaScores.vision * 10}%"></div>
+                                                    <div class="score-fill vision" style="width: ${this.state.vespaScores.vision * 10}%">
+                                                        <span class="score-text">${this.state.vespaScores.vision}/10</span>
+                                                    </div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.vision}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">💪 Effort</span>
                                                 <div class="score-progress">
-                                                    <div class="score-fill effort" style="width: ${this.state.vespaScores.effort * 10}%"></div>
+                                                    <div class="score-fill effort" style="width: ${this.state.vespaScores.effort * 10}%">
+                                                        <span class="score-text">${this.state.vespaScores.effort}/10</span>
+                                                    </div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.effort}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">⚙️ Systems</span>
                                                 <div class="score-progress">
-                                                    <div class="score-fill systems" style="width: ${this.state.vespaScores.systems * 10}%"></div>
+                                                    <div class="score-fill systems" style="width: ${this.state.vespaScores.systems * 10}%">
+                                                        <span class="score-text">${this.state.vespaScores.systems}/10</span>
+                                                    </div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.systems}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">🎯 Practice</span>
                                                 <div class="score-progress">
-                                                    <div class="score-fill practice" style="width: ${this.state.vespaScores.practice * 10}%"></div>
+                                                    <div class="score-fill practice" style="width: ${this.state.vespaScores.practice * 10}%">
+                                                        <span class="score-text">${this.state.vespaScores.practice}/10</span>
+                                                    </div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.practice}</span>
                                             </div>
                                             <div class="score-bar">
                                                 <span class="score-label">🧠 Attitude</span>
                                                 <div class="score-progress">
-                                                    <div class="score-fill attitude" style="width: ${this.state.vespaScores.attitude * 10}%"></div>
+                                                    <div class="score-fill attitude" style="width: ${this.state.vespaScores.attitude * 10}%">
+                                                        <span class="score-text">${this.state.vespaScores.attitude}/10</span>
+                                                    </div>
                                                 </div>
-                                                <span class="score-value">${this.state.vespaScores.attitude}</span>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <button class="journey-next-btn">Continue →</button>
+                                    <div class="score-guide">
+                                        <h5>📊 What do these scores mean?</h5>
+                                        <div class="score-ranges">
+                                            <span class="range-low"><strong>1-3:</strong> Focus area</span>
+                                            <span class="range-mid"><strong>4-6:</strong> Developing</span>
+                                            <span class="range-high"><strong>7-10:</strong> Strong</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button class="journey-next-btn">See Your Recommended Activities →</button>
                                 </div>
                             </div>
                         `;

@@ -3990,6 +3990,41 @@ img[data-src] {
     padding: 32px 24px;
 }
 
+.journey-description {
+    font-size: 15px;
+    line-height: 1.6;
+    color: #555;
+    max-width: 600px;
+    margin: 0 auto 25px;
+    text-align: center;
+}
+
+.score-guide {
+    background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.score-guide h5 {
+    margin: 0 0 10px 0;
+    color: #667eea;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.score-ranges {
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    justify-content: center;
+}
+
+.range-low strong { color: #dc3545; }
+.range-mid strong { color: #ffc107; }
+.range-high strong { color: #28a745; }
+
 .welcome-animation {
     text-align: center;
     margin-bottom: 20px;
@@ -4008,21 +4043,22 @@ img[data-src] {
 /* Score bars styling */
 .scores-breakdown {
     background: #f8f9fa;
-    padding: 20px;
+    padding: 25px;
     border-radius: 12px;
     margin: 20px 0;
 }
 
 .scores-breakdown h4 {
-    margin: 0 0 16px 0;
+    margin: 0 0 20px 0;
     color: #495057;
     font-size: 1.1rem;
+    text-align: center;
 }
 
 .score-bars {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 15px;
 }
 
 .score-bar {
@@ -4037,6 +4073,11 @@ img[data-src] {
     font-weight: 500;
 }
 
+/* Hide the external score value */
+.score-bar .score-value {
+    display: none;
+}
+
 .score-progress {
     flex: 1;
     height: 24px;
@@ -4049,6 +4090,16 @@ img[data-src] {
     height: 100%;
     border-radius: 12px;
     transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 12px;
+}
+
+.score-text {
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
 }
 
 .score-fill.vision { background: linear-gradient(90deg, #ff8f00, #ffa940); }
