@@ -5424,7 +5424,7 @@ img[data-src] {
     background: white;
     border-top: 2px solid #4CAF50;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    z-index: 9999;
+    z-index: 100001;
     transition: bottom 0.3s ease;
 }
 
