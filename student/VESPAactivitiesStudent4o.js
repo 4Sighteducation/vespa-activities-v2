@@ -2289,6 +2289,14 @@
                 
                 log('Student ID validated:', this.state.studentId);
                 
+                // Handle URL parameters for direct activity links
+                const urlHandled = await this.handleURLParameters();
+                if (urlHandled) {
+                    // URL parameter handled a specific action, skip normal initialization flow
+                    this.hideLoadingOverlay();
+                    return;
+                }
+                
                 // Initial render
                 this.render();
                 
@@ -2341,6 +2349,151 @@
                 console.error('[VESPA Activities v2.0] Failed to initialize VESPA Activities:', error);
                 this.hideLoadingOverlay();
                 this.showError('Failed to initialize. Please refresh the page.');
+            }
+        }
+        
+        async handleURLParameters() {
+            try {
+                // Parse URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                
+                // Check for activity parameter (full or short version)
+                const activityId = urlParams.get('activity') || urlParams.get('a');
+                const action = urlParams.get('action') || 'view';
+                const activityName = urlParams.get('name');
+                
+                // Check for category browsing
+                const category = urlParams.get('category');
+                const tab = urlParams.get('tab');
+                
+                // Check for bulk activities
+                const bulkActivities = urlParams.get('activities');
+                
+                // Check for welcome journey
+                const showWelcome = urlParams.get('welcome');
+                
+                if (activityId) {
+                    log(`URL Parameter: Activity ${activityId}, Action: ${action}`);
+                    
+                    // Find the activity
+                    const activity = this.state.activities.all.find(a => a.id === activityId);
+                    
+                    if (!activity) {
+                        log(`Activity ${activityId} not found`);
+                        this.showToast('Activity not found', 'error');
+                        return false;
+                    }
+                    
+                    // Initial render to show the UI
+                    this.render();
+                    this.attachEventListeners();
+                    
+                    // Small delay to ensure UI is ready
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Handle different actions
+                    switch (action) {
+                        case 'start':
+                            // Start the activity immediately
+                            this.showActivityStartModal(activity);
+                            break;
+                            
+                        case 'add':
+                            // Add to dashboard
+                            await this.addActivityToDashboard(activity.id);
+                            this.showToast(`${activity.name} added to your dashboard`, 'success');
+                            // Switch to dashboard view
+                            this.switchView('dashboard');
+                            break;
+                            
+                        case 'info':
+                            // Show activity info modal
+                            this.showActivityInfo(activity);
+                            break;
+                            
+                        case 'view':
+                        default:
+                            // Show activity detail modal
+                            this.showActivityDetailModal(activity);
+                            break;
+                    }
+                    
+                    return true; // URL was handled
+                    
+                } else if (bulkActivities) {
+                    // Handle multiple activities
+                    const activityIds = bulkActivities.split(',');
+                    log(`URL Parameter: Bulk activities ${activityIds.join(', ')}, Action: ${action}`);
+                    
+                    // Initial render
+                    this.render();
+                    this.attachEventListeners();
+                    
+                    if (action === 'add') {
+                        // Add all activities to dashboard
+                        let addedCount = 0;
+                        for (const id of activityIds) {
+                            const activity = this.state.activities.all.find(a => a.id === id.trim());
+                            if (activity && !activity.prescribed) {
+                                await this.addActivityToDashboard(id.trim());
+                                addedCount++;
+                            }
+                        }
+                        this.showToast(`Added ${addedCount} activities to your dashboard`, 'success');
+                        this.switchView('dashboard');
+                    }
+                    
+                    return true;
+                    
+                } else if (category) {
+                    // Browse category
+                    log(`URL Parameter: Browse category ${category}`);
+                    
+                    // Initial render
+                    this.render();
+                    this.attachEventListeners();
+                    
+                    // Small delay for UI
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Show all activities modal filtered by category
+                    this.showAllActivitiesModal(category);
+                    
+                    return true;
+                    
+                } else if (tab) {
+                    // Switch to specific tab
+                    log(`URL Parameter: Switch to tab ${tab}`);
+                    
+                    // Initial render
+                    this.render();
+                    this.attachEventListeners();
+                    
+                    // Switch to the requested tab
+                    this.switchView(tab);
+                    
+                    return false; // Continue normal flow
+                    
+                } else if (showWelcome === 'true') {
+                    // Force show welcome journey
+                    log('URL Parameter: Show welcome journey');
+                    
+                    // Initial render
+                    this.render();
+                    this.attachEventListeners();
+                    
+                    // Show welcome journey
+                    await this.showWelcomeJourney();
+                    
+                    return true;
+                }
+                
+                // No URL parameters to handle
+                return false;
+                
+            } catch (error) {
+                console.error('Error handling URL parameters:', error);
+                return false;
             }
         }
         
