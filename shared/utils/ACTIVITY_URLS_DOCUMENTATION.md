@@ -7,7 +7,7 @@ Each activity in `activity_json_final1a.json` now includes direct URLs that can 
 
 ### Base URL
 ```
-https://4sight.knack.com/vespa#scene_1258/view_3168
+https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168
 ```
 
 ## URL Parameters
@@ -18,31 +18,31 @@ https://4sight.knack.com/vespa#scene_1258/view_3168
 ```
 ?activity=ACTIVITY_ID&action=view
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=view`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=view`
 
 #### Start Activity Immediately
 ```
 ?activity=ACTIVITY_ID&action=start
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=start`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=start`
 
 #### Add to Dashboard
 ```
 ?activity=ACTIVITY_ID&action=add
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=add`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=add`
 
 #### Show Activity Info
 ```
 ?activity=ACTIVITY_ID&action=info
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=info`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=info`
 
 ### Short URL Format (for QR codes)
 ```
 ?a=ACTIVITY_ID
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf`
 
 ### Bulk Operations
 
@@ -50,7 +50,7 @@ Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?a=5fcb62a903d87600
 ```
 ?activities=ID1,ID2,ID3&action=add
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activities=5fcb62a903d876001c5e1fcf,5fcccf1303d876001c5f371e&action=add`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activities=5fcb62a903d876001c5e1fcf,5fcccf1303d876001c5f371e&action=add`
 
 ### Category Browsing
 
@@ -60,7 +60,7 @@ Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?activities=5fcb62a
 ```
 Categories: `Vision`, `Effort`, `Systems`, `Practice`, `Attitude`
 
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?category=Vision&action=browse`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?category=Vision&action=browse`
 
 ### Navigation
 
@@ -70,13 +70,13 @@ Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?category=Vision&ac
 ```
 Tabs: `dashboard`, `all`, `progress`, `achievements`
 
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?tab=dashboard`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?tab=dashboard`
 
 #### Show Welcome Journey
 ```
 ?welcome=true
 ```
-Example: `https://4sight.knack.com/vespa#scene_1258/view_3168?welcome=true`
+Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?welcome=true`
 
 ## JSON Structure
 
@@ -87,14 +87,14 @@ Each activity in the JSON now includes a `urls` object with pre-generated URLs:
   "id": "5fcb62a903d876001c5e1fcf",
   "name": "20 Questions",
   "urls": {
-    "view": "https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=view",
-    "start": "https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=start",
-    "add": "https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=add",
-    "info": "https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=info",
-    "view_with_name": "https://4sight.knack.com/vespa#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&name=20%20Questions&action=view",
-    "direct_link": "https://4sight.knack.com/vespa#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf"
+    "view": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=view",
+    "start": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=start",
+    "add": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=add",
+    "info": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=info",
+    "view_with_name": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&name=20%20Questions&action=view",
+    "direct_link": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf"
   },
-  "short_url": "https://4sight.knack.com/vespa#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf"
+  "short_url": "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?a=5fcb62a903d876001c5e1fcf"
 }
 ```
 
@@ -149,5 +149,9 @@ If you need to regenerate URLs with a different base URL:
 3. Replace the existing JSON file
 
 ```python
-BASE_URL = "https://your-domain.knack.com/vespa#scene_1258/view_3168"
+# Example: For vespaacademy.knack.com
+BASE_URL = "https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168"
+
+# Example: For a different domain
+BASE_URL = "https://your-domain.knack.com/your-app-name#scene_1258/view_3168"
 ```
