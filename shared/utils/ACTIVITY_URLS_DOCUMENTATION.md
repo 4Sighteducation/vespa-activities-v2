@@ -1,7 +1,12 @@
 # VESPA Activities Direct URL Documentation
 
 ## Overview
-Each activity in `activity_json_final1a.json` now includes direct URLs that can be used in reports, emails, or other external systems to link directly to specific activities.
+Each activity in `activity_json_final1a.json` now includes URLs that can be used in reports, emails, or other external systems to **automatically open activity modals** when users arrive at the student dashboard.
+
+**Important**: Activities are not separate web pages - they are JavaScript-rendered modals/popups that appear on the student dashboard. The URLs work by:
+1. Navigating to the student dashboard (scene_1258)
+2. Storing the requested action in sessionStorage (survives redirects)
+3. Automatically opening the activity modal once the page loads
 
 ## URL Structure
 
@@ -10,29 +15,29 @@ Each activity in `activity_json_final1a.json` now includes direct URLs that can 
 https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168
 ```
 
-## URL Parameters
+## URL Formats
 
 ### Single Activity Actions
 
-#### View Activity Details
+#### View Activity Details Modal
 ```
 ?activity=ACTIVITY_ID&action=view
 ```
 Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=view`
 
-#### Start Activity Immediately
+#### Start Activity Modal Immediately
 ```
 ?activity=ACTIVITY_ID&action=start
 ```
 Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=start`
 
-#### Add to Dashboard
+#### Add to Dashboard (then show dashboard)
 ```
 ?activity=ACTIVITY_ID&action=add
 ```
 Example: `https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168?activity=5fcb62a903d876001c5e1fcf&action=add`
 
-#### Show Activity Info
+#### Show Activity Info Modal
 ```
 ?activity=ACTIVITY_ID&action=info
 ```
@@ -132,6 +137,16 @@ const qrCodeUrl = activity.short_url;
 </ul>
 ```
 
+## How It Works with Redirects
+
+Since activities are modals (not separate pages), and Knack often redirects to landing pages, the system uses **sessionStorage** to preserve the intended action:
+
+1. **User clicks link**: URL contains activity parameters
+2. **Knack redirects**: User might be sent to login or landing page
+3. **Parameters saved**: JavaScript stores the action in sessionStorage
+4. **Page loads**: Once on the student dashboard, JavaScript retrieves the action
+5. **Modal opens**: The requested activity modal automatically appears
+
 ## Notes
 
 1. **Authentication**: Users must be logged into the VESPA system for links to work
@@ -139,6 +154,7 @@ const qrCodeUrl = activity.short_url;
 3. **URL Encoding**: Activity names in URLs are automatically URL-encoded
 4. **Fallback**: If an activity is not found, a toast message will appear
 5. **Base URL**: Update the base URL in the JSON if your domain changes
+6. **Redirect Handling**: If Knack redirects to a landing page, the hash parameters will be preserved and processed once the app loads
 
 ## Updating URLs
 

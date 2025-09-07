@@ -2354,23 +2354,65 @@
         
         async handleURLParameters() {
             try {
-                // Parse URL parameters
+                // Store any URL parameters in sessionStorage to survive redirects
+                const hash = window.location.hash;
                 const urlParams = new URLSearchParams(window.location.search);
                 
-                // Check for activity parameter (full or short version)
-                const activityId = urlParams.get('activity') || urlParams.get('a');
-                const action = urlParams.get('action') || 'view';
-                const activityName = urlParams.get('name');
+                // Check for parameters in URL (query or hash)
+                let activityId, action, activityName, category, tab, bulkActivities, showWelcome;
                 
-                // Check for category browsing
-                const category = urlParams.get('category');
-                const tab = urlParams.get('tab');
+                // First check query parameters
+                activityId = urlParams.get('activity') || urlParams.get('a');
+                action = urlParams.get('action') || 'view';
+                activityName = urlParams.get('name');
+                category = urlParams.get('category');
+                tab = urlParams.get('tab');
+                bulkActivities = urlParams.get('activities');
+                showWelcome = urlParams.get('welcome');
                 
-                // Check for bulk activities
-                const bulkActivities = urlParams.get('activities');
+                // If we have parameters, store them and clear from URL
+                if (activityId || category || tab || bulkActivities || showWelcome) {
+                    const pendingAction = {
+                        activityId,
+                        action,
+                        activityName,
+                        category,
+                        tab,
+                        bulkActivities,
+                        showWelcome,
+                        timestamp: Date.now()
+                    };
+                    
+                    sessionStorage.setItem('vespa_pending_action', JSON.stringify(pendingAction));
+                    log('Stored pending action in session:', pendingAction);
+                    
+                    // Clean the URL to prevent re-processing
+                    const cleanUrl = window.location.origin + window.location.pathname + '#scene_1258/view_3168';
+                    window.history.replaceState(null, '', cleanUrl);
+                }
                 
-                // Check for welcome journey
-                const showWelcome = urlParams.get('welcome');
+                // Check for stored pending action (survives redirects)
+                const storedAction = sessionStorage.getItem('vespa_pending_action');
+                if (storedAction) {
+                    const pending = JSON.parse(storedAction);
+                    
+                    // Check if action is recent (within 1 minute)
+                    if (Date.now() - pending.timestamp < 60000) {
+                        // Clear it so we don't process it again
+                        sessionStorage.removeItem('vespa_pending_action');
+                        
+                        // Extract the values
+                        activityId = pending.activityId;
+                        action = pending.action;
+                        activityName = pending.activityName;
+                        category = pending.category;
+                        tab = pending.tab;
+                        bulkActivities = pending.bulkActivities;
+                        showWelcome = pending.showWelcome;
+                        
+                        log('Processing stored pending action:', pending);
+                    }
+                }
                 
                 if (activityId) {
                     log(`URL Parameter: Activity ${activityId}, Action: ${action}`);
