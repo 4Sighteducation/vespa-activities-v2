@@ -4140,16 +4140,10 @@
         
         // Event handling
         attachEventListeners() {
-            // CRITICAL FIX: Remove existing listeners before adding new ones
-            if (this._eventListenerAttached) {
-                log('Event listeners already attached, skipping');
-                return;
-            }
-            
-            // Clean up any existing listener first (safety check)
+            // Always remove and re-attach listeners to handle re-renders
             this.removeEventListeners();
             
-            // Use event delegation with a single listener
+            // Use event delegation with a single listener (arrow function preserves 'this' context)
             this._clickHandler = (e) => {
                 // Nav items
                 if (e.target.closest('.nav-item')) {
@@ -4221,8 +4215,8 @@
                 }
             };
             
-            // Attach the click handler
-            this.container.addEventListener('click', this._clickHandler);
+            // Attach the click handler to document for broader event capture
+            document.addEventListener('click', this._clickHandler);
             
             // Mark as attached to prevent duplicates
             this._eventListenerAttached = true;
@@ -4230,8 +4224,8 @@
         }
         
         removeEventListeners() {
-            if (this._clickHandler && this.container) {
-                this.container.removeEventListener('click', this._clickHandler);
+            if (this._clickHandler) {
+                document.removeEventListener('click', this._clickHandler);
                 this._eventListenerAttached = false;
                 log('Event listeners removed');
             }
