@@ -4659,6 +4659,9 @@ img[data-src] {
     width: 100%;
     height: 100%;
     z-index: 10002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .welcome-modal-backdrop {
@@ -4667,8 +4670,8 @@ img[data-src] {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(5px);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
 }
 
 .new-user-welcome .welcome-modal-content.large-modal {
@@ -4676,6 +4679,11 @@ img[data-src] {
     max-width: 700px;
     padding: 40px;
     z-index: 1;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .welcome-header {
@@ -4695,16 +4703,56 @@ img[data-src] {
 
 .welcome-sections {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
     margin-bottom: 30px;
 }
 
 .welcome-section {
     text-align: center;
-    padding: 20px;
+    padding: 25px;
     background: #f9f9f9;
     border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+/* First section (Smart Activity Suggestions) spans full width */
+.welcome-section:first-child {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+    border: 2px solid #667eea;
+    padding: 35px;
+}
+
+.welcome-section:first-child .section-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.welcome-section:first-child h3 {
+    font-size: 20px;
+    color: #667eea;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.welcome-section:first-child p {
+    font-size: 16px;
+    color: #555;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Other sections (Add Your Own & Teacher Recommendations) */
+.welcome-section:not(:first-child) {
+    background: #f9f9f9;
+}
+
+.welcome-section:not(:first-child):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .welcome-section .section-icon {
@@ -4751,6 +4799,7 @@ img[data-src] {
     padding: 15px;
     background: white;
     border-radius: 10px;
+    border: 1px solid #e0e0e0;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     transition: all 0.3s ease;
 }
