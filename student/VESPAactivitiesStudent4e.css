@@ -1608,7 +1608,9 @@ body {
 .compact-card-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 0.75rem;
+    position: relative;
 }
 
 .compact-level {
@@ -1638,33 +1640,53 @@ body {
     justify-content: flex-end;
 }
 
+/* Add to dashboard button in compact cards */
+.compact-add-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+}
+
+.compact-add-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.5);
+}
+
+.compact-add-btn:active {
+    transform: scale(0.95);
+}
+
+/* Prescribed indicator */
+.compact-prescribed {
+    font-size: 0.75rem;
+    color: #667eea;
+    font-weight: 500;
+}
+
+.compact-activity-card.prescribed {
+    border-color: #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+}
+
 /* New button container for modal activity cards */
 .compact-card-actions {
     display: flex;
     gap: 8px;
     align-items: center;
     width: 100%;
-}
-
-.compact-add-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 50%;
-    color: var(--white);
-    font-size: 1.2rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: var(--transition-normal);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.compact-add-btn:hover {
-    transform: scale(1.1);
-    box-shadow: var(--shadow-md);
 }
 
 .compact-preview-btn {
@@ -4585,5 +4607,442 @@ img[data-src] {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* ============================================
+   ADD ACTIVITY CARD STYLES
+   ============================================ */
+
+.add-activity-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 16px;
+    padding: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 280px;
+    height: 100%;
+    min-height: 200px;
+}
+
+.add-activity-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.add-activity-card .add-icon {
+    font-size: 48px;
+    color: white;
+    margin-bottom: 10px;
+    font-weight: 300;
+}
+
+.add-activity-card p {
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* ============================================
+   NEW USER WELCOME MODAL
+   ============================================ */
+
+.new-user-welcome .welcome-modal-content.large-modal {
+    max-width: 700px;
+    padding: 40px;
+}
+
+.welcome-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.welcome-header h1 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.welcome-header .subtitle {
+    color: #666;
+    font-size: 16px;
+}
+
+.welcome-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.welcome-section {
+    text-align: center;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 12px;
+}
+
+.welcome-section .section-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.welcome-section h3 {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.welcome-section p {
+    font-size: 14px;
+    color: #666;
+}
+
+.welcome-features {
+    background: #f0f4f8;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.welcome-features h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.welcome-features ol {
+    padding-left: 20px;
+    color: #666;
+}
+
+.welcome-features li {
+    margin-bottom: 8px;
+}
+
+.welcome-footer {
+    text-align: center;
+}
+
+.welcome-start-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.welcome-start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.welcome-note {
+    color: #999;
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+/* ============================================
+   CYCLE CHANGE MODAL
+   ============================================ */
+
+.cycle-change .welcome-modal-content {
+    text-align: center;
+    max-width: 500px;
+}
+
+.cycle-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.cycle-message {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.cycle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 10px;
+}
+
+.info-icon {
+    font-size: 24px;
+}
+
+.info-item p {
+    margin: 0;
+    text-align: left;
+    color: #666;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.continue-btn, .customize-btn {
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.continue-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.customize-btn {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+}
+
+.continue-btn:hover, .customize-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* ============================================
+   MOTIVATIONAL MODAL
+   ============================================ */
+
+.vespa-motivational-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    z-index: 10001;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.vespa-motivational-modal.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
+.motivational-content {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    text-align: center;
+    min-width: 400px;
+    position: relative;
+}
+
+.motivational-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.motivational-close:hover {
+    color: #333;
+}
+
+.motivational-emoji {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.motivational-content h3 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.motivational-content p {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.motivational-stat {
+    background: #f0f4f8;
+    padding: 10px 20px;
+    border-radius: 20px;
+    color: #667eea;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+
+.motivational-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.update-activities-btn {
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.update-activities-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+/* ============================================
+   ACTIVITY SEARCH MODAL
+   ============================================ */
+
+.activity-search-modal .modal-content.large {
+    max-width: 900px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.search-controls {
+    margin-bottom: 30px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 16px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.category-filter {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 20px;
+    border: 2px solid #e0e0e0;
+    background: white;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.filter-btn:hover:not(.active) {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: #999;
+    padding: 40px;
+}
+
+.modal-footer {
+    border-top: 1px solid #e0e0e0;
+    padding-top: 20px;
+    text-align: center;
+}
+
+.help-text {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.problem-selector-btn {
+    background: linear-gradient(135deg, #72cb44, #86b4f0);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.problem-selector-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(114, 203, 68, 0.3);
+}
+
+@media (max-width: 768px) {
+    .welcome-sections {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .motivational-content {
+        min-width: 90vw;
+        padding: 30px 20px;
+    }
+    
+    .activity-search-modal .modal-content.large {
+        max-width: 95vw;
     }
 }

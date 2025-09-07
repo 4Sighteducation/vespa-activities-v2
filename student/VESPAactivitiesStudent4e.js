@@ -2309,19 +2309,31 @@
                 // Hide loading overlay
                 this.hideLoadingOverlay();
                 
-                // Check if this is a new user and show welcome modal
-                // Show welcome journey for new users or cycle changes
+                // Check if this is a new user and show appropriate modal
                 if (this.state.isNewUser) {
-                    log('New user detected, showing welcome journey');
-                    await this.showWelcomeJourney();
+                    log('New user detected, showing comprehensive welcome modal');
+                    await this.showNewUserWelcome();
                 } else {
-                    // Check if this is a new cycle (could add logic to track last seen cycle)
+                    // Check if this is a new cycle
                     const history = this.getActivityHistory();
-                    const currentCycleData = history[`cycle${this.state.currentCycle}`];
-                    if (!currentCycleData?.timestamp) {
-                        log('New cycle detected, showing journey for cycle', this.state.currentCycle);
-                        await this.showWelcomeJourney();
+                    const lastSeenCycle = localStorage.getItem(`vespa_last_cycle_${this.state.studentId}`);
+                    const currentCycle = String(this.state.currentCycle);
+                    
+                    if (lastSeenCycle && lastSeenCycle !== currentCycle) {
+                        log('Cycle change detected: from', lastSeenCycle, 'to', currentCycle);
+                        await this.showCycleChangeModal();
+                    } else if (!history[`cycle${this.state.currentCycle}`]?.timestamp) {
+                        // First time in this cycle
+                        log('First time in cycle', this.state.currentCycle);
+                        await this.showCycleChangeModal();
+                    } else {
+                        // Returning user, same cycle - show motivational modal
+                        log('Returning user, showing motivational message');
+                        await this.showMotivationalModal();
                     }
+                    
+                    // Store current cycle
+                    localStorage.setItem(`vespa_last_cycle_${this.state.studentId}`, currentCycle);
                 }
                 
                 log('VESPA Activities initialization complete');
@@ -2948,11 +2960,18 @@
                 }
                 log('Prescribed activity IDs:', this.state.prescribedActivityIds);
                 
-                // Parse new user field (field_3655)
-                const newUserField = record[this.config.fields.newUser] || 
-                                   record[this.config.fields.newUser + '_raw'] || 'No';
-                // Parse the boolean value - Show welcome if blank OR "Yes"
-                this.state.isNewUser = (!newUserField || newUserField === '' || newUserField === 'Yes' || newUserField === true || newUserField === 'true');
+                // Parse new user field (field_3655) - Knack boolean field (True/False)
+                const newUserField = record[this.config.fields.newUser];
+                const newUserFieldRaw = record[this.config.fields.newUser + '_raw'];
+                
+                // Handle Knack boolean field: True = new user, False = returning user
+                // Also handle empty/null as new user
+                this.state.isNewUser = (newUserField === true || newUserField === 'true' || 
+                                       newUserField === 'True' || newUserFieldRaw === true ||
+                                       newUserField === undefined || newUserField === null || 
+                                       newUserField === '');
+                                       
+                log('New user field value:', newUserField, 'Raw:', newUserFieldRaw);
                 log('Is new user:', this.state.isNewUser);
                 
                 // Get activity history from field_3656
@@ -3714,6 +3733,10 @@
                             prescribedNotCompleted.map((activity, index) => this.getActivityCardHTML(activity, index, true)).join('') :
                             '<div class="empty-state"><p>All prescribed activities completed! 🎉</p></div>'
                         }
+                        <div class="add-activity-card" onclick="vespaApp.showActivitySearch()">
+                            <div class="add-icon">+</div>
+                            <p>Add Activity</p>
+                        </div>
                     </div>
                 </section>
             `;
@@ -4217,6 +4240,10 @@
                         success: () => {
                             log('Activity removed from Knack:', activityId);
                             Knack.hideSpinner();
+                            // Auto-refresh after delete
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
                         },
                         error: (error) => {
                             console.error('Failed to remove activity from Knack:', error);
@@ -4540,19 +4567,29 @@
             const categoryColor = this.colors[activity.category]?.primary || '#666';
             const basePoints = activity.level === 'Level 3' ? 15 : 10;
             
+            // Check if activity is already prescribed
+            const isPrescribed = this.state.prescribedActivityIds.includes(activity.id) || 
+                               this.state.prescribedActivityIds.includes(activity.activityId);
+            
             return `
-                <div class="compact-activity-card ${isCompleted ? 'completed' : ''}" 
+                <div class="compact-activity-card ${isCompleted ? 'completed' : ''} ${isPrescribed ? 'prescribed' : ''}" 
                      data-activity-id="${activity.id}"
                      style="animation-delay: ${index * 0.05}s">
                     <div class="compact-card-header">
                         <span class="compact-level">${activity.level}</span>
                         <span class="compact-points">+${basePoints}</span>
+                        ${!isPrescribed && !isCompleted ? 
+                            `<button class="compact-add-btn" onclick="vespaApp.addActivityToDashboard('${activity.id}', '${activity.name.replace(/'/g, "\\'")}'); event.stopPropagation();" title="Add to dashboard">+</button>` : 
+                            ''
+                        }
                     </div>
                     <h4 class="compact-activity-name">${activity.name}</h4>
                     <div class="compact-card-footer">
                         ${isCompleted ? 
                             '<span class="compact-completed">✓ Completed</span>' :
-                            '<button class="compact-start-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start</button>'
+                            isPrescribed ? 
+                                '<span class="compact-prescribed">📋 In Dashboard</span>' :
+                                '<button class="compact-start-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start</button>'
                         }
                     </div>
                 </div>
@@ -5009,7 +5046,229 @@
         }
         
         /**
-         * Show enhanced welcome journey modal
+         * Show comprehensive welcome modal for brand new users
+         */
+        async showNewUserWelcome() {
+            log('Showing comprehensive welcome for new user');
+            
+            const firstName = this.state.studentFirstName || 'Student';
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'vespa-welcome-modal-overlay new-user-welcome show';
+            
+            modalOverlay.innerHTML = `
+                <div class="welcome-modal-content large-modal">
+                    <button class="welcome-modal-close">&times;</button>
+                    <div class="welcome-header">
+                        <h1>Welcome to VESPA Activities, ${firstName}! 🎉</h1>
+                        <p class="subtitle">Your personalized learning journey starts here</p>
+                    </div>
+                    
+                    <div class="welcome-sections">
+                        <div class="welcome-section">
+                            <div class="section-icon">🎯</div>
+                            <h3>Smart Activity Suggestions</h3>
+                            <p>Based on your VESPA scores, we've calculated the perfect activities to help you improve in areas where you need it most.</p>
+                        </div>
+                        
+                        <div class="welcome-section">
+                            <div class="section-icon">🔍</div>
+                            <h3>Add Your Own Activities</h3>
+                            <p>Facing a specific challenge? You can search and add activities based on problems you're experiencing with your studies.</p>
+                        </div>
+                        
+                        <div class="welcome-section">
+                            <div class="section-icon">👨‍🏫</div>
+                            <h3>Teacher Recommendations</h3>
+                            <p>Your teachers and tutors can also add activities to your portal to support your specific learning needs.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="welcome-features">
+                        <h3>How It Works:</h3>
+                        <ol>
+                            <li>Complete activities to earn points and track progress</li>
+                            <li>Reflect on your learning after each activity</li>
+                            <li>Watch your VESPA scores improve over time</li>
+                            <li>Unlock achievements and reach milestones</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="welcome-footer">
+                        <button class="welcome-start-btn">Get Started with Your Activities</button>
+                        <p class="welcome-note">We'll help you choose your first activities next</p>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modalOverlay);
+            
+            // Event handlers
+            const closeAndContinue = async () => {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+                // Now show the activity selection journey
+                await this.showWelcomeJourney();
+            };
+            
+            modalOverlay.querySelector('.welcome-modal-close').addEventListener('click', closeAndContinue);
+            modalOverlay.querySelector('.welcome-start-btn').addEventListener('click', closeAndContinue);
+        }
+        
+        /**
+         * Show modal for cycle changes
+         */
+        async showCycleChangeModal() {
+            log('Showing cycle change modal');
+            
+            const firstName = this.state.studentFirstName || 'Student';
+            const currentCycle = this.state.currentCycle || 1;
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'vespa-welcome-modal-overlay cycle-change show';
+            
+            modalOverlay.innerHTML = `
+                <div class="welcome-modal-content">
+                    <button class="welcome-modal-close">&times;</button>
+                    <div class="cycle-icon">🔄</div>
+                    <h2>Welcome to Cycle ${currentCycle}, ${firstName}!</h2>
+                    <p class="cycle-message">A new cycle means fresh opportunities and new activities tailored to your progress.</p>
+                    
+                    <div class="cycle-info">
+                        <div class="info-item">
+                            <span class="info-icon">📊</span>
+                            <p>Your VESPA scores have been updated</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-icon">🎯</span>
+                            <p>New activities have been selected for you</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-icon">✨</span>
+                            <p>You can customize your selection as always</p>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-buttons">
+                        <button class="continue-btn">Continue to Dashboard</button>
+                        <button class="customize-btn">Customize Activities</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modalOverlay);
+            
+            // Event handlers
+            modalOverlay.querySelector('.welcome-modal-close').addEventListener('click', () => {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+            });
+            
+            modalOverlay.querySelector('.continue-btn').addEventListener('click', () => {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+            });
+            
+            modalOverlay.querySelector('.customize-btn').addEventListener('click', async () => {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+                // Show the journey modal for activity selection
+                await this.showWelcomeJourney();
+            });
+        }
+        
+        /**
+         * Show motivational modal for returning users
+         */
+        async showMotivationalModal() {
+            log('Showing motivational modal for returning user');
+            
+            const firstName = this.state.studentFirstName || 'Student';
+            const stats = this.state.stats || {};
+            
+            // Array of motivational messages
+            const messages = [
+                {
+                    emoji: '🚀',
+                    title: `Welcome back, ${firstName}!`,
+                    message: 'Ready to continue your learning journey?',
+                    stat: stats.totalPoints ? `You've earned ${stats.totalPoints} points so far!` : null
+                },
+                {
+                    emoji: '⭐',
+                    title: `Great to see you, ${firstName}!`,
+                    message: 'Every activity completed is a step forward.',
+                    stat: stats.currentStreak ? `${stats.currentStreak} day streak! Keep it up!` : null
+                },
+                {
+                    emoji: '💪',
+                    title: `You're doing great, ${firstName}!`,
+                    message: 'Consistency is the key to success.',
+                    stat: stats.activitiesCompleted ? `${stats.activitiesCompleted} activities completed!` : null
+                },
+                {
+                    emoji: '🎯',
+                    title: `Focus time, ${firstName}!`,
+                    message: 'Small steps lead to big achievements.',
+                    stat: stats.nextMilestone ? `Only ${stats.nextMilestone.points - stats.totalPoints} points to ${stats.nextMilestone.name}!` : null
+                },
+                {
+                    emoji: '📚',
+                    title: `Learning mode: ON`,
+                    message: 'Your future self will thank you for this.',
+                    stat: null
+                }
+            ];
+            
+            // Pick a random message
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'vespa-motivational-modal show';
+            
+            modalOverlay.innerHTML = `
+                <div class="motivational-content">
+                    <button class="motivational-close">&times;</button>
+                    <div class="motivational-emoji">${randomMessage.emoji}</div>
+                    <h3>${randomMessage.title}</h3>
+                    <p>${randomMessage.message}</p>
+                    ${randomMessage.stat ? `<p class="motivational-stat">${randomMessage.stat}</p>` : ''}
+                    <div class="motivational-actions">
+                        <button class="continue-btn">Continue</button>
+                        <button class="update-activities-btn">Update Activities</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modalOverlay);
+            
+            // Auto-close after 5 seconds
+            const autoCloseTimer = setTimeout(() => {
+                if (document.body.contains(modalOverlay)) {
+                    modalOverlay.classList.remove('show');
+                    setTimeout(() => modalOverlay.remove(), 300);
+                }
+            }, 5000);
+            
+            // Event handlers
+            const closeModal = () => {
+                clearTimeout(autoCloseTimer);
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+            };
+            
+            modalOverlay.querySelector('.motivational-close').addEventListener('click', closeModal);
+            modalOverlay.querySelector('.continue-btn').addEventListener('click', closeModal);
+            
+            modalOverlay.querySelector('.update-activities-btn').addEventListener('click', async () => {
+                clearTimeout(autoCloseTimer);
+                modalOverlay.classList.remove('show');
+                setTimeout(() => modalOverlay.remove(), 300);
+                // Show the journey modal for activity selection
+                await this.showWelcomeJourney();
+            });
+        }
+        
+        /**
+         * Show enhanced welcome journey modal (for activity selection)
          */
         async showWelcomeJourney() {
             log('Starting welcome journey for user');
@@ -5338,7 +5597,7 @@
                     // Refresh the page to show updated dashboard
                     setTimeout(() => {
                         window.location.reload();
-                    }, 1500);
+                    }, 500);
                 }
                 
                 if (e.target.classList.contains('swap-btn')) {
@@ -5559,12 +5818,12 @@
         }
         
         async updateNewUserStatus() {
-            log('Updating new user status to Yes');
+            log('Updating new user status to False (marking as returning user)');
             
             try {
-                // Prepare the update data
+                // Prepare the update data - set to False to mark as returning user
                 const updateData = {
-                    [this.config.fields.newUser]: 'Yes'
+                    [this.config.fields.newUser]: false
                 };
                 
                 // Update the student record
@@ -5588,6 +5847,117 @@
             } catch (err) {
                 console.error('Error updating new user status:', err);
             }
+        }
+        
+        /**
+         * Show activity search modal
+         */
+        showActivitySearch() {
+            log('Showing activity search modal');
+            
+            const allActivities = this.state.activities.all || [];
+            const prescribedIds = this.state.prescribedActivityIds || [];
+            
+            // Filter out already prescribed activities
+            const availableActivities = allActivities.filter(activity => 
+                !prescribedIds.includes(activity.id)
+            );
+            
+            const modal = document.createElement('div');
+            modal.className = 'vespa-modal activity-search-modal show';
+            
+            let searchTerm = '';
+            let selectedCategory = 'all';
+            
+            const renderSearchResults = () => {
+                let filtered = availableActivities;
+                
+                // Filter by category
+                if (selectedCategory !== 'all') {
+                    filtered = filtered.filter(a => a.category === selectedCategory);
+                }
+                
+                // Filter by search term
+                if (searchTerm) {
+                    const term = searchTerm.toLowerCase();
+                    filtered = filtered.filter(a => 
+                        a.name.toLowerCase().includes(term) ||
+                        (a.instructions && a.instructions.toLowerCase().includes(term))
+                    );
+                }
+                
+                return filtered.map((activity, index) => 
+                    this.getCompactActivityCardHTML(activity, index)
+                ).join('') || '<p class="no-results">No activities found matching your search</p>';
+            };
+            
+            modal.innerHTML = `
+                <div class="modal-content large">
+                    <button class="modal-close" onclick="this.closest('.vespa-modal').remove()">×</button>
+                    <h2 class="modal-title">🔍 Search & Add Activities</h2>
+                    
+                    <div class="search-controls">
+                        <input type="text" 
+                               class="search-input" 
+                               placeholder="Search activities by name or description..."
+                               id="activity-search-input">
+                        
+                        <div class="category-filter">
+                            <button class="filter-btn active" data-category="all">All</button>
+                            <button class="filter-btn" data-category="vision">Vision</button>
+                            <button class="filter-btn" data-category="effort">Effort</button>
+                            <button class="filter-btn" data-category="systems">Systems</button>
+                            <button class="filter-btn" data-category="practice">Practice</button>
+                            <button class="filter-btn" data-category="attitude">Attitude</button>
+                        </div>
+                    </div>
+                    
+                    <div class="search-results" id="search-results">
+                        ${renderSearchResults()}
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <p class="help-text">💡 Tip: You can also select activities based on specific problems you're facing</p>
+                        <button class="problem-selector-btn" onclick="vespaApp.showProblemSelector()">
+                            Select by Problem
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event listeners
+            const searchInput = modal.querySelector('#activity-search-input');
+            const resultsContainer = modal.querySelector('#search-results');
+            
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                resultsContainer.innerHTML = renderSearchResults();
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target.classList.contains('filter-btn')) {
+                    modal.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    selectedCategory = e.target.dataset.category;
+                    resultsContainer.innerHTML = renderSearchResults();
+                }
+            });
+            
+            // Focus search input
+            searchInput.focus();
+        }
+        
+        /**
+         * Show problem selector modal
+         */
+        showProblemSelector() {
+            const currentModal = document.querySelector('.activity-search-modal');
+            if (currentModal) currentModal.remove();
+            
+            // Reuse the existing welcome journey but start at step 3 (problem selection)
+            this.showWelcomeJourney();
         }
         
         /**
@@ -5652,7 +6022,7 @@
                 // Refresh the page to show updated dashboard
                 setTimeout(() => {
                     window.location.reload();
-                }, 1500);
+                }, 500);
                 
                 return true;
                 
