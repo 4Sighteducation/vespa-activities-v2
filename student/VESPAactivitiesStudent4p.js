@@ -2463,8 +2463,10 @@
                     // Handle different actions
                     switch (action) {
                         case 'start':
-                            // Start the activity immediately
-                            this.showActivityStartModal(activity);
+                        case 'view':  // View also starts the activity (no separate view modal)
+                        default:
+                            // Start the activity (this opens the activity modal)
+                            this.startActivity(activity.id);
                             break;
                             
                         case 'add':
@@ -2476,14 +2478,8 @@
                             break;
                             
                         case 'info':
-                            // Show activity info modal
-                            this.showActivityInfo(activity);
-                            break;
-                            
-                        case 'view':
-                        default:
-                            // Show activity detail modal
-                            this.showActivityDetailModal(activity);
+                            // For now, just start the activity (no separate info modal)
+                            this.startActivity(activity.id);
                             break;
                     }
                     
