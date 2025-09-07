@@ -12,8 +12,10 @@ Each activity in `activity_json_final1a.json` now includes URLs that can be used
 
 ### Base URL
 ```
-https://vespaacademy.knack.com/vespa-academy#scene_1258/view_3168
+https://vespaacademy.knack.com/vespa-academy#my-vespa-activities
 ```
+
+**Note**: `my-vespa-activities` is the URL slug for scene_1258 in Knack.
 
 ## URL Formats
 

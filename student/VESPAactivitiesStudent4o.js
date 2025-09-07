@@ -2354,14 +2354,31 @@
         
         async handleURLParameters() {
             try {
+                log('Checking for URL parameters...');
+                
                 // Store any URL parameters in sessionStorage to survive redirects
                 const hash = window.location.hash;
-                const urlParams = new URLSearchParams(window.location.search);
+                const search = window.location.search;
+                log('Current hash:', hash);
+                log('Current search:', search);
                 
-                // Check for parameters in URL (query or hash)
+                // Parse query parameters from after the hash (e.g., #my-vespa-activities?activity=123)
+                let urlParams;
+                const hashParts = hash.split('?');
+                if (hashParts.length > 1) {
+                    // Parameters are after the hash
+                    urlParams = new URLSearchParams(hashParts[1]);
+                    log('Found parameters after hash:', hashParts[1]);
+                } else {
+                    // Try standard query parameters
+                    urlParams = new URLSearchParams(search);
+                    log('Using standard query parameters:', search);
+                }
+                
+                // Check for parameters in URL
                 let activityId, action, activityName, category, tab, bulkActivities, showWelcome;
                 
-                // First check query parameters
+                // Extract parameters
                 activityId = urlParams.get('activity') || urlParams.get('a');
                 action = urlParams.get('action') || 'view';
                 activityName = urlParams.get('name');
@@ -2369,6 +2386,16 @@
                 tab = urlParams.get('tab');
                 bulkActivities = urlParams.get('activities');
                 showWelcome = urlParams.get('welcome');
+                
+                log('Extracted parameters:', {
+                    activityId,
+                    action,
+                    activityName,
+                    category,
+                    tab,
+                    bulkActivities,
+                    showWelcome
+                });
                 
                 // If we have parameters, store them and clear from URL
                 if (activityId || category || tab || bulkActivities || showWelcome) {
@@ -2387,7 +2414,7 @@
                     log('Stored pending action in session:', pendingAction);
                     
                     // Clean the URL to prevent re-processing
-                    const cleanUrl = window.location.origin + window.location.pathname + '#scene_1258/view_3168';
+                    const cleanUrl = window.location.origin + window.location.pathname + '#my-vespa-activities';
                     window.history.replaceState(null, '', cleanUrl);
                 }
                 
