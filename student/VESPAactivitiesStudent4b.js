@@ -3814,6 +3814,8 @@
                     <div class="card-footer">
                         ${isCompleted ? 
                             '<button class="redo-activity-btn" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Redo Activity <span class="arrow">↻</span></button>' :
+                            (!isPrescribed && !this.state.prescribedActivityIds.includes(activity.id) ? 
+                                '<button class="add-to-dashboard-btn" onclick="vespaApp.addActivityToDashboard(\'' + activity.id + '\', \'' + activity.name.replace(/'/g, "\\'") + '\')">+ Add to Dashboard</button>' : '') +
                             '<button class="start-activity-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start Activity <span class="arrow">→</span></button>'
                         }
                     </div>
@@ -4922,11 +4924,11 @@
                 await $.ajax({
                     type: 'PUT',
                     url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                    data: { field_3656: historyString },
+                    data: JSON.stringify({ field_3656: historyString }),
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack',
-                        'Authorization': Knack.getUserToken()
+                        'Authorization': Knack.getUserToken(),
+                        'Content-Type': 'application/json'
                     }
                 });
                 
@@ -4962,13 +4964,13 @@
                         await $.ajax({
                             type: 'PUT',
                             url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                            data: { 
+                            data: JSON.stringify({ 
                                 field_1683: activityIds  // Array of record IDs for connection field
-                            },
+                            }),
                             headers: {
                                 'X-Knack-Application-Id': Knack.application_id,
-                                'X-Knack-REST-API-Key': 'knack',
-                                'Authorization': Knack.getUserToken()
+                                'Authorization': Knack.getUserToken(),
+                                'Content-Type': 'application/json'
                             }
                         });
                         
@@ -5295,13 +5297,13 @@
                             await $.ajax({
                                 type: 'PUT',
                                 url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                                data: { 
+                                data: JSON.stringify({ 
                                     field_1683: activityIds // Array of record IDs for connection field
-                                },
+                                }),
                                 headers: {
                                     'X-Knack-Application-Id': Knack.application_id,
-                                    'X-Knack-REST-API-Key': 'knack',
-                                    'Authorization': Knack.getUserToken()
+                                    'Authorization': Knack.getUserToken(),
+                                    'Content-Type': 'application/json'
                                 }
                             });
                             
@@ -5545,11 +5547,11 @@
                 const response = await $.ajax({
                     type: 'PUT',
                     url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
-                    data: updateData,
+                    data: JSON.stringify(updateData),
                     headers: {
                         'X-Knack-Application-Id': Knack.application_id,
-                        'X-Knack-REST-API-Key': 'knack',
-                        'Authorization': Knack.getUserToken()
+                        'Authorization': Knack.getUserToken(),
+                        'Content-Type': 'application/json'
                     }
                 });
                 
@@ -5562,6 +5564,110 @@
             } catch (err) {
                 console.error('Error updating new user status:', err);
             }
+        }
+        
+        /**
+         * Add an activity to the student's dashboard (prescribed activities)
+         */
+        async addActivityToDashboard(activityId, activityName) {
+            log(`Adding activity to dashboard: ${activityName} (${activityId})`);
+            
+            try {
+                // Get current prescribed activities
+                let currentActivities = this.state.prescribedActivityIds || [];
+                
+                // Check if activity is already prescribed
+                if (currentActivities.includes(activityId)) {
+                    log('Activity already in dashboard');
+                    this.showNotification('This activity is already in your dashboard!', 'info');
+                    return true;
+                }
+                
+                // Add new activity
+                currentActivities.push(activityId);
+                
+                // Save to Knack
+                await $.ajax({
+                    type: 'PUT',
+                    url: Knack.api_url + '/v1/objects/object_6/records/' + this.state.studentId,
+                    data: JSON.stringify({ 
+                        field_1683: currentActivities // Array of record IDs for connection field
+                    }),
+                    headers: {
+                        'X-Knack-Application-Id': Knack.application_id,
+                        'Authorization': Knack.getUserToken(),
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                // Update local state
+                this.state.prescribedActivityIds = currentActivities;
+                log('Activity added to dashboard successfully');
+                
+                // Update activity history
+                const history = this.getActivityHistory();
+                const cycleKey = `cycle${this.state.currentCycle}`;
+                
+                if (!history[cycleKey]) {
+                    history[cycleKey] = { prescribed: [], selected: [], completed: [] };
+                }
+                
+                if (!history[cycleKey].selected) {
+                    history[cycleKey].selected = [];
+                }
+                
+                history[cycleKey].selected.push(activityName);
+                history[cycleKey].selectedIds = currentActivities;
+                history[cycleKey].lastModified = new Date().toISOString();
+                
+                await this.saveActivityHistory(history);
+                
+                // Show success notification
+                this.showNotification(`"${activityName}" added to your dashboard!`, 'success');
+                
+                // Refresh the view
+                this.render();
+                
+                return true;
+                
+            } catch (error) {
+                console.error('Error adding activity to dashboard:', error);
+                this.showNotification('Failed to add activity to dashboard. Please try again.', 'error');
+                return false;
+            }
+        }
+        
+        /**
+         * Show notification message
+         */
+        showNotification(message, type = 'info') {
+            // Remove existing notifications
+            const existing = document.querySelector('.vespa-notification');
+            if (existing) {
+                existing.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `vespa-notification notification-${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <span class="notification-icon">${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
+                    <span class="notification-message">${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
         }
         
         showLoadingOverlay() {

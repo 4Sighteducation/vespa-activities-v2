@@ -4339,3 +4339,156 @@ img[data-src] {
         width: 100%;
     }
 }
+
+/* ============================================
+   ADD TO DASHBOARD BUTTON STYLES
+   ============================================ */
+
+.add-to-dashboard-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 8px;
+}
+
+.add-to-dashboard-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #764ba2, #667eea);
+}
+
+.add-to-dashboard-btn:active {
+    transform: translateY(0);
+}
+
+/* Update card footer to handle multiple buttons */
+.activity-card .card-footer {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 12px 0 0;
+}
+
+/* ============================================
+   NOTIFICATION STYLES
+   ============================================ */
+
+.vespa-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: 16px 20px;
+    min-width: 300px;
+    max-width: 400px;
+    transform: translateX(450px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vespa-notification.show {
+    transform: translateX(0);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.notification-icon {
+    font-size: 20px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-message {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+}
+
+/* Notification type styles */
+.notification-success {
+    border-left: 4px solid #10b981;
+}
+
+.notification-success .notification-icon {
+    color: #10b981;
+    background: #10b98120;
+    border-radius: 50%;
+}
+
+.notification-error {
+    border-left: 4px solid #ef4444;
+}
+
+.notification-error .notification-icon {
+    color: #ef4444;
+    background: #ef444420;
+    border-radius: 50%;
+}
+
+.notification-info {
+    border-left: 4px solid #3b82f6;
+}
+
+.notification-info .notification-icon {
+    color: #3b82f6;
+    background: #3b82f620;
+    border-radius: 50%;
+}
+
+.notification-warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.notification-warning .notification-icon {
+    color: #f59e0b;
+    background: #f59e0b20;
+    border-radius: 50%;
+}
+
+/* Mobile responsive notifications */
+@media (max-width: 768px) {
+    .vespa-notification {
+        top: auto;
+        bottom: 20px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .add-to-dashboard-btn {
+        width: 100%;
+        justify-content: center;
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+    
+    .activity-card .card-footer {
+        flex-direction: column;
+    }
+    
+    .activity-card .card-footer button {
+        width: 100%;
+    }
+}
