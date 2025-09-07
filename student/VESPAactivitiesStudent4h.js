@@ -3834,7 +3834,7 @@
                      data-activity-id="${activity.id}"
                      style="animation-delay: ${index * 0.1}s">
                     <div class="card-glow" style="background: ${categoryColor}"></div>
-                    <button class="activity-delete-btn" data-activity-id="${activity.id}" title="Remove activity">×</button>
+                    <button class="activity-delete-btn" data-activity-id="${activity.id}" data-activity-name="${activity.name.replace(/"/g, '&quot;')}" title="Remove activity">×</button>
                     <div class="card-header">
                         <span class="category-chip" style="background: ${categoryColor}20; color: ${categoryColor}">
                             ${categoryEmoji} ${activity.category.charAt(0).toUpperCase() + activity.category.slice(1)}
@@ -3848,7 +3848,7 @@
                         ${isCompleted ? 
                             '<button class="redo-activity-btn" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Redo Activity <span class="arrow">↻</span></button>' :
                             (!isPrescribed && !this.state.prescribedActivityIds.includes(activity.id) ? 
-                                '<button class="add-to-dashboard-btn" onclick="vespaApp.addActivityToDashboard(\'' + activity.id + '\', \'' + activity.name.replace(/'/g, "\\'") + '\')">+ Add to Dashboard</button>' : '') +
+                                '<button class="add-to-dashboard-btn" data-activity-id="' + activity.id + '" data-activity-name="' + activity.name.replace(/"/g, '&quot;') + '">+ Add to Dashboard</button>' : '') +
                             '<button class="start-activity-btn" style="background: ' + categoryColor + '" onclick="vespaApp.startActivity(\'' + activity.id + '\')">Start Activity <span class="arrow">→</span></button>'
                         }
                     </div>
@@ -4157,13 +4157,25 @@
                     this.switchView(view);
                 }
                 
-                // Delete activity
+                // Delete activity with bulk selection option
                 if (e.target.classList.contains('activity-delete-btn')) {
                     e.preventDefault();
                     e.stopPropagation();
                     const activityId = e.target.dataset.activityId;
+                    const activityName = e.target.dataset.activityName || 'this activity';
                     if (activityId) {
-                        this.removeActivityFromDashboard(activityId);
+                        this.showBulkSelectionModal('remove', activityId, activityName);
+                    }
+                }
+                
+                // Add activity with bulk selection option
+                if (e.target.classList.contains('add-to-dashboard-btn') || e.target.classList.contains('compact-add-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const activityId = e.target.dataset.activityId;
+                    const activityName = e.target.dataset.activityName || 'this activity';
+                    if (activityId) {
+                        this.showBulkSelectionModal('add', activityId, activityName);
                     }
                 }
                 
@@ -4589,7 +4601,7 @@
                         <span class="compact-level">${activity.level}</span>
                         <span class="compact-points">+${basePoints}</span>
                         ${!isPrescribed && !isCompleted ? 
-                            `<button class="compact-add-btn" onclick="vespaApp.addActivityToDashboard('${activity.id}', '${activity.name.replace(/'/g, "\\'")}'); event.stopPropagation();" title="Add to dashboard">+</button>` : 
+                            `<button class="compact-add-btn" data-activity-id="${activity.id}" data-activity-name="${activity.name.replace(/"/g, '&quot;')}" title="Add to dashboard">+</button>` : 
                             ''
                         }
                     </div>
@@ -4844,6 +4856,343 @@
                     closeModal();
                 }
             });
+        }
+        
+        // ============================================
+        // BULK SELECTION SYSTEM
+        // ============================================
+        
+        /**
+         * Enable bulk selection mode for activities
+         * @param {string} action - 'add' or 'remove'
+         * @param {string} initialActivityId - The activity that triggered bulk mode
+         */
+        enableBulkSelectionMode(action, initialActivityId) {
+            log(`Enabling bulk selection mode for ${action} action`);
+            
+            // Create selection tracker
+            this.bulkSelection = {
+                action: action,
+                selectedIds: new Set([initialActivityId]),
+                mode: 'selecting'
+            };
+            
+            // Add selection mode class to container
+            const container = document.querySelector('.activity-cards-grid, .my-activities-grid');
+            if (container) {
+                container.classList.add('bulk-selection-mode');
+            }
+            
+            // Add checkboxes to all eligible cards
+            const cards = action === 'add' 
+                ? document.querySelectorAll('.activity-card:not(.prescribed)')
+                : document.querySelectorAll('.my-activity-card');
+                
+            cards.forEach(card => {
+                const activityId = card.dataset.activityId;
+                if (!activityId) return;
+                
+                // Add checkbox to card
+                const checkbox = document.createElement('div');
+                checkbox.className = 'bulk-select-checkbox';
+                checkbox.innerHTML = `
+                    <input type="checkbox" 
+                           class="bulk-checkbox" 
+                           data-activity-id="${activityId}"
+                           ${activityId === initialActivityId ? 'checked' : ''}>
+                    <span class="checkmark"></span>
+                `;
+                card.appendChild(checkbox);
+                
+                // Make card clickable for selection
+                card.classList.add('selectable');
+                if (activityId === initialActivityId) {
+                    card.classList.add('selected');
+                }
+            });
+            
+            // Show bulk action bar
+            this.showBulkActionBar(action);
+            
+            // Add event listeners for selection
+            this.attachBulkSelectionListeners();
+        }
+        
+        /**
+         * Show bulk action bar with counter and action buttons
+         */
+        showBulkActionBar(action) {
+            const existingBar = document.querySelector('.bulk-action-bar');
+            if (existingBar) existingBar.remove();
+            
+            const actionBar = document.createElement('div');
+            actionBar.className = 'bulk-action-bar show';
+            actionBar.innerHTML = `
+                <div class="bulk-action-content">
+                    <div class="bulk-selection-info">
+                        <span class="bulk-count">1</span> selected
+                    </div>
+                    <div class="bulk-actions">
+                        <button class="bulk-cancel-btn">Cancel</button>
+                        <button class="bulk-confirm-btn ${action}-btn">
+                            ${action === 'add' ? '➕ Add Selected' : '🗑️ Remove Selected'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(actionBar);
+            
+            // Attach action bar event listeners
+            actionBar.querySelector('.bulk-cancel-btn').addEventListener('click', () => {
+                this.cancelBulkSelection();
+            });
+            
+            actionBar.querySelector('.bulk-confirm-btn').addEventListener('click', () => {
+                this.executeBulkAction();
+            });
+        }
+        
+        /**
+         * Attach event listeners for bulk selection
+         */
+        attachBulkSelectionListeners() {
+            // Handle checkbox changes
+            document.querySelectorAll('.bulk-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const activityId = e.target.dataset.activityId;
+                    const card = e.target.closest('.activity-card, .my-activity-card');
+                    
+                    if (e.target.checked) {
+                        this.bulkSelection.selectedIds.add(activityId);
+                        card.classList.add('selected');
+                    } else {
+                        this.bulkSelection.selectedIds.delete(activityId);
+                        card.classList.remove('selected');
+                    }
+                    
+                    this.updateBulkSelectionCount();
+                });
+            });
+            
+            // Handle card clicks
+            document.querySelectorAll('.selectable').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    // Don't trigger on button clicks
+                    if (e.target.closest('button') || e.target.closest('.bulk-checkbox')) return;
+                    
+                    const checkbox = card.querySelector('.bulk-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+        
+        /**
+         * Update the bulk selection counter
+         */
+        updateBulkSelectionCount() {
+            const count = this.bulkSelection.selectedIds.size;
+            const countElement = document.querySelector('.bulk-count');
+            if (countElement) {
+                countElement.textContent = count;
+            }
+            
+            // Disable confirm button if nothing selected
+            const confirmBtn = document.querySelector('.bulk-confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.disabled = count === 0;
+            }
+        }
+        
+        /**
+         * Cancel bulk selection mode
+         */
+        cancelBulkSelection() {
+            // Remove selection mode class
+            const container = document.querySelector('.activity-cards-grid, .my-activities-grid');
+            if (container) {
+                container.classList.remove('bulk-selection-mode');
+            }
+            
+            // Remove checkboxes and selection classes
+            document.querySelectorAll('.bulk-select-checkbox').forEach(el => el.remove());
+            document.querySelectorAll('.selectable').forEach(card => {
+                card.classList.remove('selectable', 'selected');
+            });
+            
+            // Remove action bar
+            const actionBar = document.querySelector('.bulk-action-bar');
+            if (actionBar) {
+                actionBar.classList.remove('show');
+                setTimeout(() => actionBar.remove(), 300);
+            }
+            
+            // Clear selection data
+            this.bulkSelection = null;
+        }
+        
+        /**
+         * Execute bulk action (add or remove multiple activities)
+         */
+        async executeBulkAction() {
+            if (!this.bulkSelection || this.bulkSelection.selectedIds.size === 0) return;
+            
+            const { action, selectedIds } = this.bulkSelection;
+            const count = selectedIds.size;
+            
+            // Show loading state
+            const confirmBtn = document.querySelector('.bulk-confirm-btn');
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+            confirmBtn.disabled = true;
+            
+            try {
+                if (action === 'add') {
+                    // Add multiple activities
+                    const currentActivities = [...this.state.prescribedActivityIds];
+                    const newActivities = [...selectedIds].filter(id => !currentActivities.includes(id));
+                    const updatedActivities = [...currentActivities, ...newActivities];
+                    
+                    await $.ajax({
+                        type: 'PUT',
+                        url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                        data: JSON.stringify({ 
+                            field_1683: updatedActivities
+                        }),
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    // Show success message
+                    this.showToast(`✅ Added ${count} ${count === 1 ? 'activity' : 'activities'} to your dashboard!`);
+                    
+                } else if (action === 'remove') {
+                    // Remove multiple activities
+                    const currentActivities = [...this.state.prescribedActivityIds];
+                    const remainingActivities = currentActivities.filter(id => !selectedIds.has(id));
+                    
+                    await $.ajax({
+                        type: 'PUT',
+                        url: `https://api.knack.com/v1/objects/object_6/records/${this.state.studentId}`,
+                        data: JSON.stringify({ 
+                            field_1683: remainingActivities
+                        }),
+                        headers: {
+                            'X-Knack-Application-Id': this.config.knackAppId,
+                            'X-Knack-REST-API-Key': this.config.knackApiKey,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    // Show success message
+                    this.showToast(`✅ Removed ${count} ${count === 1 ? 'activity' : 'activities'} from your dashboard!`);
+                }
+                
+                // Cancel selection mode
+                this.cancelBulkSelection();
+                
+                // Refresh page after short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error executing bulk action:', error);
+                confirmBtn.innerHTML = originalText;
+                confirmBtn.disabled = false;
+                this.showToast('❌ Failed to update activities. Please try again.', 'error');
+            }
+        }
+        
+        /**
+         * Show bulk selection modal when add/remove button is clicked
+         */
+        showBulkSelectionModal(action, activityId, activityName) {
+            const modalHtml = `
+                <div class="bulk-modal-overlay show">
+                    <div class="bulk-modal">
+                        <div class="bulk-modal-header">
+                            <h3>${action === 'add' ? '➕ Add Activities' : '🗑️ Remove Activities'}</h3>
+                            <button class="bulk-modal-close">✕</button>
+                        </div>
+                        <div class="bulk-modal-body">
+                            <p>How would you like to ${action} activities?</p>
+                            <div class="bulk-modal-options">
+                                <button class="bulk-option-single" data-activity-id="${activityId}">
+                                    <span class="option-icon">${action === 'add' ? '➕' : '🗑️'}</span>
+                                    <span class="option-text">Just "${activityName}"</span>
+                                </button>
+                                <button class="bulk-option-multiple">
+                                    <span class="option-icon">☑️</span>
+                                    <span class="option-text">Select multiple activities</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const modalElement = document.createElement('div');
+            modalElement.innerHTML = modalHtml;
+            document.body.appendChild(modalElement.firstElementChild);
+            
+            const modal = document.querySelector('.bulk-modal-overlay');
+            
+            // Handle modal close
+            modal.querySelector('.bulk-modal-close').addEventListener('click', () => {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+            });
+            
+            // Handle single activity action
+            modal.querySelector('.bulk-option-single').addEventListener('click', async () => {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+                
+                if (action === 'add') {
+                    await this.addActivityToDashboard(activityId);
+                } else {
+                    await this.removeActivityFromDashboard(activityId);
+                }
+            });
+            
+            // Handle multiple selection
+            modal.querySelector('.bulk-option-multiple').addEventListener('click', () => {
+                modal.classList.remove('show');
+                setTimeout(() => modal.remove(), 300);
+                
+                // Enable bulk selection mode
+                this.enableBulkSelectionMode(action, activityId);
+            });
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                    setTimeout(() => modal.remove(), 300);
+                }
+            });
+        }
+        
+        /**
+         * Show toast notification
+         */
+        showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type} show`;
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
         
         // ============================================
@@ -5457,6 +5806,24 @@
                                 <div class="journey-content">
                                     <p style="margin-bottom: 20px; color: #555;">Select challenges you're facing to get targeted activities:</p>
                                     
+                                    <!-- Activity Search Box -->
+                                    <div class="activity-search-box" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-radius: 12px; border: 2px solid #e0e0e0;">
+                                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">
+                                            🔍 Search for a specific activity:
+                                        </label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="text" 
+                                                   id="journey-activity-search" 
+                                                   placeholder="Type activity name..."
+                                                   style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                                            <button class="journey-search-btn" 
+                                                    style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                                Search
+                                            </button>
+                                        </div>
+                                        <div id="journey-search-results" style="margin-top: 10px; display: none;"></div>
+                                    </div>
+                                    
                                     <div class="problem-categories enhanced" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
                                         ${this.renderProblemSelectors()}
                                     </div>
@@ -5539,6 +5906,88 @@
                     modalOverlay.classList.remove('show');
                     setTimeout(() => modalOverlay.remove(), 300);
                     await this.updateNewUserStatus();
+                }
+                
+                // Handle "Browse all [category]" buttons
+                if (e.target.classList.contains('browse-category-btn')) {
+                    const category = e.target.dataset.category;
+                    // Temporarily hide the journey modal
+                    modalOverlay.style.display = 'none';
+                    
+                    // Show the category modal
+                    this.showActivitiesForCategory(category);
+                    
+                    // When category modal closes, show journey modal again
+                    const checkModalClosed = setInterval(() => {
+                        const categoryModal = document.querySelector('.activity-search-modal');
+                        if (!categoryModal) {
+                            modalOverlay.style.display = 'flex';
+                            clearInterval(checkModalClosed);
+                        }
+                    }, 100);
+                }
+                
+                // Handle search button
+                if (e.target.classList.contains('journey-search-btn')) {
+                    const searchInput = document.getElementById('journey-activity-search');
+                    const searchTerm = searchInput.value.trim().toLowerCase();
+                    const resultsDiv = document.getElementById('journey-search-results');
+                    
+                    if (searchTerm) {
+                        // Search for activities
+                        const allActivities = this.state.activities.all || [];
+                        const matches = allActivities.filter(activity => 
+                            activity.name.toLowerCase().includes(searchTerm)
+                        );
+                        
+                        if (matches.length > 0) {
+                            resultsDiv.innerHTML = `
+                                <div style="margin-top: 10px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 8px;">
+                                    <h6 style="margin: 0 0 10px; color: #333;">Found ${matches.length} activit${matches.length === 1 ? 'y' : 'ies'}:</h6>
+                                    <div style="max-height: 150px; overflow-y: auto;">
+                                        ${matches.map(activity => `
+                                            <div style="padding: 8px; margin-bottom: 4px; background: #f8f9fa; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                                <span>${activity.name}</span>
+                                                <button class="add-searched-activity" 
+                                                        data-activity-name="${activity.name.replace(/"/g, '&quot;')}"
+                                                        data-activity-id="${activity.id}"
+                                                        style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                                    Add +
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                            resultsDiv.style.display = 'block';
+                        } else {
+                            resultsDiv.innerHTML = `
+                                <div style="padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404;">
+                                    No activities found for "${searchTerm}"
+                                </div>
+                            `;
+                            resultsDiv.style.display = 'block';
+                        }
+                    }
+                }
+                
+                // Handle adding searched activity
+                if (e.target.classList.contains('add-searched-activity')) {
+                    const activityName = e.target.dataset.activityName;
+                    const activityId = e.target.dataset.activityId;
+                    
+                    if (!selectedActivities.includes(activityName)) {
+                        selectedActivities.push(activityName);
+                        e.target.textContent = 'Added ✓';
+                        e.target.style.background = '#6c757d';
+                        e.target.disabled = true;
+                        
+                        // Update activity count
+                        const activityCountElement = modalOverlay.querySelector('#activityCount');
+                        if (activityCountElement) {
+                            activityCountElement.textContent = selectedActivities.length;
+                        }
+                    }
                 }
                 
                 if (e.target.classList.contains('journey-next-btn')) {
@@ -5641,6 +6090,15 @@
                     // Handle activity swapping
                     const index = parseInt(e.target.parentElement.dataset.index);
                     this.showActivitySwapModal(index, selectedActivities);
+                }
+            });
+            
+            // Handle Enter key in search input
+            modalOverlay.addEventListener('keypress', (e) => {
+                if (e.target.id === 'journey-activity-search' && e.key === 'Enter') {
+                    e.preventDefault();
+                    const searchBtn = modalOverlay.querySelector('.journey-search-btn');
+                    if (searchBtn) searchBtn.click();
                 }
             });
             
@@ -5830,7 +6288,14 @@
                 const color = categoryColors[category] || '#666';
                 html += `
                     <div class="problem-category" style="border-left: 4px solid ${color}; margin-bottom: 15px;">
-                        <h5 style="color: ${color}; margin-bottom: 10px;">${category}</h5>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h5 style="color: ${color}; margin: 0;">${category}</h5>
+                            <button class="browse-category-btn" 
+                                    data-category="${category.toLowerCase()}"
+                                    style="padding: 4px 12px; background: ${color}20; color: ${color}; border: 1px solid ${color}; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s;">
+                                Browse all ${category} →
+                            </button>
+                        </div>
                         <div class="problem-list" style="max-height: 300px; overflow-y: auto;">
                             ${problemMappings[category].map(problem => `
                                 <label class="problem-item enhanced" style="display: block; margin-bottom: 8px; padding: 8px; border-radius: 6px; transition: background 0.2s;">
@@ -5863,21 +6328,25 @@
                     [this.config.fields.newUser]: false
                 };
                 
-                // Update the student record
+                // Update the student record - using correct object_39 and API credentials
                 const response = await $.ajax({
                     type: 'PUT',
-                    url: 'https://api.knack.com/v1/objects/object_6/records/' + this.state.studentId,
+                    url: 'https://api.knack.com/v1/objects/object_39/records/' + this.state.studentId,
                     data: JSON.stringify(updateData),
                     headers: {
-                        'X-Knack-Application-Id': '5ee90912c38ae7001510c1a9',
-                        'X-Knack-REST-API-Key': '8f733aa5-dd35-4464-8348-64824d1f5f0d',
+                        'X-Knack-Application-Id': '66e26296d863e5001c6f1e09',
+                        'X-Knack-REST-API-Key': '0b19dcb0-9f43-11ef-8724-eb3bc75b770f',
                         'Content-Type': 'application/json'
                     }
                 });
                 
                 if (response) {
                     log('Successfully updated new user status');
+                    log('Response from API:', response);
                     this.state.isNewUser = false;
+                    
+                    // Also update localStorage to remember this user is no longer new
+                    localStorage.setItem('vespa-user-returning', 'true');
                 } else {
                     console.error('Failed to update new user status');
                 }
