@@ -2964,14 +2964,17 @@
                 const newUserField = record[this.config.fields.newUser];
                 const newUserFieldRaw = record[this.config.fields.newUser + '_raw'];
                 
-                // Handle Knack boolean field: True = new user, False = returning user
-                // Also handle empty/null as new user
-                this.state.isNewUser = (newUserField === true || newUserField === 'true' || 
-                                       newUserField === 'True' || newUserFieldRaw === true ||
-                                       newUserField === undefined || newUserField === null || 
-                                       newUserField === '');
+                // Handle Knack boolean field: False = returning user, True/empty/null = new user
+                // Check explicitly for False values (boolean false or string "False")
+                const isReturningUser = (newUserField === false || newUserField === 'false' || 
+                                        newUserField === 'False' || newUserFieldRaw === false ||
+                                        newUserFieldRaw === 'false' || newUserFieldRaw === 'False');
+                
+                // If not explicitly false, treat as new user
+                this.state.isNewUser = !isReturningUser;
                                        
                 log('New user field value:', newUserField, 'Raw:', newUserFieldRaw);
+                log('Is returning user:', isReturningUser);
                 log('Is new user:', this.state.isNewUser);
                 
                 // Get activity history from field_3656
@@ -5056,6 +5059,7 @@
             modalOverlay.className = 'vespa-welcome-modal-overlay new-user-welcome show';
             
             modalOverlay.innerHTML = `
+                <div class="welcome-modal-backdrop"></div>
                 <div class="welcome-modal-content large-modal">
                     <button class="welcome-modal-close">&times;</button>
                     <div class="welcome-header">
@@ -5085,12 +5089,24 @@
                     
                     <div class="welcome-features">
                         <h3>How It Works:</h3>
-                        <ol>
-                            <li>Complete activities to earn points and track progress</li>
-                            <li>Reflect on your learning after each activity</li>
-                            <li>Watch your VESPA scores improve over time</li>
-                            <li>Unlock achievements and reach milestones</li>
-                        </ol>
+                        <div class="how-it-works-grid">
+                            <div class="how-it-works-item">
+                                <span class="step-number">1</span>
+                                <span>Complete activities to earn points and track progress</span>
+                            </div>
+                            <div class="how-it-works-item">
+                                <span class="step-number">2</span>
+                                <span>Reflect on your learning after each activity</span>
+                            </div>
+                            <div class="how-it-works-item">
+                                <span class="step-number">3</span>
+                                <span>Watch your VESPA scores improve over time</span>
+                            </div>
+                            <div class="how-it-works-item">
+                                <span class="step-number">4</span>
+                                <span>Unlock achievements and reach milestones</span>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="welcome-footer">

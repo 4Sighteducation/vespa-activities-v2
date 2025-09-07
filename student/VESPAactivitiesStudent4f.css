@@ -4652,9 +4652,30 @@ img[data-src] {
    NEW USER WELCOME MODAL
    ============================================ */
 
+.new-user-welcome {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10002;
+}
+
+.welcome-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+}
+
 .new-user-welcome .welcome-modal-content.large-modal {
+    position: relative;
     max-width: 700px;
     padding: 40px;
+    z-index: 1;
 }
 
 .welcome-header {
@@ -4711,16 +4732,53 @@ img[data-src] {
 
 .welcome-features h3 {
     color: #333;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
-.welcome-features ol {
-    padding-left: 20px;
-    color: #666;
+/* 2x2 Grid for How It Works */
+.how-it-works-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 20px;
 }
 
-.welcome-features li {
-    margin-bottom: 8px;
+.how-it-works-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.how-it-works-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.how-it-works-item span:last-child {
+    flex: 1;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 .welcome-footer {
@@ -5033,6 +5091,11 @@ img[data-src] {
         grid-template-columns: 1fr;
     }
     
+    .how-it-works-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+    
     .modal-buttons {
         flex-direction: column;
     }
@@ -5044,5 +5107,10 @@ img[data-src] {
     
     .activity-search-modal .modal-content.large {
         max-width: 95vw;
+    }
+    
+    .new-user-welcome .welcome-modal-content.large-modal {
+        padding: 20px;
+        margin: 20px;
     }
 }
