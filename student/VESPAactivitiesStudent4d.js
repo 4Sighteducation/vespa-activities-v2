@@ -5159,14 +5159,19 @@
                                     <span class="progress-text">Step ${currentStep} of ${totalSteps}</span>
                                 </div>
                                 <div class="journey-content">
-                                    <p style="margin-bottom: 20px; color: #555;">Select challenges you're facing to get targeted activities (max 3):</p>
+                                    <p style="margin-bottom: 20px; color: #555;">Select challenges you're facing to get targeted activities:</p>
                                     
-                                    <div class="problem-categories enhanced">
+                                    <div class="problem-categories enhanced" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
                                         ${this.renderProblemSelectors()}
                                     </div>
                                     
-                                    <div class="selected-count" style="text-align: center; margin: 15px 0; color: #666;">
-                                        <span id="problemCount">0</span> of 3 problems selected
+                                    <div class="selected-count" style="text-align: center; margin: 15px 0; padding: 10px; background: #f0f4f8; border-radius: 8px;">
+                                        <div style="font-size: 14px; color: #666;">
+                                            <span id="problemCount">0</span> problems selected
+                                        </div>
+                                        <div style="font-size: 18px; font-weight: 600; color: #333; margin-top: 5px;">
+                                            <span id="activityCount">0</span> activities will be added
+                                        </div>
                                     </div>
                                     
                                     <div class="journey-buttons">
@@ -5310,8 +5315,12 @@
                             // Update local state
                             this.state.prescribedActivityIds = activityIds;
                             log('Prescribed activities saved to Knack:', activityIds);
+                            
+                            // Show success message
+                            this.showNotification(`Successfully added ${activityIds.length} activities to your dashboard!`, 'success');
                         } catch (error) {
                             console.error('Failed to save prescribed activities:', error);
+                            this.showNotification('Failed to save activities. Please try again.', 'error');
                         }
                     }
                     
@@ -5326,8 +5335,10 @@
                     await this.saveActivityHistory(history);
                     await this.updateNewUserStatus();
                     
-                    // Refresh the view
-                    this.render();
+                    // Refresh the page to show updated dashboard
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
                 }
                 
                 if (e.target.classList.contains('swap-btn')) {
@@ -5337,28 +5348,40 @@
                 }
             });
             
-            // Handle checkbox selection limits
+            // Handle checkbox selection and activity counting
             modalOverlay.addEventListener('change', (e) => {
                 if (e.target.classList.contains('problem-checkbox')) {
                     const checkedBoxes = modalOverlay.querySelectorAll('.problem-checkbox:checked');
-                    const countElement = modalOverlay.querySelector('#problemCount');
+                    const problemCountElement = modalOverlay.querySelector('#problemCount');
+                    const activityCountElement = modalOverlay.querySelector('#activityCount');
                     
-                    // Update count
-                    if (countElement) {
-                        countElement.textContent = checkedBoxes.length;
+                    // Update problem count
+                    if (problemCountElement) {
+                        problemCountElement.textContent = checkedBoxes.length;
                     }
                     
-                    // Limit to 3 selections
-                    if (checkedBoxes.length >= 3) {
-                        modalOverlay.querySelectorAll('.problem-checkbox:not(:checked)').forEach(cb => {
-                            cb.disabled = true;
-                            cb.parentElement.style.opacity = '0.5';
-                        });
+                    // Calculate total unique activities
+                    const allActivities = new Set();
+                    checkedBoxes.forEach(checkbox => {
+                        const activities = JSON.parse(checkbox.dataset.activities || '[]');
+                        activities.forEach(activity => allActivities.add(activity));
+                    });
+                    
+                    // Update activity count
+                    if (activityCountElement) {
+                        activityCountElement.textContent = allActivities.size;
+                        // Add animation effect
+                        activityCountElement.style.transform = 'scale(1.2)';
+                        setTimeout(() => {
+                            activityCountElement.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                    
+                    // Visual feedback for selected items
+                    if (e.target.checked) {
+                        e.target.parentElement.style.background = '#e8f4fd';
                     } else {
-                        modalOverlay.querySelectorAll('.problem-checkbox').forEach(cb => {
-                            cb.disabled = false;
-                            cb.parentElement.style.opacity = '1';
-                        });
+                        e.target.parentElement.style.background = '';
                     }
                 }
             });
@@ -5510,19 +5533,20 @@
             Object.keys(problemMappings).forEach(category => {
                 const color = categoryColors[category] || '#666';
                 html += `
-                    <div class="problem-category" style="border-left: 4px solid ${color};">
-                        <h5 style="color: ${color};">${category}</h5>
-                        <div class="problem-list">
-                            ${problemMappings[category].slice(0, 3).map(problem => `
-                                <label class="problem-item enhanced">
+                    <div class="problem-category" style="border-left: 4px solid ${color}; margin-bottom: 15px;">
+                        <h5 style="color: ${color}; margin-bottom: 10px;">${category}</h5>
+                        <div class="problem-list" style="max-height: 300px; overflow-y: auto;">
+                            ${problemMappings[category].map(problem => `
+                                <label class="problem-item enhanced" style="display: block; margin-bottom: 8px; padding: 8px; border-radius: 6px; transition: background 0.2s;">
                                     <input type="checkbox" class="problem-checkbox" value="${problem.id}" 
                                            data-activities='${JSON.stringify(problem.recommendedActivities)}'
+                                           data-activity-ids='${JSON.stringify(problem.activityIds || [])}'
                                            data-category="${category}">
                                     <span class="problem-text">${problem.text}</span>
                                     <span class="activity-count activity-info-trigger" 
                                           data-activities='${JSON.stringify(problem.recommendedActivities)}'
-                                          style="cursor: help;">
-                                        ${problem.recommendedActivities?.length || 0} activities ℹ️
+                                          style="cursor: help; color: ${color}; font-weight: 500;">
+                                        +${problem.recommendedActivities?.length || 0} activities
                                     </span>
                                 </label>
                             `).join('')}
@@ -5625,8 +5649,10 @@
                 // Show success notification
                 this.showNotification(`"${activityName}" added to your dashboard!`, 'success');
                 
-                // Refresh the view
-                this.render();
+                // Refresh the page to show updated dashboard
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
                 
                 return true;
                 
