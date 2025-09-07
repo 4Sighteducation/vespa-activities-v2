@@ -4877,20 +4877,35 @@
                 mode: 'selecting'
             };
             
-            // Add selection mode class to container
-            const container = document.querySelector('.activity-cards-grid, .my-activities-grid');
+            // Add selection mode class to container - check all possible containers
+            const container = document.querySelector('.compact-activities-grid, .activity-cards-grid, .my-activities-grid, .activities-grid, .dashboard-container');
             if (container) {
                 container.classList.add('bulk-selection-mode');
             }
             
-            // Add checkboxes to all eligible cards
-            const cards = action === 'add' 
-                ? document.querySelectorAll('.activity-card:not(.prescribed)')
-                : document.querySelectorAll('.my-activity-card');
+            // Add checkboxes to all eligible cards - fix selectors
+            let cards;
+            if (action === 'add') {
+                // First check for compact cards (in modals/category views)
+                cards = document.querySelectorAll('.compact-activity-card:not(.prescribed):not(.completed)');
+                
+                // If no compact cards, check for regular cards
+                if (cards.length === 0) {
+                    cards = document.querySelectorAll('.activity-card:not(.prescribed):not(.completed)');
+                }
+            } else {
+                // For removing, select prescribed activity cards on dashboard
+                cards = document.querySelectorAll('.activity-card.prescribed');
+            }
                 
             cards.forEach(card => {
                 const activityId = card.dataset.activityId;
                 if (!activityId) return;
+                
+                // Check if checkbox already exists to prevent duplicates
+                if (card.querySelector('.bulk-select-checkbox')) {
+                    return;
+                }
                 
                 // Add checkbox to card
                 const checkbox = document.createElement('div');
@@ -4961,7 +4976,7 @@
             document.querySelectorAll('.bulk-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
                     const activityId = e.target.dataset.activityId;
-                    const card = e.target.closest('.activity-card, .my-activity-card');
+                    const card = e.target.closest('.activity-card, .my-activity-card, .compact-activity-card');
                     
                     if (e.target.checked) {
                         this.bulkSelection.selectedIds.add(activityId);
@@ -5012,7 +5027,7 @@
          */
         cancelBulkSelection() {
             // Remove selection mode class
-            const container = document.querySelector('.activity-cards-grid, .my-activities-grid');
+            const container = document.querySelector('.compact-activities-grid, .activity-cards-grid, .my-activities-grid, .activities-grid, .dashboard-container');
             if (container) {
                 container.classList.remove('bulk-selection-mode');
             }
