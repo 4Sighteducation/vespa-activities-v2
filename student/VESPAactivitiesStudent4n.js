@@ -4909,8 +4909,13 @@
                            class="bulk-checkbox" 
                            data-activity-id="${activityId}"
                            ${activityId === initialActivityId ? 'checked' : ''}>
-                    <span class="checkmark"></span>
                 `;
+                
+                // Ensure card has position relative for absolute positioning
+                if (!card.style.position || card.style.position === 'static') {
+                    card.style.position = 'relative';
+                }
+                
                 card.appendChild(checkbox);
                 
                 // Make card clickable for selection

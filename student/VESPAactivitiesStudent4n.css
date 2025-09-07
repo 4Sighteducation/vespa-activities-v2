@@ -5334,10 +5334,28 @@ img[data-src] {
 .bulk-selection-mode .activity-card,
 .bulk-selection-mode .my-activity-card,
 .bulk-selection-mode .compact-activity-card {
-    position: relative;
+    position: relative !important;
     cursor: pointer;
     border: 2px solid transparent;
     transition: all 0.2s ease;
+}
+
+/* Ensure cards are positioned for checkbox placement */
+.compact-activity-card,
+.activity-card {
+    position: relative;
+}
+
+/* Specific positioning for compact cards */
+.compact-activity-card .bulk-select-checkbox {
+    top: 8px;
+    right: 8px;
+}
+
+/* Ensure checkbox is visible above card content */
+.activity-card .bulk-select-checkbox,
+.compact-activity-card .bulk-select-checkbox {
+    z-index: 100;
 }
 
 .bulk-selection-mode .activity-card.selected,
@@ -5351,13 +5369,50 @@ img[data-src] {
     position: absolute;
     top: 12px;
     right: 12px;
-    z-index: 10;
+    z-index: 100;
+    background: white;
+    border-radius: 4px;
+    padding: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 .bulk-checkbox {
     width: 24px;
     height: 24px;
     cursor: pointer;
+    display: block !important;
+    opacity: 1 !important;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.bulk-checkbox:checked {
+    background: #4CAF50;
+    border-color: #4CAF50;
+}
+
+.bulk-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.bulk-checkbox:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
 /* Bulk action bar */
