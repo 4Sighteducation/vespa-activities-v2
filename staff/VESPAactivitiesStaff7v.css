@@ -1,4 +1,4 @@
-/* Minimal style additions to match student card layout/grouping */
+/* VESPA Staff Activities - Professional Redesign 2025 */
 
 /* Loading Screen Styles */
 .vespa-loading-screen {
@@ -366,12 +366,13 @@
     background: var(--white);
 }
 
-/* Student Table */
+/* Enhanced Student Table - Professional Design */
 .student-table-container {
-    background: var(--white);
-    border-radius: 8px;
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.04);
+    overflow: visible;
+    border: 1px solid #e5e7eb;
 }
 /* Bulk selection toolbar */
 .bulk-toolbar {
@@ -2923,6 +2924,434 @@
         font-size: 10px;
         padding: 1px 4px;
     }
+}
+
+/* ============================================
+   VESPA STAFF REDESIGN 2025 - PROFESSIONAL UI
+   ============================================ */
+
+/* ========== DASHBOARD PAGE IMPROVEMENTS ========== */
+
+/* Enhanced Table with Hover Effects */
+.student-table tbody tr {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.student-table tbody tr:hover {
+    background: linear-gradient(90deg, #f0f9ff 0%, #e0f2fe 100%);
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.student-table tbody tr:hover td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #0891b2;
+}
+
+/* VESPA Column Headers with Styled First Letters */
+.vespa-column-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.vespa-column.vision .vespa-column-header::before {
+    content: 'V';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+.vespa-column.effort .vespa-column-header::before {
+    content: 'E';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+.vespa-column.systems .vespa-column-header::before {
+    content: 'S';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+.vespa-column.practice .vespa-column-header::before {
+    content: 'P';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+.vespa-column.attitude .vespa-column-header::before {
+    content: 'A';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+/* Hide original category icons */
+.vespa-column .category-icon {
+    display: none;
+}
+
+/* Enhanced Activity/Score Displays */
+.vespa-activity-display,
+.vespa-score-display {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Fix Attitude Circle */
+.vespa-activity-display.attitude,
+.vespa-score-display.attitude {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+}
+
+/* Professional VIEW Button */
+.vespa-view-button {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    color: white;
+    border: none;
+    font-weight: 700;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.vespa-view-button::before {
+    content: 'VIEW';
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    display: block;
+}
+
+.vespa-view-button::after {
+    content: '→';
+    font-size: 16px;
+    display: block;
+    margin-top: -2px;
+}
+
+.vespa-view-button:hover {
+    background: linear-gradient(135deg, #0e7490 0%, #164e63 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
+}
+
+/* Hide original eye icon */
+.vespa-view-button .fa-eye,
+.vespa-view-button i {
+    display: none;
+}
+
+/* Enhanced Toggle Switch */
+.display-toggle {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-radius: 12px;
+    padding: 3px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+    border: 1px solid #cbd5e1;
+}
+
+.toggle-btn {
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-btn.active {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* ========== INDIVIDUAL STUDENT PAGE IMPROVEMENTS ========== */
+
+/* COMPLETED ACTIVITIES - GREEN CHECK ON RIGHT */
+.compact-activity-card.completed,
+.student-activity-card.completed,
+.activity-card.completed {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border: 2px solid #22c55e;
+    position: relative;
+    padding-right: 32px;
+    padding-left: 8px;
+}
+
+/* Green checkmark on RIGHT side */
+.compact-activity-card.completed::after,
+.student-activity-card.completed::after,
+.activity-card.completed::after {
+    content: '✓';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    background: #22c55e;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 11px;
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+    z-index: 10;
+}
+
+/* Remove left-side checkmarks */
+.compact-activity-card.completed::before,
+.student-activity-card.completed::before,
+.activity-card.completed::before {
+    display: none;
+}
+
+/* Remove old flag */
+.completion-flag {
+    display: none;
+}
+
+/* Category Headers with Styled Letters */
+.category-main-header .cat-icon {
+    display: none;
+}
+
+.category-main-header.vision::before {
+    content: 'V';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    color: #f97316;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.category-main-header.effort::before {
+    content: 'E';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    color: #3b82f6;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.category-main-header.systems::before {
+    content: 'S';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    color: #10b981;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.category-main-header.practice::before {
+    content: 'P';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    color: #8b5cf6;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.category-main-header.attitude::before {
+    content: 'A';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: white;
+    color: #ec4899;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+/* Enhanced Drag & Drop Feedback */
+.student-activities-area.drag-over,
+.column-activities-compact.drag-over,
+.level-2-activities.drag-over,
+.level-3-activities.drag-over {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-color: #3b82f6;
+    box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.15);
+    transform: scale(1.01);
+}
+
+.compact-activity-card.dragging,
+.student-activity-card.dragging {
+    opacity: 0.8;
+    transform: rotate(3deg) scale(1.05);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 9999;
+}
+
+/* Improved Activity Card Colors */
+.compact-activity-card.vision {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%);
+    border-left: 3px solid #f97316;
+    color: #431407;
+}
+
+.compact-activity-card.effort {
+    background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+    border-left: 3px solid #3b82f6;
+    color: #1e3a8a;
+}
+
+.compact-activity-card.systems {
+    background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+    border-left: 3px solid #10b981;
+    color: #14532d;
+}
+
+.compact-activity-card.practice {
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+    border-left: 3px solid #8b5cf6;
+    color: #3b0764;
+}
+
+.compact-activity-card.attitude {
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+    border-left: 3px solid #ec4899;
+    color: #500724;
+}
+
+/* Enhanced Progress Bars */
+.student-progress-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 100px;
+    overflow: visible;
+    position: relative;
+}
+
+.student-progress-bar .progress-fill {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+    position: relative;
+    border-radius: 100px;
+}
+
+/* Professional Color Updates */
+.vespa-activity-display.vision,
+.vespa-score-display.vision {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+}
+
+.vespa-activity-display.effort,
+.vespa-score-display.effort {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.vespa-activity-display.systems,
+.vespa-score-display.systems {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.vespa-activity-display.practice,
+.vespa-score-display.practice {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.vespa-activity-display.attitude,
+.vespa-score-display.attitude {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
 }
 /* PAGE 2 RADICAL REDESIGN - Compact All-in-One Layout */
 
