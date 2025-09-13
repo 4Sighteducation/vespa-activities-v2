@@ -1203,7 +1203,7 @@
                         
                         // Update progress
                         const progressPercent = 65 + ((batchNum / totalBatches) * 30); // 65% to 95%
-                        this.showLoadingScreen('Loading VESPA data...', { 
+                        this.showLoadingScreen('Loading Students & Activities...', { 
                             percent: Math.min(progressPercent, 95), 
                             text: `Loading Year Groups and Groups (batch ${batchNum} of ${totalBatches})...` 
                         });
@@ -1835,6 +1835,9 @@
             });
             
             this.state.filteredStudents = filtered;
+            
+            // Reset to page 1 when filters change
+            this.state.pagination.currentPage = 1;
         }
         
         // Main render function
@@ -2575,7 +2578,7 @@
             // Check if we're in bulk mode
             const modal = document.getElementById('activity-series-modal');
             const bulkMode = modal && modal.dataset.bulkMode === 'true';
-            const actualStudentId = bulkMode ? 
+            const actualStudentIds = bulkMode ? 
                 Array.from(this.state.selectedStudents) : 
                 [studentId];
             try {
@@ -2596,8 +2599,8 @@
                 // Close the first modal
                 this.closeActivitySeriesModal();
                 
-                // Show activity selection modal
-                this.showActivitySelectionModal(problem, recommendedActivities, studentId);
+                // Show activity selection modal - use actualStudentIds (which handles both single and bulk)
+                this.showActivitySelectionModal(problem, recommendedActivities, actualStudentIds);
                 
             } catch (err) {
                 error('Failed to select problem:', err);
@@ -2651,11 +2654,11 @@
                                             Select All / None
                                         </button>
                                         <div class="main-actions">
-                                            <button class="btn btn-primary" onclick="VESPAStaff.addSelectedActivities('${studentId}')">
-                                                ➕ Add Selected
+                                            <button class="btn btn-primary" onclick="VESPAStaff.addSelectedActivities()">
+                                                ➕ Add to Current Activities
                                             </button>
-                                            <button class="btn btn-warning" onclick="VESPAStaff.replaceAllActivities('${studentId}')">
-                                                🔄 Replace All
+                                            <button class="btn btn-warning" onclick="VESPAStaff.replaceAllActivities()">
+                                                🔄 Replace ALL Activities
                                             </button>
                                         </div>
                                     </div>
@@ -2745,12 +2748,34 @@
                 this.closeActivitySelectionModal();
                 this.showSuccessModal('Success', `Added ${selectedActivityIds.length} activities to ${studentText}.`);
                 
-                // If single student, refresh workspace; otherwise refresh main view
-                if (studentIds.length === 1) {
+                // If single student, refresh workspace; otherwise just update the affected students
+                if (studentIds.length === 1 && this.state.currentView === 'workspace') {
                     await this.refreshStudentWorkspace(studentIds[0]);
                 } else {
-                    await this.loadData();
-                    await this.render();
+                    // Just update the prescribed activities for affected students without full reload
+                    for (const studentId of studentIds) {
+                        const student = this.state.students.find(s => s.id === studentId);
+                        if (student) {
+                            // Add new activities to prescribed list
+                            if (!student.prescribedActivityIds) {
+                                student.prescribedActivityIds = [];
+                            }
+                            for (const activityId of selectedActivityIds) {
+                                if (!student.prescribedActivityIds.includes(activityId)) {
+                                    student.prescribedActivityIds.push(activityId);
+                                }
+                            }
+                            // Update progress calculation
+                            const prescribedCount = student.prescribedActivityIds.length;
+                            const completedCount = student.finishedActivities?.length || 0;
+                            student.progress = prescribedCount > 0 ? Math.round((completedCount / prescribedCount) * 100) : 0;
+                        }
+                    }
+                    // Only re-render if we're on the list view
+                    if (this.state.currentView === 'list') {
+                        this.applyFilters();
+                        this.render();
+                    }
                 }
                 
             } catch (err) {
@@ -2793,12 +2818,27 @@
                 this.closeActivitySelectionModal();
                 this.showSuccessModal('Success', `Replaced all activities with ${selectedActivityIds.length} selected activities for ${studentText}.`);
                 
-                // If single student, refresh workspace; otherwise refresh main view
-                if (studentIds.length === 1) {
+                // If single student, refresh workspace; otherwise just update the affected students
+                if (studentIds.length === 1 && this.state.currentView === 'workspace') {
                     await this.refreshStudentWorkspace(studentIds[0]);
                 } else {
-                    await this.loadData();
-                    await this.render();
+                    // Just update the prescribed activities for affected students without full reload
+                    for (const studentId of studentIds) {
+                        const student = this.state.students.find(s => s.id === studentId);
+                        if (student) {
+                            // Replace prescribed activities list
+                            student.prescribedActivityIds = [...selectedActivityIds];
+                            // Update progress calculation
+                            const prescribedCount = student.prescribedActivityIds.length;
+                            const completedCount = student.finishedActivities?.length || 0;
+                            student.progress = prescribedCount > 0 ? Math.round((completedCount / prescribedCount) * 100) : 0;
+                        }
+                    }
+                    // Only re-render if we're on the list view
+                    if (this.state.currentView === 'list') {
+                        this.applyFilters();
+                        this.render();
+                    }
                 }
                 
             } catch (err) {
