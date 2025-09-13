@@ -1931,8 +1931,65 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff7s.css';
+                // Temporarily load local CSS for testing - CHANGE BACK AFTER TESTING
+                // styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff7v.css';
+                styleLink.href = '/staff/VESPAactivitiesStaff7v.css'; // LOCAL FILE FOR TESTING
                 document.head.appendChild(styleLink);
+                
+                // Add critical override styles for immediate fix
+                const overrideStyles = document.createElement('style');
+                overrideStyles.id = 'vespa-staff-overrides';
+                overrideStyles.innerHTML = `
+                    /* Critical Overrides for Professional UI */
+                    .vespa-view-button {
+                        width: 56px !important;
+                        height: 56px !important;
+                        border-radius: 8px !important;
+                        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%) !important;
+                        color: white !important;
+                        border: none !important;
+                        font-weight: 700 !important;
+                        cursor: pointer !important;
+                        transition: all 0.2s ease !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        margin: 0 auto !important;
+                        box-shadow: 0 2px 6px rgba(8, 145, 178, 0.3) !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        font-size: 0 !important;
+                    }
+                    
+                    .vespa-view-button::before {
+                        content: 'VIEW' !important;
+                        font-size: 12px !important;
+                        font-weight: 700 !important;
+                        letter-spacing: 0.5px !important;
+                        display: block !important;
+                    }
+                    
+                    .vespa-view-button::after {
+                        content: '→' !important;
+                        font-size: 16px !important;
+                        display: block !important;
+                        margin-top: -2px !important;
+                    }
+                    
+                    .vespa-view-button:hover {
+                        background: linear-gradient(135deg, #0e7490 0%, #164e63 100%) !important;
+                        transform: translateY(-2px) !important;
+                        box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4) !important;
+                    }
+                    
+                    .vespa-view-button i,
+                    .vespa-view-button span,
+                    .vespa-view-button .fa-eye {
+                        display: none !important;
+                    }
+                `;
+                document.head.appendChild(overrideStyles);
             }
         }
         

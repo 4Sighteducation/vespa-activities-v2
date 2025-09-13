@@ -3109,10 +3109,21 @@
     box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4);
 }
 
-/* Hide original eye icon */
+/* Hide original eye icon and any text */
 .vespa-view-button .fa-eye,
-.vespa-view-button i {
-    display: none;
+.vespa-view-button i,
+.vespa-view-button span {
+    display: none !important;
+}
+
+/* Ensure VIEW button text is visible */
+.vespa-view-button {
+    font-size: 0 !important; /* Hide any inline text */
+}
+
+.vespa-view-button::before,
+.vespa-view-button::after {
+    font-size: 12px !important;
 }
 
 /* Enhanced Toggle Switch */
