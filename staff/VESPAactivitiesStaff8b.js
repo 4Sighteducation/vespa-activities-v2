@@ -2439,24 +2439,24 @@
         setupEventListeners() {
             // PDF Modal trigger event listener
             document.addEventListener('click', (e) => {
-                console.log('[VESPA Staff] Click detected on element:', e.target);
-                console.log('[VESPA Staff] Element classes:', e.target.classList);
+                // console.log('[VESPA Staff] Click detected on element:', e.target);
+                // console.log('[VESPA Staff] Element classes:', e.target.classList);
                 
                 if (e.target.classList.contains('pdf-modal-trigger')) {
-                    console.log('[VESPA Staff] PDF modal trigger clicked!');
+                    // console.log('[VESPA Staff] PDF modal trigger clicked!');
                     const pdfUrl = e.target.getAttribute('data-pdf-url');
                     const activityName = e.target.getAttribute('data-activity-name');
-                    console.log('[VESPA Staff] PDF URL:', pdfUrl);
-                    console.log('[VESPA Staff] Activity Name:', activityName);
+                    // console.log('[VESPA Staff] PDF URL:', pdfUrl);
+                    // console.log('[VESPA Staff] Activity Name:', activityName);
                     
                     if (pdfUrl) {
-                        console.log('[VESPA Staff] Calling openPDFModal...');
+                        // console.log('[VESPA Staff] Calling openPDFModal...');
                         this.openPDFModal(pdfUrl, activityName);
                     } else {
-                        console.log('[VESPA Staff] No PDF URL found!');
+                        // console.log('[VESPA Staff] No PDF URL found!');
                     }
                 } else {
-                    console.log('[VESPA Staff] Not a PDF modal trigger');
+                    // console.log('[VESPA Staff] Not a PDF modal trigger');
                 }
             });
             
@@ -3576,7 +3576,7 @@
         // Initialize workspace events
         initializeWorkspaceEvents() {
             // Add any additional event initialization here
-            console.log('Workspace events initialized');
+            // console.log('Workspace events initialized');
         }
         
         // Filter activities in workspace
