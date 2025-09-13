@@ -771,16 +771,9 @@
                 const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
                 const email = this.getFieldValue(record, fields.studentEmail, '');
                 
-                // Get Year Group and Group fields from config
-                // Try to get raw values first for connected fields
-                const yearGroupField = fields.studentYearGroup || 'field_144';
-                const groupField = fields.studentGroup || 'field_223';
-                
-                const yearGroupRaw = record[`${yearGroupField}_raw`] || record[yearGroupField];
-                const yearGroup = this.extractConnectionValue(yearGroupRaw);
-                
-                const groupRaw = record[`${groupField}_raw`] || record[groupField];
-                const group = this.extractConnectionValue(groupRaw);
+                // Year Group and Group will be populated from Object_10 (VESPA Results) later
+                const yearGroup = '';
+                const group = '';
                 
                 // Prefer RAW connection to get IDs and names for prescribed activities
                 const prescribedRaw = record[fields.prescribedActivities + '_raw'];
@@ -1081,40 +1074,55 @@
                         log('VESPA record ID:', record.id);
                         log('VESPA record fields:', Object.keys(record));
                         
-                        const scores = {
-                            vision: parseFloat(record[fields.visionScore] || record.field_147) || 0,
-                            effort: parseFloat(record[fields.effortScore] || record.field_148) || 0,
-                            systems: parseFloat(record[fields.systemsScore] || record.field_149) || 0,
-                            practice: parseFloat(record[fields.practiceScore] || record.field_150) || 0,
-                            attitude: parseFloat(record[fields.attitudeScore] || record.field_151) || 0
+                        // Extract Year Group and Group from Object_10
+                        const yearGroup = this.extractConnectionValue(record.field_144_raw || record.field_144);
+                        const group = this.extractConnectionValue(record.field_223_raw || record.field_223);
+                        
+                        const vespaData = {
+                            scores: {
+                                vision: parseFloat(record[fields.visionScore] || record.field_147) || 0,
+                                effort: parseFloat(record[fields.effortScore] || record.field_148) || 0,
+                                systems: parseFloat(record[fields.systemsScore] || record.field_149) || 0,
+                                practice: parseFloat(record[fields.practiceScore] || record.field_150) || 0,
+                                attitude: parseFloat(record[fields.attitudeScore] || record.field_151) || 0
+                            },
+                            yearGroup: yearGroup,
+                            group: group
                         };
                         
                         // Map by record ID
-                        vespaMapById.set(record.id, scores);
+                        vespaMapById.set(record.id, vespaData);
                         
                         // Map by email if available
                         const email = record.field_192 || record.field_192_raw?.email;
                         if (email) {
-                            vespaMapByEmail.set(email, scores);
+                            vespaMapByEmail.set(email, vespaData);
                         }
                         
-                        log(`VESPA scores for record ${record.id}:`, scores);
+                        log(`VESPA data for record ${record.id}:`, vespaData);
                     });
                     
                     log(`Loaded VESPA scores for ${response.records.length} records`);
                     
-                    // Update student records with VESPA scores
+                    // Update student records with VESPA data (scores, year group, group)
                     this.state.students.forEach(student => {
-                        // Try to find scores by connection ID or email
-                        const scores = vespaMapById.get(student.vespaConnectionId) || 
-                                      vespaMapByEmail.get(student.vespaConnectionEmail) ||
-                                      vespaMapByEmail.get(student.email);
+                        // Try to find VESPA data by connection ID or email
+                        const vespaData = vespaMapById.get(student.vespaConnectionId) || 
+                                         vespaMapByEmail.get(student.vespaConnectionEmail) ||
+                                         vespaMapByEmail.get(student.email);
                         
-                        if (scores) {
-                            student.vespaScores = scores;
-                            log(`Updated VESPA scores for ${student.name}:`, scores);
+                        if (vespaData) {
+                            student.vespaScores = vespaData.scores;
+                            // Override the empty yearGroup and group with data from Object_10
+                            if (vespaData.yearGroup) {
+                                student.yearGroup = vespaData.yearGroup;
+                            }
+                            if (vespaData.group) {
+                                student.group = vespaData.group;
+                            }
+                            log(`Updated VESPA data for ${student.name}:`, vespaData);
                         } else {
-                            log(`No VESPA scores found for ${student.name} (ID: ${student.vespaConnectionId}, Email: ${student.vespaConnectionEmail})`);
+                            log(`No VESPA data found for ${student.name} (ID: ${student.vespaConnectionId}, Email: ${student.vespaConnectionEmail})`);
                         }
                     });
                 } else {
