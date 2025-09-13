@@ -11,7 +11,7 @@
     
     // Configuration
     const CONFIG = {
-        debug: true,
+        debug: false,
         scenes: ['scene_1258'], // Staff management scene (updated)
         
         // Object IDs
