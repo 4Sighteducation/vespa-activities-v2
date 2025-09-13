@@ -1021,95 +1021,53 @@
                 log('VESPA connection IDs:', vespaConnectionIds);
                 log('VESPA connection emails:', vespaConnectionEmails);
                 
-                // Process in batches to avoid API limits
-                const BATCH_SIZE = 50; // Process 50 IDs at a time
-                const allVespaRecords = [];
-                
-                // Process ID batches
-                for (let i = 0; i < vespaConnectionIds.length; i += BATCH_SIZE) {
-                    const batchIds = vespaConnectionIds.slice(i, i + BATCH_SIZE);
-                    
-                    const idConditions = batchIds.map(connectionId => ({
-                        field: 'id',
-                        operator: 'is',
-                        value: connectionId
-                    }));
-                    
-                    if (idConditions.length > 0) {
-                        const filters = [{
-                            match: 'or',
-                            rules: idConditions
-                        }];
-                        
-                        log(`Loading VESPA batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(vespaConnectionIds.length/BATCH_SIZE)}`);
-                        
-                        try {
-                            const response = await $.ajax({
-                                url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
-                                type: 'GET',
-                                headers: {
-                                    'X-Knack-Application-Id': this.config.knackAppId,
-                                    'X-Knack-REST-API-Key': this.config.knackApiKey
-                                },
-                                data: {
-                                    filters: JSON.stringify(filters),
-                                    page: 1,
-                                    rows_per_page: 1000
-                                }
-                            });
-                            
-                            if (response.records) {
-                                allVespaRecords.push(...response.records);
-                            }
-                        } catch (batchErr) {
-                            error(`Failed to load VESPA batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchErr);
-                        }
-                    }
+                // Skip VESPA loading if no connections
+                if (vespaConnectionIds.length === 0 && vespaConnectionEmails.length === 0) {
+                    log('No VESPA connections to load');
+                    return;
                 }
                 
-                // Process email batches if needed
-                for (let i = 0; i < vespaConnectionEmails.length; i += BATCH_SIZE) {
-                    const batchEmails = vespaConnectionEmails.slice(i, i + BATCH_SIZE);
-                    
-                    const emailConditions = batchEmails.map(email => ({
-                        field: 'field_192', // Email field in Object_10
-                        operator: 'is',
-                        value: email
-                    }));
-                    
-                    if (emailConditions.length > 0) {
-                        const filters = [{
-                            match: 'or',
-                            rules: emailConditions
-                        }];
-                        
-                        log(`Loading VESPA email batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(vespaConnectionEmails.length/BATCH_SIZE)}`);
-                        
-                        try {
-                            const response = await $.ajax({
-                                url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
-                                type: 'GET',
-                                headers: {
-                                    'X-Knack-Application-Id': this.config.knackAppId,
-                                    'X-Knack-REST-API-Key': this.config.knackApiKey
-                                },
-                                data: {
-                                    filters: JSON.stringify(filters),
-                                    page: 1,
-                                    rows_per_page: 1000
-                                }
-                            });
-                            
-                            if (response.records) {
-                                allVespaRecords.push(...response.records);
-                            }
-                        } catch (batchErr) {
-                            error(`Failed to load VESPA email batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchErr);
-                        }
-                    }
-                }
+                // For now, just load first 50 students' VESPA data to test
+                // We'll implement proper pagination later
+                const LIMITED_IDS = vespaConnectionIds.slice(0, 50);
                 
-                log(`Total VESPA records loaded: ${allVespaRecords.length}`);
+                if (LIMITED_IDS.length > 0) {
+                    const filters = [{
+                        match: 'or',
+                        rules: LIMITED_IDS.map(id => ({
+                            field: 'id',
+                            operator: 'is',
+                            value: id
+                        }))
+                    }];
+                    
+                    log(`Loading VESPA data for first ${LIMITED_IDS.length} students...`);
+                    
+                    try {
+                        const response = await $.ajax({
+                            url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
+                            type: 'GET',
+                            headers: {
+                                'X-Knack-Application-Id': this.config.knackAppId,
+                                'X-Knack-REST-API-Key': this.config.knackApiKey
+                            },
+                            data: {
+                                filters: JSON.stringify(filters),
+                                page: 1,
+                                rows_per_page: 1000
+                            }
+                        });
+                        
+                        var allVespaRecords = response.records || [];
+                        log(`Loaded ${allVespaRecords.length} VESPA records`);
+                        
+                    } catch (err) {
+                        error('Failed to load VESPA data:', err);
+                        var allVespaRecords = [];
+                    }
+                } else {
+                    var allVespaRecords = [];
+                }
                 
                 if (allVespaRecords.length > 0) {
                     // Create maps for both ID and email lookups
