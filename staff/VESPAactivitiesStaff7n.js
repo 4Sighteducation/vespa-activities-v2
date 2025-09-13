@@ -52,6 +52,8 @@
             // Student fields (Object_6)
             studentName: 'field_90',
             studentEmail: 'field_91',
+            studentYearGroup: 'field_144', // Year Group connection field
+            studentGroup: 'field_223', // Group connection field
             prescribedActivities: 'field_1683',
             finishedActivities: 'field_1380',
             studentVESPAConnection: 'field_182', // Connection to Object_10 VESPA record
@@ -731,6 +733,35 @@
             
             return decoded;
         }
+        
+        // Extract value from connection field (handles various formats)
+        extractConnectionValue(fieldValue) {
+            if (!fieldValue) return '';
+            
+            // If it's an array of connections
+            if (Array.isArray(fieldValue)) {
+                if (fieldValue.length === 0) return '';
+                // Take the first item if multiple
+                const firstItem = fieldValue[0];
+                if (typeof firstItem === 'object') {
+                    return firstItem.identifier || firstItem.name || firstItem.title || '';
+                }
+                return this.stripHtml(firstItem.toString());
+            }
+            
+            // If it's a single connection object
+            if (typeof fieldValue === 'object') {
+                return fieldValue.identifier || fieldValue.name || fieldValue.title || '';
+            }
+            
+            // If it's HTML string, extract the text
+            if (typeof fieldValue === 'string' && fieldValue.includes('<')) {
+                return this.stripHtml(fieldValue);
+            }
+            
+            // Otherwise return as string
+            return fieldValue.toString();
+        }
 
         parseStudentFromRecord(record) {
             try {
@@ -740,19 +771,16 @@
                 const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
                 const email = this.getFieldValue(record, fields.studentEmail, '');
                 
-                // Get Year Group and Group fields (field_144 and field_223)
+                // Get Year Group and Group fields from config
                 // Try to get raw values first for connected fields
-                const yearGroupRaw = record['field_144_raw'] || record['field_144'];
-                const yearGroup = yearGroupRaw ? 
-                    (typeof yearGroupRaw === 'object' ? 
-                        (yearGroupRaw.identifier || yearGroupRaw.name || yearGroupRaw.title || '') : 
-                        this.stripHtml(yearGroupRaw.toString())) : '';
+                const yearGroupField = fields.studentYearGroup || 'field_144';
+                const groupField = fields.studentGroup || 'field_223';
                 
-                const groupRaw = record['field_223_raw'] || record['field_223'];
-                const group = groupRaw ? 
-                    (typeof groupRaw === 'object' ? 
-                        (groupRaw.identifier || groupRaw.name || groupRaw.title || '') : 
-                        this.stripHtml(groupRaw.toString())) : '';
+                const yearGroupRaw = record[`${yearGroupField}_raw`] || record[yearGroupField];
+                const yearGroup = this.extractConnectionValue(yearGroupRaw);
+                
+                const groupRaw = record[`${groupField}_raw`] || record[groupField];
+                const group = this.extractConnectionValue(groupRaw);
                 
                 // Prefer RAW connection to get IDs and names for prescribed activities
                 const prescribedRaw = record[fields.prescribedActivities + '_raw'];
