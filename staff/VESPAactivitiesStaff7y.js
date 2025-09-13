@@ -1988,6 +1988,42 @@
                     .vespa-view-button .fa-eye {
                         display: none !important;
                     }
+                    
+                    /* VESPA Circles - Professional Gradient Colors */
+                    .vespa-activity-display.vision,
+                    .vespa-score-display.vision {
+                        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+                        color: white !important;
+                        border-radius: 50% !important;
+                    }
+                    
+                    .vespa-activity-display.effort,
+                    .vespa-score-display.effort {
+                        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+                        color: white !important;
+                        border-radius: 50% !important;
+                    }
+                    
+                    .vespa-activity-display.systems,
+                    .vespa-score-display.systems {
+                        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+                        color: white !important;
+                        border-radius: 50% !important;
+                    }
+                    
+                    .vespa-activity-display.practice,
+                    .vespa-score-display.practice {
+                        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+                        color: white !important;
+                        border-radius: 50% !important;
+                    }
+                    
+                    .vespa-activity-display.attitude,
+                    .vespa-score-display.attitude {
+                        background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important;
+                        color: white !important;
+                        border-radius: 50% !important;
+                    }
                 `;
                 document.head.appendChild(overrideStyles);
             }
@@ -2192,7 +2228,6 @@
                             <button class="vespa-view-button view-btn" 
                                     onclick="VESPAStaff.viewStudent('${student.id}')"
                                     title="View activities for this student">
-                                👁️
                             </button>
                         </div>
                     </td>
