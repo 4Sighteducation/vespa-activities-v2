@@ -209,6 +209,9 @@
             
             log('Using config:', this.config);
             
+            // Show loading screen immediately
+            this.showLoadingScreen('Initializing VESPA Activities...');
+            
             try {
                 // Wait for Knack to be ready
                 await this.waitForKnack();
@@ -483,6 +486,7 @@
         // Load students based on current role
         async loadStudents() {
             log('Loading students directly from Knack API...');
+            this.showLoadingScreen('Loading students...', { percent: 30, text: 'Fetching student records...' });
             
             const studentData = [];
             const fields = this.config.fields;
@@ -560,6 +564,13 @@
                 while (hasMorePages) {
                     log(`Loading students page ${page}...`);
                     
+                    // Update loading progress
+                    const progressPercent = 30 + (page * 5); // Start at 30%, add 5% per page
+                    this.showLoadingScreen('Loading students...', { 
+                        percent: Math.min(progressPercent, 60), 
+                        text: `Loading page ${page} of student records...` 
+                    });
+                    
                     const requestData = {
                         filters: filters.length > 0 ? JSON.stringify(filters) : undefined,
                         page: page,
@@ -606,11 +617,8 @@
                         hasMorePages = response.records.length === 100;
                         page++;
                         
-                        // Limit to 5 pages max to prevent loading too many students at once
-                        if (page > 5) {
-                            hasMorePages = false;
-                            log('Reached maximum page limit (5 pages, 500 students)');
-                        }
+                        // Load all pages - no limit
+                        // We'll handle performance with lazy loading of VESPA data
                     } else {
                         hasMorePages = false;
                     }
@@ -680,6 +688,17 @@
 
             this.state.students = studentData;
             log(`Loaded ${studentData.length} students across ${page - 1} pages`);
+            
+            // Update pagination state based on the last response
+            if (studentData.length > 0) {
+                // We loaded all available students
+                this.state.pagination = {
+                    currentPage: page - 1,
+                    totalPages: page - 1,
+                    totalRecords: studentData.length,
+                    hasMore: false // We loaded everything
+                };
+            }
         }
         
         // parseStudentFromRow method removed - using direct API calls only
@@ -711,6 +730,40 @@
 
         // Parse student data from API record
         // Helper method to strip HTML and extract clean text
+        // Show loading screen with progress
+        showLoadingScreen(message = 'Loading...', progress = null) {
+            if (!this.container) return;
+            
+            const progressBar = progress ? `
+                <div class="loading-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress.percent || 0}%"></div>
+                    </div>
+                    <div class="progress-text">${progress.text || ''}</div>
+                </div>
+            ` : '';
+            
+            const loadingHtml = `
+                <div class="vespa-loading-screen">
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <h2>${message}</h2>
+                        ${progressBar}
+                    </div>
+                </div>
+            `;
+            
+            this.container.innerHTML = loadingHtml;
+        }
+        
+        // Hide loading screen
+        hideLoadingScreen() {
+            const loadingScreen = this.container?.querySelector('.vespa-loading-screen');
+            if (loadingScreen) {
+                loadingScreen.remove();
+            }
+        }
+        
         stripHtml(html, preserveFormatting = false) {
             if (!html) return '';
             
@@ -994,6 +1047,7 @@
         // Load VESPA scores from Object_10 for all loaded students
         async loadVESPAScores() {
             log('Loading VESPA scores for students...');
+            this.showLoadingScreen('Loading VESPA data...', { percent: 65, text: 'Fetching Year Groups and Groups...' });
             
             if (!this.state.students || this.state.students.length === 0) {
                 log('No students to load VESPA scores for');
@@ -1027,47 +1081,62 @@
                     return;
                 }
                 
-                // For now, just load first 50 students' VESPA data to test
-                // We'll implement proper pagination later
-                const LIMITED_IDS = vespaConnectionIds.slice(0, 50);
+                // Load ALL VESPA data - we need it for filtering
+                // Split into batches to avoid API limits
+                const BATCH_SIZE = 100;
+                const allVespaRecords = [];
                 
-                if (LIMITED_IDS.length > 0) {
-                    const filters = [{
-                        match: 'or',
-                        rules: LIMITED_IDS.map(id => ({
-                            field: 'id',
-                            operator: 'is',
-                            value: id
-                        }))
-                    }];
-                    
-                    log(`Loading VESPA data for first ${LIMITED_IDS.length} students...`);
-                    
-                    try {
-                        const response = await $.ajax({
-                            url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
-                            type: 'GET',
-                            headers: {
-                                'X-Knack-Application-Id': this.config.knackAppId,
-                                'X-Knack-REST-API-Key': this.config.knackApiKey
-                            },
-                            data: {
-                                filters: JSON.stringify(filters),
-                                page: 1,
-                                rows_per_page: 1000
-                            }
+                // Process IDs in batches
+                for (let i = 0; i < vespaConnectionIds.length; i += BATCH_SIZE) {
+                    const batchIds = vespaConnectionIds.slice(i, i + BATCH_SIZE);
+                
+                    if (batchIds.length > 0) {
+                        const filters = [{
+                            match: 'or',
+                            rules: batchIds.map(id => ({
+                                field: 'id',
+                                operator: 'is',
+                                value: id
+                            }))
+                        }];
+                        
+                        const batchNum = Math.floor(i/BATCH_SIZE) + 1;
+                        const totalBatches = Math.ceil(vespaConnectionIds.length/BATCH_SIZE);
+                        log(`Loading VESPA batch ${batchNum}/${totalBatches}...`);
+                        
+                        // Update progress
+                        const progressPercent = 65 + ((batchNum / totalBatches) * 30); // 65% to 95%
+                        this.showLoadingScreen('Loading VESPA data...', { 
+                            percent: Math.min(progressPercent, 95), 
+                            text: `Loading Year Groups and Groups (batch ${batchNum} of ${totalBatches})...` 
                         });
                         
-                        var allVespaRecords = response.records || [];
-                        log(`Loaded ${allVespaRecords.length} VESPA records`);
-                        
-                    } catch (err) {
-                        error('Failed to load VESPA data:', err);
-                        var allVespaRecords = [];
+                        try {
+                            const response = await $.ajax({
+                                url: `https://api.knack.com/v1/objects/${objects.vespaResults}/records`,
+                                type: 'GET',
+                                headers: {
+                                    'X-Knack-Application-Id': this.config.knackAppId,
+                                    'X-Knack-REST-API-Key': this.config.knackApiKey
+                                },
+                                data: {
+                                    filters: JSON.stringify(filters),
+                                    page: 1,
+                                    rows_per_page: 1000
+                                }
+                            });
+                            
+                            if (response.records) {
+                                allVespaRecords.push(...response.records);
+                            }
+                            
+                        } catch (err) {
+                            error(`Failed to load VESPA batch ${Math.floor(i/BATCH_SIZE) + 1}:`, err);
+                        }
                     }
-                } else {
-                    var allVespaRecords = [];
                 }
+                
+                log(`Total VESPA records loaded: ${allVespaRecords.length}`);
                 
                 if (allVespaRecords.length > 0) {
                     // Create maps for both ID and email lookups
@@ -1310,6 +1379,7 @@
         // Load all activities
         async loadActivities() {
             log('Loading activities directly from Knack API...');
+            this.showLoadingScreen('Loading activities...', { percent: 10, text: 'Fetching activity data...' });
             
             const activities = [];
             const objects = this.config.objects;
@@ -1716,8 +1786,12 @@
                     
                     this.state.currentView = 'list';
                     log('Main list view rendered successfully');
+                    
+                    // Hide loading screen after successful render
+                    this.hideLoadingScreen();
                 } catch (renderError) {
                     error('Error in render process:', renderError);
+                    this.hideLoadingScreen();
                 }
             }
             
@@ -1726,7 +1800,7 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff2f.css';
+                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff7r.css';
                 document.head.appendChild(styleLink);
             }
         }
