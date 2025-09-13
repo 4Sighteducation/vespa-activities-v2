@@ -165,6 +165,7 @@
                 filters: {
                     search: '',
                     progress: 'all',
+                    yearGroup: 'all',
                     group: 'all'
                 },
                 sortColumn: 'name',
@@ -733,6 +734,10 @@
                 const name = this.getFieldValue(record, fields.studentName, 'Unknown Student');
                 const email = this.getFieldValue(record, fields.studentEmail, '');
                 
+                // Get Year Group and Group fields (field_144 and field_223)
+                const yearGroup = this.getFieldValue(record, 'field_144', '');
+                const group = this.getFieldValue(record, 'field_223', '');
+                
                 // Prefer RAW connection to get IDs and names for prescribed activities
                 const prescribedRaw = record[fields.prescribedActivities + '_raw'];
                 let prescribedActivities = [];
@@ -920,6 +925,8 @@
                     id: record.id,
                     name: name,
                     email: email,
+                    yearGroup: yearGroup,
+                    group: group,
                     prescribedActivities: prescribedActivities,
                     prescribedActivityIds: prescribedActivityIds, // Store IDs of prescribed activities
                     finishedActivities: finishedActivityIds, // Store ALL completed activity IDs
@@ -1410,6 +1417,10 @@
                 const rawCurriculum = record[fields.activityCurriculum + '_raw'] || record[fields.activityCurriculum];
                 const curriculums = this.parseCurriculumTags(rawCurriculum, category);
 
+                // Get problem field if available
+                const rawProblem = this.getFieldValue(record, fields.activityProblem || 'field_1403', '');
+                const problem = this.stripHtml(rawProblem);
+                
                 const activity = {
                     id: record.id,
                     name: name,
@@ -1421,6 +1432,7 @@
                     description: description,
                     duration: duration || 'N/A',
                     type: type || 'Activity',
+                    problem: problem, // Add problem field
                     // thresholds to compute prescribed indicator
                     scoreShowIfMoreThan: parseFloat(this.getFieldValue(record, fields.activityScoreMoreThan, '0')) || 0,
                     scoreShowIfLessEqual: parseFloat(this.getFieldValue(record, fields.activityScoreLessEqual, '0')) || 0,
@@ -1509,6 +1521,20 @@
                             return true;
                     }
                 });
+            }
+            
+            // Year Group filter
+            if (this.state.filters.yearGroup !== 'all') {
+                filtered = filtered.filter(student => 
+                    student.yearGroup === this.state.filters.yearGroup
+                );
+            }
+            
+            // Group filter
+            if (this.state.filters.group !== 'all') {
+                filtered = filtered.filter(student => 
+                    student.group === this.state.filters.group
+                );
             }
             
             // Sort
@@ -1691,6 +1717,10 @@
         
         // Render filter bar
         renderFilterBar() {
+            // Get unique year groups and groups from students
+            const yearGroups = [...new Set(this.state.students.map(s => s.yearGroup).filter(Boolean))].sort();
+            const groups = [...new Set(this.state.students.map(s => s.group).filter(Boolean))].sort();
+            
             return `
                 <div class="filter-bar">
                     <input type="text" 
@@ -1705,6 +1735,20 @@
                         <option value="in-progress">In Progress</option>
                         <option value="completed">Completed</option>
                     </select>
+                    
+                    ${yearGroups.length > 0 ? `
+                    <select class="filter-select" onchange="VESPAStaff.updateYearGroupFilter(this.value)">
+                        <option value="all">All Year Groups</option>
+                        ${yearGroups.map(yg => `<option value="${this.escapeHtml(yg)}" ${this.state.filters.yearGroup === yg ? 'selected' : ''}>${this.escapeHtml(yg)}</option>`).join('')}
+                    </select>
+                    ` : ''}
+                    
+                    ${groups.length > 0 ? `
+                    <select class="filter-select" onchange="VESPAStaff.updateGroupFilter(this.value)">
+                        <option value="all">All Groups</option>
+                        ${groups.map(g => `<option value="${this.escapeHtml(g)}" ${this.state.filters.group === g ? 'selected' : ''}>${this.escapeHtml(g)}</option>`).join('')}
+                    </select>
+                    ` : ''}
                     
                     <button class="btn btn-secondary" onclick="VESPAStaff.clearFilters()">
                         Clear Filters
@@ -2490,10 +2534,23 @@
             this.render();
         }
         
+        updateYearGroupFilter(value) {
+            this.state.filters.yearGroup = value;
+            this.applyFilters();
+            this.render();
+        }
+        
+        updateGroupFilter(value) {
+            this.state.filters.group = value;
+            this.applyFilters();
+            this.render();
+        }
+        
         clearFilters() {
             this.state.filters = {
                 search: '',
                 progress: 'all',
+                yearGroup: 'all',
                 group: 'all'
             };
             this.applyFilters();
@@ -3944,11 +4001,14 @@
         
         renderActivityList() {
             const categories = ['Vision', 'Effort', 'Systems', 'Practice', 'Attitude'];
-            const levels = [1, 2, 3];
-            // Collect curriculum values from loaded activities
-            const curriculumSet = new Set();
-            this.state.activities.forEach(a => (a.curriculums || []).forEach(c => curriculumSet.add(c)));
-            const curriculums = Array.from(curriculumSet).sort();
+            const levels = [2, 3]; // Only Level 2 and 3
+            
+            // Get unique problems from activities
+            const problemsSet = new Set();
+            this.state.activities.forEach(a => {
+                if (a.problem) problemsSet.add(a.problem);
+            });
+            const problems = Array.from(problemsSet).sort();
             
             return `
                 <div class="activity-filters">
@@ -3956,29 +4016,34 @@
                            class="search-input" 
                            placeholder="Search activities..." 
                            onkeyup="VESPAStaff.filterActivities(this.value)">
-                    <select class="filter-select" onchange="VESPAStaff.filterByCategory(this.value)">
+                    <select class="filter-select" id="category-filter" onchange="VESPAStaff.filterByCategory(this.value)">
                         <option value="all">All Categories</option>
                         ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
                     </select>
-                    <select class="filter-select" onchange="VESPAStaff.filterByLevel(this.value)">
+                    <select class="filter-select" id="level-filter" onchange="VESPAStaff.filterByLevel(this.value)">
                         <option value="all">All Levels</option>
                         ${levels.map(l => `<option value="${l}">Level ${l}</option>`).join('')}
                     </select>
-                    <select class="filter-select" onchange="VESPAStaff.filterByCurriculum(this.value)">
-                        <option value="all">All Curricula</option>
-                        ${curriculums.map(c => `<option value="${this.escapeHtml(c)}">${this.escapeHtml(c)}</option>`).join('')}
+                    <select class="filter-select" id="problem-filter" onchange="VESPAStaff.filterByProblem(this.value)">
+                        <option value="all">Search by Problem</option>
+                        ${problems.map(p => `<option value="${this.escapeHtml(p)}">${this.escapeHtml(p)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="activity-groups">
                     ${categories.map(cat => {
-                        const group = this.state.activities.filter(a => a.category === cat);
+                        const group = this.state.activities.filter(a => a.category === cat && a.level >= 2); // Filter out Level 1
                         if (group.length === 0) return '';
                         return `
-                            <div class="activity-group">
-                                <h3>${cat}</h3>
+                            <div class="activity-group" data-category="${cat}">
+                                <h3>${cat} (${group.length} activities)</h3>
                                 <div class="activity-list" id="activity-list-${cat}">
                                     ${group.map(activity => `
-                                        <div class="activity-item" data-activity-id="${activity.id}">
+                                        <div class="activity-item" 
+                                             data-activity-id="${activity.id}"
+                                             data-category="${activity.category}"
+                                             data-level="${activity.level}"
+                                             data-problem="${this.escapeHtml(activity.problem || '')}"
+                                             data-name="${this.escapeHtml(activity.name.toLowerCase())}">
                                             <input type="checkbox" class="activity-checkbox" 
                                                    id="activity-${activity.id}"
                                                    onchange="VESPAStaff.toggleActivity('${activity.id}', this.checked)">
@@ -3988,8 +4053,8 @@
                                                     <span class="vespa-pill ${activity.category.toLowerCase()}">
                                                         ${activity.category}
                                                     </span>
-                                                    <span>Level ${activity.level}</span>
-                                                    ${(activity.curriculums && activity.curriculums.length) ? `<span class="curriculum-tags">${activity.curriculums.map(c => `<em>${this.escapeHtml(c)}</em>`).join(', ')}</span>` : ''}
+                                                    <span class="level-badge">Level ${activity.level}</span>
+                                                    ${activity.problem ? `<span class="problem-tag">${this.escapeHtml(activity.problem)}</span>` : ''}
                                                 </div>
                                             </div>
                                             <button class="btn-review-activity" onclick="event.preventDefault(); VESPAStaff.viewEnhancedActivityPreview('${activity.id}')" title="Review activity content">
@@ -5697,7 +5762,10 @@
             try {
                 // Get current student data
                 const student = this.state.students.find(s => s.id === studentId);
-                if (!student) return;
+                if (!student) {
+                    error(`Student not found: ${studentId}`);
+                    return;
+                }
                 
                 // Get current prescribed activity IDs
                 const currentIds = Array.isArray(student.prescribedActivityIds) ? student.prescribedActivityIds : [];
@@ -5711,8 +5779,11 @@
                     finalIds = [...new Set([...currentIds, ...newActivityIds])];
                 }
                 
+                log(`Updating student ${student.name} (${studentId}) prescribed activities from ${currentIds.length} to ${finalIds.length} activities`);
+                log(`Activity IDs to update:`, finalIds);
+                
                 // Update the student record
-                await $.ajax({
+                const response = await $.ajax({
                     url: `https://api.knack.com/v1/objects/${objects.student}/records/${studentId}`,
                     type: 'PUT',
                     headers: {
@@ -5725,16 +5796,19 @@
                     })
                 });
                 
+                log(`API Response for student ${studentId}:`, response);
+                
                 // Update local state
                 student.prescribedActivityIds = finalIds;
                 // Optionally refresh prescribedActivities names from activity list
                 const idToName = new Map(this.state.activities.map(a => [a.id, a.name]));
                 student.prescribedActivities = finalIds.map(id => idToName.get(id) || id);
                 
-                log(`Updated prescribed activities (IDs) for student ${student.name}`);
+                log(`Successfully updated prescribed activities for student ${student.name}`);
                 
             } catch (err) {
                 error(`Failed to update student ${studentId}:`, err);
+                error(`Error details:`, err.responseJSON || err.responseText);
                 throw err;
             }
         }
@@ -5773,48 +5847,73 @@
         
         // Activity filtering (for modal)
         filterActivities(searchTerm) {
-            const items = document.querySelectorAll('.activity-item');
             const search = searchTerm.toLowerCase();
-            
-            items.forEach(item => {
-                const name = item.querySelector('.activity-name').textContent.toLowerCase();
-                item.style.display = name.includes(search) ? 'flex' : 'none';
-            });
+            this.applyActivityFilters({ search });
         }
         
         filterByCategory(category) {
+            this.applyActivityFilters({ category });
+        }
+        
+        filterByLevel(level) {
+            this.applyActivityFilters({ level });
+        }
+        
+        filterByProblem(problem) {
+            this.applyActivityFilters({ problem });
+        }
+        
+        applyActivityFilters(filters = {}) {
+            const searchValue = filters.search !== undefined ? filters.search : 
+                               (document.querySelector('#assign-modal .search-input')?.value || '').toLowerCase();
+            const categoryValue = filters.category !== undefined ? filters.category : 
+                                 document.getElementById('category-filter')?.value || 'all';
+            const levelValue = filters.level !== undefined ? filters.level : 
+                              document.getElementById('level-filter')?.value || 'all';
+            const problemValue = filters.problem !== undefined ? filters.problem : 
+                                document.getElementById('problem-filter')?.value || 'all';
+            
             const items = document.querySelectorAll('.activity-item');
+            const groups = document.querySelectorAll('.activity-group');
             
             items.forEach(item => {
-                if (category === 'all') {
-                    item.style.display = 'flex';
-                } else {
-                    const itemCategory = item.querySelector('.vespa-pill').textContent;
-                    item.style.display = itemCategory === category ? 'flex' : 'none';
+                const name = item.dataset.name || '';
+                const category = item.dataset.category || '';
+                const level = item.dataset.level || '';
+                const problem = item.dataset.problem || '';
+                
+                let show = true;
+                
+                // Apply search filter
+                if (searchValue && !name.includes(searchValue)) {
+                    show = false;
                 }
+                
+                // Apply category filter
+                if (categoryValue !== 'all' && category !== categoryValue) {
+                    show = false;
+                }
+                
+                // Apply level filter
+                if (levelValue !== 'all' && level !== levelValue) {
+                    show = false;
+                }
+                
+                // Apply problem filter
+                if (problemValue !== 'all' && problem !== problemValue) {
+                    show = false;
+                }
+                
+                item.style.display = show ? 'flex' : 'none';
             });
-        }
-        filterByLevel(level) {
-            const items = document.querySelectorAll('.activity-item');
-            items.forEach(item => {
-                if (level === 'all') {
-                    item.style.display = item.style.display === 'none' ? 'none' : 'flex';
-                } else {
-                    const text = item.querySelector('.activity-meta').textContent;
-                    const hasLevel = text.includes(`Level ${level}`);
-                    item.style.display = hasLevel ? 'flex' : 'none';
-                }
-            });
-        }
-        filterByCurriculum(curriculum) {
-            const items = document.querySelectorAll('.activity-item');
-            items.forEach(item => {
-                if (curriculum === 'all') {
-                    item.style.display = item.style.display === 'none' ? 'none' : 'flex';
-                } else {
-                    const tags = item.querySelector('.curriculum-tags')?.textContent || '';
-                    item.style.display = tags.toLowerCase().includes(curriculum.toLowerCase()) ? 'flex' : 'none';
-                }
+            
+            // Show/hide category groups if all items are hidden
+            groups.forEach(group => {
+                const visibleItems = group.querySelectorAll('.activity-item[style*="flex"]');
+                const hasVisible = Array.from(group.querySelectorAll('.activity-item')).some(
+                    item => item.style.display !== 'none'
+                );
+                group.style.display = hasVisible ? 'block' : 'none';
             });
         }
         
