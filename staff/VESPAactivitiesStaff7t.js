@@ -425,13 +425,13 @@
                 await this.loadActivities();
                 
                 // CRITICAL: Create activitiesMap immediately after loading activities
-                this.activitiesMap = new Map();
+                this.state.activitiesMap = new Map();
                 this.state.activities.forEach(activity => {
                     if (activity.id) {
-                        this.activitiesMap.set(activity.id, activity);
+                        this.state.activitiesMap.set(activity.id, activity);
                     }
                 });
-                log(`Created activitiesMap with ${this.activitiesMap.size} activities`);
+                log(`Created activitiesMap with ${this.state.activitiesMap.size} activities`);
                 
                 // Load students based on role (now activities are available for parsing)
                 await this.loadStudents();
@@ -764,6 +764,103 @@
             }
         }
         
+        // Get paginated students based on current page
+        getPaginatedStudents() {
+            const studentsPerPage = 50; // Show 50 students per page
+            const currentPage = this.state.pagination.currentPage || 1;
+            const startIndex = (currentPage - 1) * studentsPerPage;
+            const endIndex = startIndex + studentsPerPage;
+            
+            return this.state.filteredStudents.slice(startIndex, endIndex);
+        }
+        
+        // Render pagination controls
+        renderPaginationControls() {
+            const studentsPerPage = 50;
+            const totalStudents = this.state.filteredStudents.length;
+            const totalPages = Math.ceil(totalStudents / studentsPerPage);
+            const currentPage = this.state.pagination.currentPage || 1;
+            
+            if (totalPages <= 1) return '';
+            
+            // Generate page numbers to show
+            const pageNumbers = [];
+            const maxButtons = 7; // Maximum number of page buttons to show
+            
+            if (totalPages <= maxButtons) {
+                // Show all pages if there are few enough
+                for (let i = 1; i <= totalPages; i++) {
+                    pageNumbers.push(i);
+                }
+            } else {
+                // Show first, last, current, and surrounding pages
+                if (currentPage <= 3) {
+                    for (let i = 1; i <= 5; i++) pageNumbers.push(i);
+                    pageNumbers.push('...');
+                    pageNumbers.push(totalPages);
+                } else if (currentPage >= totalPages - 2) {
+                    pageNumbers.push(1);
+                    pageNumbers.push('...');
+                    for (let i = totalPages - 4; i <= totalPages; i++) pageNumbers.push(i);
+                } else {
+                    pageNumbers.push(1);
+                    pageNumbers.push('...');
+                    for (let i = currentPage - 1; i <= currentPage + 1; i++) pageNumbers.push(i);
+                    pageNumbers.push('...');
+                    pageNumbers.push(totalPages);
+                }
+            }
+            
+            return `
+                <div class="pagination-controls">
+                    <div class="pagination-info">
+                        Showing ${Math.min((currentPage - 1) * studentsPerPage + 1, totalStudents)} - 
+                        ${Math.min(currentPage * studentsPerPage, totalStudents)} of ${totalStudents} students
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="btn pagination-btn" 
+                                onclick="VESPAStaff.goToPage(${currentPage - 1})"
+                                ${currentPage === 1 ? 'disabled' : ''}>
+                            Previous
+                        </button>
+                        ${pageNumbers.map(page => {
+                            if (page === '...') {
+                                return '<span class="pagination-ellipsis">...</span>';
+                            }
+                            return `
+                                <button class="btn pagination-btn ${page === currentPage ? 'active' : ''}"
+                                        onclick="VESPAStaff.goToPage(${page})">
+                                    ${page}
+                                </button>
+                            `;
+                        }).join('')}
+                        <button class="btn pagination-btn" 
+                                onclick="VESPAStaff.goToPage(${currentPage + 1})"
+                                ${currentPage === totalPages ? 'disabled' : ''}>
+                            Next
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Navigate to a specific page
+        goToPage(page) {
+            const studentsPerPage = 50;
+            const totalPages = Math.ceil(this.state.filteredStudents.length / studentsPerPage);
+            
+            if (page < 1 || page > totalPages) return;
+            
+            this.state.pagination.currentPage = page;
+            this.render();
+            
+            // Scroll to top of table
+            const tableContainer = document.querySelector('.student-table-container');
+            if (tableContainer) {
+                tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        
         stripHtml(html, preserveFormatting = false) {
             if (!html) return '';
             
@@ -934,9 +1031,9 @@
                 };
                 
                 // Map prescribed activities to categories
-                if (this.activitiesMap && prescribedActivityIds.length > 0) {
+                if (this.state.activitiesMap && prescribedActivityIds.length > 0) {
                     prescribedActivityIds.forEach(activityId => {
-                        const activity = this.activitiesMap.get(activityId);
+                        const activity = this.state.activitiesMap.get(activityId);
                         if (activity) {
                             // Fix: Use consistent property name for category
                             const category = (activity.category || activity.VESPACategory || '').toLowerCase();
@@ -953,7 +1050,7 @@
                     });
                 } else {
                     log('WARNING: activitiesMap not available or no prescribed activities', {
-                        hasActivitiesMap: !!this.activitiesMap,
+                        hasActivitiesMap: !!this.state.activitiesMap,
                         prescribedCount: prescribedActivityIds.length
                     });
                 }
@@ -1379,6 +1476,26 @@
         // Load all activities
         async loadActivities() {
             log('Loading activities directly from Knack API...');
+            
+            // Check localStorage cache first
+            const cacheKey = 'vespa_activities_cache';
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const cachedData = JSON.parse(cached);
+                    const cacheAge = Date.now() - cachedData.timestamp;
+                    const maxAge = 30 * 60 * 1000; // 30 minutes cache
+                    
+                    if (cacheAge < maxAge && cachedData.activities) {
+                        log('Loading activities from cache');
+                        this.state.activities = cachedData.activities;
+                        return;
+                    }
+                } catch (e) {
+                    log('Error reading activities cache:', e);
+                }
+            }
+            
             this.showLoadingScreen('Loading activities...', { percent: 10, text: 'Fetching activity data...' });
             
             const activities = [];
@@ -1497,6 +1614,17 @@
             
             this.state.activities = activities;
             log(`Loaded ${activities.length} activities across ${page - 1} pages`);
+            
+            // Save to localStorage cache
+            try {
+                localStorage.setItem('vespa_activities_cache', JSON.stringify({
+                    activities: activities,
+                    timestamp: Date.now()
+                }));
+                log('Activities saved to cache');
+            } catch (e) {
+                log('Error saving activities to cache:', e);
+            }
         }
         
         // parseActivityFromRow method removed - using direct API calls only
@@ -1800,7 +1928,7 @@
                 const styleLink = document.createElement('link');
                 styleLink.id = 'vespa-staff-styles';
                 styleLink.rel = 'stylesheet';
-                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff7r.css';
+                styleLink.href = 'https://cdn.jsdelivr.net/gh/4Sighteducation/vespa-activities-v2@main/staff/VESPAactivitiesStaff7s.css';
                 document.head.appendChild(styleLink);
             }
         }
@@ -1962,11 +2090,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${this.state.filteredStudents.map(student => 
+                            ${this.getPaginatedStudents().map(student => 
                                 this.renderStudentRow(student)
                             ).join('')}
                         </tbody>
                     </table>
+                    ${this.renderPaginationControls()}
                 </div>
                 ${this.state.pagination.hasMore ? `
                     <div class="load-more-container">
@@ -2837,7 +2966,7 @@
             const prescribedActivityIds = student.prescribedActivityIds || [];
             
             prescribedActivityIds.forEach(activityId => {
-                const activity = this.activitiesMap?.get(activityId);
+                const activity = this.state.activitiesMap?.get(activityId);
                 if (!activity) {
                     log(`WARNING: Prescribed activity ${activityId} not found in activitiesMap`);
                     return;
