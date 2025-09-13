@@ -5810,3 +5810,556 @@
         margin-bottom: 16px !important;
     }
 }
+
+/* ============================================
+   VESPA STAFF ACTIVITIES - COMPLETE REDESIGN
+   Dashboard + Individual Pages Combined
+   Professional UI Improvements
+   ============================================ */
+
+/* ========== DASHBOARD PAGE IMPROVEMENTS ========== */
+
+/* 1. Enhanced Table Design */
+.student-table-container {
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 14px rgba(0,0,0,0.04) !important;
+    overflow: visible !important;
+    border: 1px solid #e5e7eb !important;
+}
+
+.student-table thead {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+}
+
+.student-table th {
+    background: transparent !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    color: #64748b !important;
+    padding: 16px 12px !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+}
+
+/* 2. VESPA Category Headers with Styled First Letters */
+.vespa-column-header {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+}
+
+.vespa-column.vision .vespa-column-header::before {
+    content: 'V' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin-right: 2px !important;
+}
+
+.vespa-column.effort .vespa-column-header::before {
+    content: 'E' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin-right: 2px !important;
+}
+
+.vespa-column.systems .vespa-column-header::before {
+    content: 'S' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin-right: 2px !important;
+}
+
+.vespa-column.practice .vespa-column-header::before {
+    content: 'P' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin-right: 2px !important;
+}
+
+.vespa-column.attitude .vespa-column-header::before {
+    content: 'A' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 22px !important;
+    height: 22px !important;
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    margin-right: 2px !important;
+}
+
+.vespa-column .category-icon {
+    display: none !important;
+}
+
+/* 3. Activity/Score Displays - Perfect Circles */
+.vespa-activity-display,
+.vespa-score-display {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Fix Attitude circle specifically */
+.vespa-activity-display.attitude,
+.vespa-score-display.attitude {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important;
+    border-radius: 50% !important;
+    width: 56px !important;
+    height: 56px !important;
+}
+
+/* 4. Replace Eye Icon with Professional VIEW Button */
+.vespa-view-button {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 8px !important;
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.3) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.vespa-view-button::before {
+    content: 'VIEW' !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
+    display: block !important;
+}
+
+.vespa-view-button::after {
+    content: '→' !important;
+    font-size: 16px !important;
+    display: block !important;
+    margin-top: -2px !important;
+}
+
+.vespa-view-button:hover {
+    background: linear-gradient(135deg, #0e7490 0%, #164e63 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(8, 145, 178, 0.4) !important;
+}
+
+.vespa-view-button .fa-eye,
+.vespa-view-button i {
+    display: none !important;
+}
+
+/* 5. Better Toggle Switch */
+.display-toggle {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    border-radius: 12px !important;
+    padding: 3px !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.06) !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.toggle-btn {
+    padding: 10px 20px !important;
+    border-radius: 9px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.toggle-btn.active {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%) !important;
+    box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+}
+
+/* 6. Student Row Hover Effects */
+.student-table tbody tr {
+    transition: all 0.2s ease !important;
+    position: relative !important;
+}
+
+.student-table tbody tr:hover {
+    background: linear-gradient(90deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    transform: translateX(2px) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+}
+
+.student-table tbody tr:hover td:first-child::before {
+    content: '' !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 3px !important;
+    background: #0891b2 !important;
+}
+
+/* 7. Progress Bar Improvements */
+.student-progress-bar {
+    height: 8px !important;
+    background: #e2e8f0 !important;
+    border-radius: 100px !important;
+    overflow: visible !important;
+    position: relative !important;
+}
+
+.student-progress-bar .progress-fill {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%) !important;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2) !important;
+    position: relative !important;
+    border-radius: 100px !important;
+}
+
+/* 8. Professional Color Palette */
+.vespa-activity-display.vision,
+.vespa-score-display.vision {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+}
+
+.vespa-activity-display.effort,
+.vespa-score-display.effort {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+}
+
+.vespa-activity-display.systems,
+.vespa-score-display.systems {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+}
+
+.vespa-activity-display.practice,
+.vespa-score-display.practice {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+}
+
+.vespa-activity-display.attitude,
+.vespa-score-display.attitude {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%) !important;
+}
+
+/* ========== INDIVIDUAL STUDENT PAGE IMPROVEMENTS ========== */
+
+/* 1. COMPLETED ACTIVITIES - GREEN CHECK ON RIGHT */
+.compact-activity-card.completed,
+.student-activity-card.completed,
+.activity-card.completed {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
+    border: 2px solid #22c55e !important;
+    position: relative !important;
+    padding-right: 32px !important; /* Space on right for checkmark */
+    padding-left: 8px !important; /* Normal padding on left */
+}
+
+/* Green checkmark on the RIGHT side */
+.compact-activity-card.completed::after,
+.student-activity-card.completed::after,
+.activity-card.completed::after {
+    content: '✓' !important;
+    position: absolute !important;
+    right: 8px !important; /* Position on right */
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 18px !important;
+    height: 18px !important;
+    background: #22c55e !important;
+    color: white !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: bold !important;
+    font-size: 11px !important;
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3) !important;
+    z-index: 10 !important;
+}
+
+/* Remove any left-side checkmarks */
+.compact-activity-card.completed::before,
+.student-activity-card.completed::before,
+.activity-card.completed::before {
+    display: none !important;
+}
+
+/* Remove old flag completely */
+.completion-flag {
+    display: none !important;
+}
+
+/* 2. Category Headers with Styled First Letters */
+.category-main-header .cat-icon {
+    display: none !important;
+}
+
+.category-main-header.vision::before {
+    content: 'V' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: white !important;
+    color: #f97316 !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    margin-right: 8px !important;
+}
+
+.category-main-header.effort::before {
+    content: 'E' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: white !important;
+    color: #3b82f6 !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    margin-right: 8px !important;
+}
+
+.category-main-header.systems::before {
+    content: 'S' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: white !important;
+    color: #10b981 !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    margin-right: 8px !important;
+}
+
+.category-main-header.practice::before {
+    content: 'P' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: white !important;
+    color: #8b5cf6 !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    margin-right: 8px !important;
+}
+
+.category-main-header.attitude::before {
+    content: 'A' !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: white !important;
+    color: #ec4899 !important;
+    border-radius: 50% !important;
+    font-weight: 700 !important;
+    margin-right: 8px !important;
+}
+
+/* 3. Drag & Drop Improvements */
+.student-activities-area,
+.column-activities-compact,
+.level-2-activities,
+.level-3-activities {
+    transition: all 0.3s ease !important;
+    border: 2px dashed transparent !important;
+    border-radius: 8px !important;
+}
+
+.student-activities-area.drag-over,
+.column-activities-compact.drag-over,
+.level-2-activities.drag-over,
+.level-3-activities.drag-over {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+    border-color: #3b82f6 !important;
+    box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.15) !important;
+    transform: scale(1.01) !important;
+}
+
+.compact-activity-card,
+.student-activity-card {
+    cursor: grab !important;
+    transition: all 0.2s ease !important;
+}
+
+.compact-activity-card:active,
+.student-activity-card:active {
+    cursor: grabbing !important;
+}
+
+.compact-activity-card.dragging,
+.student-activity-card.dragging {
+    opacity: 0.8 !important;
+    transform: rotate(3deg) scale(1.05) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+    z-index: 9999 !important;
+}
+
+/* 4. Improved Activity Card Colors */
+.compact-activity-card.vision {
+    background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%) !important;
+    border-left: 3px solid #f97316 !important;
+    color: #431407 !important;
+}
+
+.compact-activity-card.effort {
+    background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%) !important;
+    border-left: 3px solid #3b82f6 !important;
+    color: #1e3a8a !important;
+}
+
+.compact-activity-card.systems {
+    background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%) !important;
+    border-left: 3px solid #10b981 !important;
+    color: #14532d !important;
+}
+
+.compact-activity-card.practice {
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%) !important;
+    border-left: 3px solid #8b5cf6 !important;
+    color: #3b0764 !important;
+}
+
+.compact-activity-card.attitude {
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%) !important;
+    border-left: 3px solid #ec4899 !important;
+    color: #500724 !important;
+}
+
+/* 5. Button Improvements */
+.btn-primary {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(8, 145, 178, 0.2) !important;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3) !important;
+}
+
+.btn-clear-all-compact {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2) !important;
+}
+
+.btn-clear-all-compact:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* 6. Scrollbar Styling */
+*::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+*::-webkit-scrollbar-track {
+    background: #f1f5f9 !important;
+    border-radius: 8px !important;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #cbd5e1 !important;
+    border-radius: 8px !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8 !important;
+}
+
+/* 7. Responsive Fixes for Laptops */
+@media (min-width: 1024px) and (max-width: 1440px) {
+    .activities-by-category {
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 8px !important;
+    }
+    
+    .compact-activity-card {
+        min-height: 36px !important;
+        font-size: 11px !important;
+        padding: 6px 28px 6px 8px !important; /* More space on right for check */
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+    .activities-by-category {
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 6px !important;
+    }
+    
+    .compact-activity-card {
+        font-size: 10px !important;
+        min-height: 32px !important;
+    }
+}
