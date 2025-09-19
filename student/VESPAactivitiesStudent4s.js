@@ -5,7 +5,7 @@
     'use strict';
     
     const VERSION = '2.0';
-    const DEBUG = false;
+    const DEBUG = true;
     
     // Utility function - must be at top to be accessible everywhere
     function log(message, data) {
@@ -6560,14 +6560,14 @@
                     [this.config.fields.newUser]: false
                 };
                 
-                // Update the student record - using correct object_39 and API credentials
+                // Update the student record - using correct object_6 and API credentials from config
                 const response = await $.ajax({
                     type: 'PUT',
-                    url: 'https://api.knack.com/v1/objects/object_39/records/' + this.state.studentId,
+                    url: 'https://api.knack.com/v1/objects/object_6/records/' + this.state.studentId,
                     data: JSON.stringify(updateData),
                     headers: {
-                        'X-Knack-Application-Id': '66e26296d863e5001c6f1e09',
-                        'X-Knack-REST-API-Key': '0b19dcb0-9f43-11ef-8724-eb3bc75b770f',
+                        'X-Knack-Application-Id': this.config.knackAppId,  // Use config credentials
+                        'X-Knack-REST-API-Key': this.config.knackApiKey,   // Use config credentials
                         'Content-Type': 'application/json'
                     }
                 });
