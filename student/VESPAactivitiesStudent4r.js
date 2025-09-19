@@ -5,7 +5,7 @@
     'use strict';
     
     const VERSION = '2.0';
-    const DEBUG = true;
+    const DEBUG = false;
     
     // Utility function - must be at top to be accessible everywhere
     function log(message, data) {
